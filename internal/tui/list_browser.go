@@ -110,8 +110,10 @@ var keys = keyMap{
 }
 
 // BrowserAction represents an action requested from the browser
+// BrowserAction represents an action that can be performed in the browser.
 type BrowserAction string
 
+// Browser action types.
 const (
 	ActionNone        BrowserAction = ""
 	ActionShowDetails BrowserAction = "details"

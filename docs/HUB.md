@@ -71,6 +71,31 @@ Would you like to create a shelf now? (y/n): y
 
 📚 Let's set up your first shelf!
 
+Tip: Type 'help' or '?' at any prompt for more information about shelf structure
+
+Want to learn about shelf architecture first? (y/n): y
+
+═══════════════════════════════════════════════════════════
+  How Shelves Work
+═══════════════════════════════════════════════════════════
+
+Structure:
+  Each shelf is a GitHub repository with:
+    • catalog.yml (in Git) - Metadata for your books
+    • Release assets (not in Git) - The actual PDF/EPUB files
+
+Organization Strategy:
+  1. Start broad - One shelf is often enough at first
+     Example: shelf-books (general collection)
+
+  2. Use tags - Organize books within a shelf using tags
+     Example: --tags programming,golang,textbook
+
+  3. Split later - When a shelf grows large, split it
+     Use: shelfctl split (interactive wizard)
+
+[... more help content ...]
+
 Repository name (e.g., shelf-books): shelf-programming
 Shelf name (e.g., books): programming
 

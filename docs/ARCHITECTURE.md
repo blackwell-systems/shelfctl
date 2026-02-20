@@ -1,0 +1,337 @@
+# Shelf Architecture Guide
+
+This guide explains how shelfctl organizes your library and helps you make informed decisions about structure.
+
+## Core Concepts
+
+### What is a Shelf?
+
+A shelf is a GitHub repository that stores your books:
+
+- **Repository** - A GitHub repo (e.g., `shelf-programming`)
+- **Catalog** - `catalog.yml` file tracked in Git with metadata
+- **Assets** - PDF/EPUB files stored as GitHub Release assets (not in Git)
+
+```
+shelf-programming/
+├── catalog.yml           # Metadata (in Git)
+├── README.md            # Optional (in Git)
+└── releases/
+    └── library/         # Release tag
+        ├── sicp.pdf     # Asset (not in Git)
+        ├── taocp.pdf    # Asset (not in Git)
+        └── ...
+```
+
+## Organization Philosophy
+
+### Start Broad, Split Later
+
+**Don't over-organize at the start!**
+
+1. **Begin with one shelf** - `shelf-books` or `shelf-library`
+2. **Use tags for organization** - Add tags like `programming`, `fiction`, `textbook`
+3. **Split when needed** - When you hit 200-300 books, use `shelfctl split`
+
+This approach:
+- ✓ Gets you started quickly
+- ✓ Avoids premature optimization
+- ✓ Lets usage patterns emerge naturally
+- ✓ Easy to reorganize later
+
+### When to Create Multiple Shelves
+
+Create separate shelves when you have:
+
+**Different Topics with Distinct Audiences**
+```
+shelf-work          # Professional books
+shelf-personal      # Leisure reading
+shelf-research      # Academic papers
+```
+
+**Large Collections (200-300+ books)**
+```
+shelf-programming   # Split from original shelf-books
+shelf-history       # Split from original shelf-books
+shelf-fiction       # Split from original shelf-books
+```
+
+**Different Access Requirements**
+```
+shelf-public        # Public GitHub repo
+shelf-private       # Private GitHub repo
+shelf-team          # Shared with organization
+```
+
+## Naming Conventions
+
+### Repository Names
+
+Use the `shelf-<topic>` pattern:
+
+**Good:**
+- `shelf-programming`
+- `shelf-fiction`
+- `shelf-research-papers`
+- `shelf-textbooks`
+
+**Avoid:**
+- `books` (not descriptive)
+- `my-library` (unclear)
+- `programming-books` (breaks convention)
+
+### Shelf Names (Config)
+
+Shorter than repo names, used in commands:
+
+| Repository Name         | Shelf Name (Config) |
+|------------------------|---------------------|
+| `shelf-programming`    | `programming`       |
+| `shelf-fiction`        | `fiction`           |
+| `shelf-research-papers`| `research`          |
+
+## Sub-Organization with Releases
+
+You can create multiple releases within one shelf for sub-categories:
+
+```
+shelf-programming/
+  release: library        # Default, main collection
+  release: textbooks      # Structured learning materials
+  release: papers         # Academic papers
+  release: references     # Quick references, cheat sheets
+```
+
+### When to Use Multiple Releases
+
+- **Sub-topics within a shelf** - Keep related books together
+- **Different formats** - Separate PDFs from EPUBs
+- **Time-based** - Archive old editions separately
+- **Status** - reading-list vs archive vs favorites
+
+### Moving Between Releases
+
+```bash
+shelfctl move book-id --to-release textbooks
+```
+
+This is cheaper than creating new shelves - keeps everything in one repo.
+
+## Splitting Shelves
+
+When a shelf grows too large, use the interactive split wizard:
+
+```bash
+shelfctl split
+```
+
+### The Split Wizard
+
+1. **Select source shelf** - Choose which shelf to split
+2. **Choose strategy:**
+   - By tag - Group books by their tags
+   - By size - Split evenly by count
+   - Manual - Assign one by one
+3. **Preview groupings** - See what goes where
+4. **Confirm and execute** - Automatic migration
+
+### What Happens During Split
+
+1. Books are downloaded from source shelf
+2. Uploaded to target shelf releases
+3. Catalogs are updated automatically
+4. Old entries removed from source
+5. No data loss - everything is moved, not copied
+
+## Tags vs Shelves vs Releases
+
+Choose the right organization level:
+
+| Use Case | Solution | Example |
+|----------|----------|---------|
+| Similar books, slight variations | **Tags** | `--tags golang,web,tutorial` |
+| Related sub-topics in one area | **Releases** | `release: textbooks` |
+| Completely different domains | **Shelves** | `shelf-programming` vs `shelf-fiction` |
+
+### Tags (Lightest)
+
+- Add to any book: `--tags cs,algorithms,textbook`
+- Filter: `shelfctl browse --tag algorithms`
+- No overhead, infinite flexibility
+- **Use first**, before considering releases or shelves
+
+### Releases (Medium)
+
+- Multiple categories within one shelf
+- No new repo needed
+- Slight overhead (separate asset uploads)
+- Good for: sub-topics, formats, status
+
+### Shelves (Heaviest)
+
+- Separate GitHub repos
+- Most overhead (separate repos to manage)
+- Good for: major topics, different access levels
+
+## Scaling Guidelines
+
+### Small Library (0-100 books)
+
+- **One shelf** - `shelf-books` or `shelf-library`
+- **Use tags** - Organize everything with tags
+- **One release** - Keep it simple with `library`
+
+### Medium Library (100-300 books)
+
+- **2-3 shelves** - Split by major topic if needed
+- **Tags + releases** - Combine for organization
+- **Consider splitting** - When approaching 300
+
+### Large Library (300+ books)
+
+- **Multiple shelves** - By topic or domain
+- **Multiple releases** - Sub-organize within shelves
+- **Split regularly** - Keep shelves under 300 books
+
+## Common Patterns
+
+### Academic Researcher
+
+```
+shelf-papers/
+  release: reading-list
+  release: cited
+  release: archive
+```
+
+### Software Developer
+
+```
+shelf-programming/
+  release: library (general)
+  release: languages
+  release: systems
+
+shelf-references/
+  release: library (cheat sheets, docs)
+```
+
+### General Reader
+
+```
+shelf-books/
+  Use tags: fiction, non-fiction, biography, etc.
+```
+
+Split later into:
+```
+shelf-fiction/
+shelf-non-fiction/
+shelf-technical/
+```
+
+## Migration Strategy
+
+### From Monolithic Repo
+
+If you have an existing `books` repo with 500+ PDFs:
+
+1. **Scan the old repo:**
+   ```bash
+   shelfctl migrate scan --source you/old-books > queue.txt
+   ```
+
+2. **Create organized shelves:**
+   ```bash
+   shelfctl init --repo shelf-programming --name programming --create-repo
+   shelfctl init --repo shelf-history --name history --create-repo
+   ```
+
+3. **Edit queue.txt** - Assign each file to a shelf
+
+4. **Migrate in batches:**
+   ```bash
+   shelfctl migrate batch queue.txt --n 20 --continue
+   ```
+
+### From Multiple Scattered Repos
+
+Use `shelfctl import` to consolidate:
+
+```bash
+shelfctl import --from-shelf old-prog-books --to-shelf programming
+shelfctl import --from-shelf random-pdfs --to-shelf books --filter-tag cs
+```
+
+## Best Practices
+
+### ✓ Do
+
+- Start with one broad shelf
+- Use tags liberally
+- Let organization emerge naturally
+- Split when you feel friction (200-300 books)
+- Use descriptive names (`shelf-programming`, not `prog`)
+- Keep releases to 2-4 per shelf
+
+### ✗ Avoid
+
+- Creating many shelves upfront
+- Overly specific shelf names
+- Premature optimization
+- Deep nesting (no sub-releases within releases)
+- Organizing before you have enough books
+
+## Decision Tree
+
+```
+Do I need a new shelf?
+│
+├─ Do I have < 100 books total?
+│  └─ No → Use one shelf + tags
+│
+├─ Is this a completely different topic?
+│  └─ Yes → Create new shelf
+│
+├─ Do I have > 300 books in one shelf?
+│  └─ Yes → Run `shelfctl split`
+│
+└─ Otherwise → Use tags or releases
+```
+
+## Advanced: GitHub Limits
+
+### Release Asset Limits (Soft)
+
+- GitHub doesn't publish hard limits
+- Release assets avoid Git's 100MB file size limit
+- In practice: 100s of assets per release work fine
+- If you hit issues: split shelf or use multiple releases
+
+### Repository Limits
+
+- Git repo size: Keep under 5GB
+- With shelfctl: Only `catalog.yml` is in Git (tiny)
+- Assets don't count toward repo size
+- In practice: Shelves can hold many GBs of books
+
+### API Rate Limits
+
+- Authenticated: 5000 requests/hour
+- Most operations: 1-3 API calls
+- Large migrations: Use `--n` flag to batch
+- Rate limit resets hourly
+
+## Getting Help
+
+- Type `help` or `?` during interactive init
+- Read `docs/TUTORIAL.md` for walkthrough
+- Run `shelfctl split --help` for split options
+- See `docs/COMMANDS.md` for all commands
+
+## Summary
+
+**Key Takeaway:** Start simple (one shelf + tags), organize as you go, split when needed.
+
+shelfctl makes reorganization easy, so don't stress about getting it perfect upfront. Your first shelf name matters less than you think - you can always split and restructure later.

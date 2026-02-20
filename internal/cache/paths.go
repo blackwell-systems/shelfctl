@@ -32,3 +32,13 @@ func (m *Manager) EnsureDir(owner, repo, bookID string) error {
 	dir := filepath.Join(m.baseDir, owner, repo, bookID)
 	return os.MkdirAll(dir, 0750)
 }
+
+// Remove deletes the cached file if it exists.
+func (m *Manager) Remove(owner, repo, bookID, assetFilename string) error {
+	path := m.Path(owner, repo, bookID, assetFilename)
+	err := os.Remove(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}

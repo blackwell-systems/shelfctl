@@ -172,6 +172,7 @@ shelfctl open sicp
 | `info <id>` | Show metadata and cache status |
 | `open <id>` | Open a book (auto-downloads if needed) |
 | `shelve <file\|url>` | Add a book to your library |
+| `delete-book <id>` | Remove a book from your library |
 | `move <id>` | Move between releases or shelves |
 | `split` | Interactive wizard to split a shelf |
 | `migrate one` | Migrate a single file from an old repo |

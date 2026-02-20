@@ -209,22 +209,32 @@ func showShelfArchitectureHelp() {
 func runInteractiveInit() error {
 	fmt.Println(color.CyanString("📚 Let's set up your first shelf!"))
 	fmt.Println()
-	fmt.Println(color.GreenString("Tip:") + " Type 'help' or '?' at any prompt for more information about shelf structure")
+	fmt.Println(color.GreenString("Tip:") + " Type 'help' or '?' at any prompt for detailed guidance")
 	fmt.Println()
 
 	// Offer architecture info upfront
-	fmt.Print("Want to learn about shelf architecture first? (y/n): ")
-	var wantInfo string
-	fmt.Scanln(&wantInfo)
-	if wantInfo == "y" || wantInfo == "Y" || wantInfo == "yes" {
-		showShelfArchitectureHelp()
+	for {
+		fmt.Print("Want to learn about shelf architecture first? (y/n/?): ")
+		var wantInfo string
+		fmt.Scanln(&wantInfo)
+
+		if wantInfo == "help" || wantInfo == "?" {
+			showShelfArchitectureHelp()
+			fmt.Println()
+			continue
+		}
+
+		if wantInfo == "y" || wantInfo == "Y" || wantInfo == "yes" {
+			showShelfArchitectureHelp()
+		}
+		break
 	}
 	fmt.Println()
 
 	// Get repo name with help option
 	var repoName string
 	for {
-		fmt.Print("Repository name (e.g., shelf-books): ")
+		fmt.Print("Repository name (e.g., shelf-books) [?=help]: ")
 		fmt.Scanln(&repoName)
 
 		if repoName == "help" || repoName == "?" {
@@ -243,7 +253,7 @@ func runInteractiveInit() error {
 	// Get shelf name with help option
 	var shelfName string
 	for {
-		fmt.Print("Shelf name (e.g., books): ")
+		fmt.Print("Shelf name (e.g., books) [?=help]: ")
 		fmt.Scanln(&shelfName)
 
 		if shelfName == "help" || shelfName == "?" {

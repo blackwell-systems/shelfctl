@@ -71,9 +71,9 @@ Would you like to create a shelf now? (y/n): y
 
 📚 Let's set up your first shelf!
 
-Tip: Type 'help' or '?' at any prompt for more information about shelf structure
+Tip: Type 'help' or '?' at any prompt for detailed guidance
 
-Want to learn about shelf architecture first? (y/n): y
+Want to learn about shelf architecture first? (y/n/?): y
 
 ═══════════════════════════════════════════════════════════
   How Shelves Work

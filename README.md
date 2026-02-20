@@ -1,8 +1,22 @@
 # shelfctl
 
-A Go CLI for managing a personal document library using GitHub repos and releases as storage.
+![shelfctl](logo.png)
 
-**Shelf repos** (GitHub repos) hold metadata. **GitHub Release assets** hold the actual files (PDF/EPUB/etc.). No self-hosted infrastructure required.
+Zero-infrastructure document library. No database, no S3, no servers. Just GitHub repos you already have.
+
+Metadata lives in `catalog.yml`. Files (PDF/EPUB/etc.) are stored as GitHub Release assets. Free within GitHub limits, works anywhere git works.
+
+---
+
+## Why
+
+**No ops burden**: No database to maintain, no blob storage to configure, no servers to patch. GitHub handles availability, backups, and CDN distribution.
+
+**Zero cost to start**: Free for public repos. Private repos get 2GB storage + 10GB bandwidth/month on GitHub Free. Scale up only if you need it.
+
+**Portable**: Your library is just git repos. Clone anywhere, migrate anytime. No vendor lock-in, no proprietary formats.
+
+**Scriptable**: CLI-first design. Pipe commands, write shell scripts, integrate with your existing workflows.
 
 ---
 
@@ -18,13 +32,13 @@ A Go CLI for managing a personal document library using GitHub repos and release
 ## Install
 
 ```bash
-go install github.com/YOUR_GH_OWNER/shelfctl/cmd/shelfctl@latest
+go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/YOUR_GH_OWNER/shelfctl
+git clone https://github.com/blackwell-systems/shelfctl
 cd shelfctl
 make build
 ```
@@ -34,8 +48,7 @@ make build
 ## Quick start
 
 ```bash
-# Configure
-cp config.example.yml ~/.config/shelfctl/config.yml
+# Set your GitHub token
 export GITHUB_TOKEN=ghp_...
 
 # Bootstrap a shelf

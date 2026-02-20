@@ -8,6 +8,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Book Deletion Command**
+  - New `delete-book` command for removing books from library
+  - Interactive book picker when no ID provided
+  - Deletes both release asset and catalog entry
+  - Clears from local cache automatically
+  - Requires confirmation (type book ID to confirm)
+  - Added to hub menu as "Delete Book" option
+  - Filtered from menu when no books exist
+  - Completes CRUD operations: Create (shelve), Read (browse), Update (move), Delete (delete-book)
+- **Fully Interactive Book Browser**
+  - `browse` command now supports real-time actions:
+    - `enter` - Show detailed book information
+    - `o` - Open book (downloads if needed, opens with system viewer)
+    - `g` - Download to cache only (for offline access)
+    - `q` - Quit browser
+  - Auto-downloads books when opening if not cached
+  - Shows download progress with file size
+  - Displays full metadata on demand
+  - All actions work seamlessly from TUI
+- **Hub Loop Implementation**
+  - Hub menu now loops continuously until user quits
+  - Returns to menu after command completion
+  - Shows "Press Enter to return to menu..." prompt
+  - Reloads config after operations to reflect changes
+  - Handles errors gracefully with option to retry
+  - No more dropped back to shell after single operation
+- **Enhanced Interactive Init**
+  - Detects and handles existing repositories gracefully
+  - Prompts to use existing repo or enter different name
+  - Interactive public/private repository visibility choice
+  - Shows visibility in summary before creation
+  - Skips README creation if already exists
+  - Checks for duplicate shelf names in config
+  - Returns to hub menu after successful init (not back to shell)
+- **Improved Delete Shelf Flow**
+  - Interactive prompt: "What should happen to the GitHub repository?"
+  - Clear numbered choices with explanations
+  - Option 1: Keep repo (remove from config only)
+  - Option 2: Delete permanently (repository and all books)
+  - Visual warnings with color-coded dangerous operations
+  - Shows exactly what will be deleted before confirmation
+- **Smart Hub Menu Filtering**
+  - Hides shelf-related options when no shelves configured
+  - Hides "Browse Library" when no books exist
+  - Hides "Delete Book" when no books exist
+  - Shows appropriate first-time setup guidance
+  - Menu always shows only available actions
+- **Repository Visibility Control**
+  - `--private` flag for `init` command (default: true)
+  - Interactive prompt during init workflow
+  - Clear explanations of public vs private
+  - Visibility shown in summary before creation
+- **Reusable TUI Components**
+  - `tui.RunBookPicker()` - Selectable book list
+  - `tui.BrowserAction` - Action result types
+  - `tui.BrowserResult` - Structured action results
+  - Components can be reused across features
+
+### Added
 - **Comprehensive Architecture Documentation**
   - New `docs/ARCHITECTURE.md` guide covering:
     - Core concepts (shelves, catalogs, assets)
@@ -76,6 +135,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--force` flag to bypass checks and overwrite existing assets
 
 ### Changed
+- **README Copy Improvements**
+  - Rewrote intro section for better clarity and scannability
+  - Enhanced "Why" section with clear headers and bullet points
+  - Improved "How it works" section with detailed explanations
+  - More conversational and direct tone throughout
+  - Added visual hierarchy for easier scanning
+- **Hub Menu Organization**
+  - Added "Delete Book" option between "Add Book" and "Delete Shelf"
+  - Logical grouping: Browse → Add → Delete Book → Delete Shelf → Quit
+  - Dynamic filtering based on application state
+- **Book Browser Return Type**
+  - Changed from simple error return to structured `BrowserResult`
+  - Returns selected book and action for processing
+  - Enables interactive actions within browser
+  - Cleaner separation of concerns
 - **BREAKING: Command renames for end-user clarity**
   - `list` → `browse` (better matches interactive TUI functionality)
   - `add` → `shelve` (stronger library metaphor)
@@ -95,6 +169,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clearer error messages for duplicates
   - Force mode explicitly deletes existing assets before re-uploading
   - `open` command inlines download logic (previously called `get`)
+
+### Fixed
+- **Config Reload After Hub Commands**
+  - Fixed stale config bug where deleted shelves still appeared in menu
+  - Config now reloads from disk after each successful command
+  - Ensures menu reflects current state (added/removed shelves)
+  - Prevents "not found" errors on subsequent operations
+- **Linter Compliance**
+  - Fixed all `errcheck` issues (ignored return values)
+  - Fixed `revive` var-naming issues (renamed `select_` to `selectItem`)
+  - Fixed `ineffassign` issues (proper variable initialization)
+  - Fixed exported function documentation
+  - Fixed error string capitalization
+  - All code passes golangci-lint with project configuration
+- **File Picker Permission Handling**
+  - Gracefully handles permission denied errors
+  - Shows parent directory (..) when access denied
+  - Changed starting directory from Downloads to current working directory
+  - No longer crashes on permission errors
+- **Delete Shelf Repository Confusion**
+  - Changed wording from "Delete repository?" to numbered choices
+  - Clear explanation of what each option does
+  - Prevents accidental permanent deletion
+  - Shows exactly what will happen before confirmation
+- **Cyclomatic Complexity**
+  - Refactored 7 high-complexity functions
+  - Extracted helper functions for better maintainability
+  - `shelve.go`: 35 → ~10 (12 helpers)
+  - `move.go`: 31 → ~8 (7 helpers)
+  - `import.go`: 28 → ~10 (7 helpers)
+  - `split.go`: 27 → ~12 (5 helpers)
+  - `init.go`: 22 → ~8 (6 helpers)
+  - `migrate.go`: 22 & 19 → ~10 & ~8 (9 helpers)
 
 ## [0.1.0] - 2024-02-20
 

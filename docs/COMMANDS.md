@@ -178,7 +178,14 @@ When run in a terminal, `browse` shows an interactive browser with:
 - Keyboard navigation (↑/↓ or j/k)
 - Live filtering (press `/` to search)
 - Visual display with tags and cache status
-- Color-coded indicators ([OK] = cached)
+- Color-coded indicators (green ✓ = cached)
+- **Interactive actions:**
+  - `enter` - Show detailed book information
+  - `o` - Open book (downloads if needed, opens with system viewer)
+  - `g` - Download to cache only (for offline access)
+  - `q` - Quit browser
+
+The browser auto-downloads books when opening if not cached and shows progress.
 
 Use `--no-interactive` or pipe output to get text mode.
 
@@ -220,6 +227,112 @@ programming/taocp-vol1
   tags: algorithms, cs
   format: pdf, 15.8 MB
 ```
+
+---
+
+## delete-book
+
+Remove a book from your library.
+
+```bash
+shelfctl delete-book [id] [flags]
+```
+
+### Interactive Mode (no arguments)
+
+When run in a terminal with no arguments, `delete-book` shows an interactive book picker:
+
+```bash
+# Interactive picker
+shelfctl delete-book
+```
+
+### Flags
+
+- `--shelf`: Specify shelf if book ID is ambiguous
+- `--yes`: Skip confirmation prompt
+
+### Examples
+
+```bash
+# Interactive mode - shows picker
+shelfctl delete-book
+
+# Direct deletion
+shelfctl delete-book sicp --shelf programming
+
+# Skip confirmation
+shelfctl delete-book sicp --yes
+```
+
+### What it does
+
+1. Finds the book in your library
+2. Shows book details and warning
+3. Requires confirmation (type book ID to confirm)
+4. Deletes the GitHub release asset (PDF/EPUB file)
+5. Removes entry from catalog.yml
+6. Clears from local cache if present
+7. Commits updated catalog
+
+**Warning:** This is a destructive operation and cannot be easily undone.
+
+---
+
+## delete-shelf
+
+Remove a shelf from your configuration.
+
+```bash
+shelfctl delete-shelf [name] [flags]
+```
+
+### Interactive Mode (no arguments)
+
+When run with no arguments, shows an interactive shelf picker:
+
+```bash
+# Interactive picker
+shelfctl delete-shelf
+```
+
+### Flags
+
+- `--delete-repo`: Also delete the GitHub repository (DESTRUCTIVE)
+- `--yes`: Skip confirmation prompt
+
+### Examples
+
+```bash
+# Remove from config only (keeps repo)
+shelfctl delete-shelf old-books
+
+# Remove AND delete the GitHub repo permanently
+shelfctl delete-shelf old-books --delete-repo --yes
+```
+
+### What it does
+
+By default (without `--delete-repo`):
+1. Removes shelf from your config file
+2. **Keeps** the GitHub repository and all books
+3. You can re-add the shelf later with `shelfctl init`
+
+With `--delete-repo`:
+1. Removes shelf from your config file
+2. **Permanently deletes** the GitHub repository
+3. **Deletes all books** (release assets)
+4. **Deletes all catalog history**
+5. **This cannot be undone**
+
+### Interactive Prompts
+
+When run interactively, you'll see:
+1. Shelf picker (if no name provided)
+2. Repository choice:
+   - Keep it (default) - Remove from config only
+   - Delete permanently - Delete repository and all books
+3. Confirmation (type shelf name to confirm)
 
 ---
 

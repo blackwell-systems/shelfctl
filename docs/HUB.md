@@ -25,27 +25,49 @@ The hub displays:
 
 ### Available Operations
 
-The hub currently provides access to:
+The hub provides access to all core operations and loops continuously until you quit:
 
 **Browse Library**
 - Launch the interactive book browser
-- View all books across shelves
+- View all books across shelves with metadata
 - Navigate with keyboard (↑/↓ or j/k)
-- Filter and search (press `/`)
-- See cache status
+- Filter and search in real-time (press `/`)
+- See cache status (green ✓ for cached books)
+- **Interactive Actions:**
+  - `enter` - Show detailed book information
+  - `o` - Open book (downloads if needed, opens with system viewer)
+  - `g` - Download to cache only (for offline access)
+  - `q` - Return to hub menu
+- Auto-downloads books when opening if not cached
+- Shows download progress with file size
 
 **Add Book**
 - Add a new book with guided workflow
 - Shelf picker (if multiple shelves)
-- File browser starting in ~/Downloads
+- File browser starting in current directory
+- Filters for supported formats (.pdf, .epub, .mobi, .djvu)
 - Metadata form with smart defaults
 - Automatic upload and cataloging
+- Returns to hub menu after completion
+
+**Delete Book**
+- Interactive book picker showing all books
+- Shows book details before deletion
+- Safety confirmation (type book ID to confirm)
+- Removes from catalog.yml and deletes GitHub release asset
+- Clears from local cache automatically
+- Returns to hub menu after completion
+- Hidden when no books exist
 
 **Delete Shelf**
 - Interactive shelf picker
-- Shows what will be kept vs deleted
+- Clear numbered choices:
+  - Keep repository (remove from config only)
+  - Delete permanently (repository and all books)
 - Safety confirmation (type shelf name to confirm)
-- Option to keep or delete GitHub repository
+- Shows exactly what will be deleted
+- Returns to hub menu after completion
+- Hidden when no shelves exist
 
 **Quit**
 - Exit shelfctl cleanly
@@ -173,6 +195,8 @@ It will display the standard CLI help instead.
 │                                                           │
 │    Add Book          Add a new book to your library      │
 │                                                           │
+│    Delete Book       Remove a book from your library     │
+│                                                           │
 │    Delete Shelf      Remove a shelf from configuration   │
 │                                                           │
 │    Quit              Exit shelfctl                       │
@@ -181,15 +205,18 @@ It will display the standard CLI help instead.
 └──────────────────────────────────────────────────────────┘
 ```
 
-Clean, focused, and functional. Additional commands are available via `shelfctl <command>`.
+Clean, focused, and functional. The menu dynamically shows only available operations (e.g., "Delete Book" is hidden when no books exist). Additional commands are available via `shelfctl <command>`.
 
 ## Advantages of the Hub
 
 1. **Discoverability** - See all available operations at a glance
 2. **Guidance** - No need to remember command names or flags
-3. **Visual feedback** - See shelf/book counts in real-time
+3. **Visual feedback** - See shelf/book counts in real-time, cache status, progress
 4. **Consistent experience** - All operations follow similar patterns
-5. **Faster** - No need to type commands repeatedly
+5. **Faster** - No need to type commands repeatedly, stays in loop
+6. **Smart filtering** - Menu shows only available operations (no clutter)
+7. **Complete workflow** - From browsing to opening books without leaving TUI
+8. **Safety** - Clear confirmations for destructive operations
 
 ## CLI Compatibility
 
@@ -208,30 +235,46 @@ shelfctl  # launches interactive menu
 
 ## Implementation Status
 
-**Phase 1 (Complete):**
-- [DONE] Hub menu with navigation
+**Phase 1 (Complete - Feature Complete!):**
+- [DONE] Hub menu with navigation and keyboard controls
 - [DONE] Status bar showing shelf/book counts
-- [DONE] Integration with browse command
-- [DONE] Integration with shelve command
+- [DONE] Integration with browse command (interactive browser)
+- [DONE] Integration with shelve command (guided workflow)
 - [DONE] Smart welcome with status checks
-- [DONE] Interactive init workflow
+- [DONE] Interactive init workflow with public/private choice
 - [DONE] Architecture help system
-- [DONE] Clean, focused menu (no "coming soon" clutter)
+- [DONE] Clean, focused menu with smart filtering
 - [DONE] Auto-generated shelf READMEs
-- [DONE] Delete shelf command
+- [DONE] Delete shelf command with repository choice
+- [DONE] Delete book command with interactive picker
+- [DONE] Fully interactive book browser with actions:
+  - [DONE] Open books directly from browser
+  - [DONE] Download to cache for offline
+  - [DONE] Show detailed book information
+- [DONE] Hub loop - stays in menu after operations
+- [DONE] Config reload after changes
+- [DONE] Dynamic menu filtering based on state
+- [DONE] Graceful error handling
 
-**Future Enhancements:**
+**The interactive TUI is feature-complete!** All core library operations can be performed without leaving the hub.
 
-As we build out Phase 2, new operations will be added to the hub menu:
-- Open book picker (fuzzy search)
-- Info viewer (book details)
-- Shelves dashboard (status overview)
-- Move wizard (reorganize books)
-- Import wizard (copy from shelves)
-- Split wizard (organize large shelves)
-- Migrate wizard (import from old repos)
+**Future Enhancements (Phase 2):**
 
-For now, these operations remain available via direct command invocation.
+Additional operations that could be added to the hub menu:
+- Shelves dashboard (detailed status overview per shelf)
+- Move wizard (drag-and-drop reorganization)
+- Import wizard (copy books from other shelves)
+- Split wizard (reorganize large shelves)
+- Migrate wizard (import from old repos with progress bars)
+- Settings panel (configure cache, defaults)
+
+For now, these operations remain available via direct command invocation:
+```bash
+shelfctl move <id> --to-shelf history
+shelfctl split
+shelfctl migrate batch queue.txt
+shelfctl import --from other-shelf
+```
 
 ## Feedback
 

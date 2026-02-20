@@ -5,8 +5,9 @@ Complete reference for all `shelfctl` commands.
 ## Global flags
 
 ```
---config string     Config file path (default: ~/.config/shelfctl/config.yml)
---no-color         Disable colored output
+--config string       Config file path (default: ~/.config/shelfctl/config.yml)
+--no-color           Disable colored output
+--no-interactive     Disable interactive TUI mode
 ```
 
 ---
@@ -76,12 +77,26 @@ For each shelf:
 
 ---
 
-## add
+## shelve
 
-Ingest a document into a shelf.
+Add a book to your library.
 
 ```bash
-shelfctl shelve <file|url|github:owner/repo@ref:path> --shelf NAME [flags]
+shelfctl shelve [file|url|github:owner/repo@ref:path] [flags]
+```
+
+### Interactive Mode (no arguments)
+
+When run in a terminal with no arguments, `shelve` launches a fully guided workflow:
+
+1. **Select shelf** - Choose from configured shelves
+2. **Pick file** - Browse filesystem (starts in ~/Downloads, shows .pdf/.epub/.mobi/.djvu)
+3. **Enter metadata** - Fill form with title, author, tags, ID
+4. **Upload** - Automatic upload to GitHub and catalog update
+
+```bash
+# Fully interactive
+shelfctl shelve
 ```
 
 ### Arguments
@@ -90,10 +105,11 @@ Source can be:
 - Local file: `~/Downloads/book.pdf`
 - HTTP URL: `https://example.com/book.pdf`
 - GitHub repo: `github:user/repo@main:path/to/book.pdf`
+- None: launches file picker (interactive mode)
 
 ### Flags
 
-- `--shelf` (required): Target shelf name
+- `--shelf`: Target shelf name (interactive picker if omitted)
 - `--title`: Book title (prompts if omitted)
 - `--author`: Author name
 - `--year`: Publication year
@@ -107,7 +123,13 @@ Source can be:
 ### Examples
 
 ```bash
-# Add local file with metadata
+# Fully interactive (no arguments)
+shelfctl shelve
+
+# Interactive form with file provided
+shelfctl shelve ~/Downloads/sicp.pdf
+
+# Non-interactive with all metadata
 shelfctl shelve ~/Downloads/sicp.pdf \
   --shelf programming \
   --title "Structure and Interpretation of Computer Programs" \
@@ -131,29 +153,41 @@ shelfctl shelve book.pdf --shelf fiction --id-sha12 --title "Novel"
 
 ### What it does
 
-1. Downloads/reads the source file
-2. Computes SHA256 checksum and size
-3. Prompts for required metadata (title, ID)
-4. Uploads file as GitHub release asset
-5. Updates `catalog.yml` with metadata
-6. Commits and pushes catalog changes
+1. Interactive mode: Launches shelf/file pickers and metadata form
+2. Downloads/reads the source file
+3. Computes SHA256 checksum and size
+4. Collects metadata (interactively or from flags)
+5. Checks for duplicates (SHA256 and asset name)
+6. Uploads file as GitHub release asset
+7. Updates `catalog.yml` with metadata
+8. Commits and pushes catalog changes
 
 ---
 
-## list
+## browse
 
-List books with filtering.
+Browse your library (interactive TUI or text output).
 
 ```bash
 shelfctl browse [--shelf NAME] [--tag TAG] [--format FORMAT]
 ```
+
+### Interactive Mode (TUI)
+
+When run in a terminal, `browse` shows an interactive browser with:
+- Keyboard navigation (↑/↓ or j/k)
+- Live filtering (press `/` to search)
+- Visual display with tags and cache status
+- Color-coded indicators (✓ = cached)
+
+Use `--no-interactive` or pipe output to get text mode.
 
 ### Flags
 
 - `--shelf`: Filter by shelf name
 - `--tag`: Filter by tag
 - `--format`: Filter by format (pdf, epub, etc.)
-- `--all`: Show all shelves (default if no filters)
+- `--search`: Full-text search across title, author, tags
 
 ### Examples
 
@@ -229,39 +263,9 @@ Added:     2024-01-15T10:30:00Z
 
 ---
 
-## get
-
-Download a book to local cache.
-
-```bash
-shelfctl open <id>
-```
-
-### Arguments
-
-- `id`: Book ID (searches across all shelves)
-
-### Example
-
-```bash
-shelfctl open sicp
-```
-
-### What it does
-
-1. Looks up book in all catalogs
-2. Downloads from GitHub release asset
-3. Verifies SHA256 checksum
-4. Saves to cache directory
-5. Shows cache path
-
-If already cached and checksum matches, skips download.
-
----
-
 ## open
 
-Open a book (downloads if needed).
+Open a book (auto-downloads if needed).
 
 ```bash
 shelfctl open <id>

@@ -167,7 +167,7 @@ This tool manages user-provided files in user-owned GitHub repos and releases. I
 
 <p align="center">
   <a href="https://github.com/blackwell-systems/shelfctl">
-    <img src="assets/enjoying.png" alt="Enjoying shelfctl? Star the repo!" width="600">
+    <img src="assets/enjoying.png" alt="Enjoying shelfctl? Star the repo!" width="500">
   </a>
 </p>
 

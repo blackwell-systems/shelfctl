@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
@@ -65,7 +66,7 @@ func Load() (*Config, error) {
 	}
 
 	// Expand ~ in cache dir.
-	cfg.Defaults.CacheDir = ExpandHome(cfg.Defaults.CacheDir)
+	cfg.Defaults.CacheDir = util.ExpandHome(cfg.Defaults.CacheDir)
 
 	return &cfg, nil
 }
@@ -84,15 +85,6 @@ func Save(cfg *Config) error {
 	enc := yaml.NewEncoder(f)
 	enc.SetIndent(2)
 	return enc.Encode(cfg)
-}
-
-// ExpandHome expands a leading ~/ in a path.
-func ExpandHome(path string) string {
-	if strings.HasPrefix(path, "~/") {
-		home, _ := os.UserHomeDir()
-		return filepath.Join(home, path[2:])
-	}
-	return path
 }
 
 func defaultCacheDir() string {

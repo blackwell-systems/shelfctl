@@ -243,17 +243,24 @@ func promptOrDefault(label, def string) string {
 }
 
 // slugify converts a title to a lowercase, hyphenated ID candidate.
+// Consecutive non-alphanumeric characters collapse into a single hyphen.
 func slugify(s string) string {
 	s = strings.ToLower(s)
 	var b strings.Builder
+	prevWasSep := false
 	for _, r := range s {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+		isAlnum := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if isAlnum {
 			b.WriteRune(r)
-		} else if b.Len() > 0 {
-			b.WriteRune('-')
+			prevWasSep = false
+		} else {
+			if !prevWasSep && b.Len() > 0 {
+				b.WriteRune('-')
+			}
+			prevWasSep = true
 		}
 	}
-	result := strings.Trim(b.String(), "-")
+	result := strings.TrimRight(b.String(), "-")
 	if len(result) > 63 {
 		result = result[:63]
 	}

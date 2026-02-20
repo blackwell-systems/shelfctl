@@ -4,10 +4,20 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func EnsureDir(path string) error {
 	return os.MkdirAll(path, 0755)
+}
+
+// ExpandHome expands a leading ~/ to the user's home directory.
+func ExpandHome(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, path[2:])
+	}
+	return path
 }
 
 func CopyFile(src, dst string) error {

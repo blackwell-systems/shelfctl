@@ -10,11 +10,6 @@
   <img src="assets/padded.png" alt="shelfctl">
 </p>
 
-<p align="center">
-  <img src="shelf.png" alt="shelfctl" width="">
-</p>
-
-
 **Organize the PDFs and books you already have scattered across GitHub repos.**
 
 Most developers have a mess: one monolithic `books` repo with 500+ PDFs, or files scattered across random repos and gists. Maybe you've hit Git's file size limits or that "this exceeds GitHub's file size limit of 100.00 MB" error. Maybe you're using Git LFS but it's expensive and clunky.

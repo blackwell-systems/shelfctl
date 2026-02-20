@@ -128,20 +128,133 @@ func header(format string, a ...interface{}) {
 	fmt.Println(color.CyanString(fmt.Sprintf(format, a...)))
 }
 
+// runInteractiveInit guides the user through creating their first shelf
+func runInteractiveInit() error {
+	fmt.Println(color.CyanString("📚 Let's set up your first shelf!"))
+	fmt.Println()
+
+	// Get repo name
+	fmt.Print("Repository name (e.g., shelf-books): ")
+	var repoName string
+	fmt.Scanln(&repoName)
+	if repoName == "" {
+		repoName = "shelf-books"
+		fmt.Printf("  Using default: %s\n", repoName)
+	}
+
+	// Get shelf name
+	fmt.Print("Shelf name (e.g., books): ")
+	var shelfName string
+	fmt.Scanln(&shelfName)
+	if shelfName == "" {
+		// Default: strip "shelf-" prefix if present
+		shelfName = repoName
+		if len(repoName) > 6 && repoName[:6] == "shelf-" {
+			shelfName = repoName[6:]
+		}
+		fmt.Printf("  Using default: %s\n", shelfName)
+	}
+
+	// Confirm creation
+	fmt.Println()
+	fmt.Printf("This will create:\n")
+	fmt.Printf("  • GitHub repository: %s/%s\n", cfg.GitHub.Owner, repoName)
+	fmt.Printf("  • Release tag: library\n")
+	fmt.Printf("  • Shelf name: %s\n", shelfName)
+	fmt.Println()
+	fmt.Print("Proceed? (y/n): ")
+	var confirm string
+	fmt.Scanln(&confirm)
+
+	if confirm != "y" && confirm != "Y" && confirm != "yes" {
+		fmt.Println(color.YellowString("Cancelled."))
+		fmt.Println()
+		fmt.Println("You can run this manually anytime:")
+		fmt.Printf("  %s\n", color.CyanString(fmt.Sprintf("shelfctl init --repo %s --name %s --create-repo --create-release", repoName, shelfName)))
+		return nil
+	}
+
+	// Run init command
+	fmt.Println()
+	initCmd := newInitCmd()
+	initCmd.SetArgs([]string{
+		"--repo", repoName,
+		"--name", shelfName,
+		"--create-repo",
+		"--create-release",
+	})
+
+	if err := initCmd.Execute(); err != nil {
+		return fmt.Errorf("init failed: %w", err)
+	}
+
+	fmt.Println()
+	fmt.Println(color.GreenString("✓ Shelf created successfully!"))
+	fmt.Println()
+	fmt.Println("What's next?")
+	fmt.Printf("  1. Add your first book:\n")
+	fmt.Printf("     %s\n\n", color.CyanString("shelfctl shelve"))
+	fmt.Printf("  2. Or run the interactive menu:\n")
+	fmt.Printf("     %s\n", color.CyanString("shelfctl"))
+
+	return nil
+}
+
 // runHub launches the interactive hub menu and routes to selected action
 func runHub() error {
-	// Check if config is set up
-	if cfg == nil || len(cfg.Shelves) == 0 {
+	// Check configuration status
+	hasToken := cfg != nil && cfg.GitHub.Token != ""
+	hasShelves := cfg != nil && len(cfg.Shelves) > 0
+
+	// If not fully configured, show welcome/setup message
+	if !hasToken || !hasShelves {
 		fmt.Println(color.YellowString("⚠ Welcome to shelfctl!"))
 		fmt.Println()
-		fmt.Println("You need to set up your first shelf before using the library.")
+		fmt.Println("Setup status:")
 		fmt.Println()
-		fmt.Println("Quick start:")
-		fmt.Printf("  1. Set your GitHub token:\n")
-		fmt.Printf("     %s\n\n", color.CyanString("export GITHUB_TOKEN=ghp_your_token_here"))
-		fmt.Printf("  2. Create your first shelf:\n")
-		fmt.Printf("     %s\n\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
-		fmt.Printf("  3. Run shelfctl again to use the interactive menu\n")
+
+		// Token status
+		if hasToken {
+			fmt.Printf("  %s GitHub token configured\n", color.GreenString("✓"))
+		} else {
+			fmt.Printf("  %s GitHub token not found\n", color.RedString("✗"))
+		}
+
+		// Shelves status
+		if hasShelves {
+			fmt.Printf("  %s %d shelf(s) configured\n", color.GreenString("✓"), len(cfg.Shelves))
+		} else {
+			fmt.Printf("  %s No shelves configured\n", color.RedString("✗"))
+		}
+
+		fmt.Println()
+
+		// Show specific next steps based on what's missing
+		if !hasToken {
+			fmt.Println("Next step: Set your GitHub token")
+			fmt.Printf("  %s\n\n", color.CyanString("export GITHUB_TOKEN=ghp_your_token_here"))
+			fmt.Println("Then run 'shelfctl' again.")
+		} else if !hasShelves {
+			fmt.Println("Next step: Create your first shelf")
+			fmt.Println()
+
+			// Offer to guide them through init
+			if util.IsTTY() {
+				fmt.Print("Would you like to create a shelf now? (y/n): ")
+				var response string
+				fmt.Scanln(&response)
+				if response == "y" || response == "Y" || response == "yes" {
+					fmt.Println()
+					return runInteractiveInit()
+				}
+			}
+
+			fmt.Println()
+			fmt.Println("Or run manually:")
+			fmt.Printf("  %s\n\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
+			fmt.Println("Then run 'shelfctl' again to use the interactive menu.")
+		}
+
 		fmt.Println()
 		fmt.Println("For more details, see docs/TUTORIAL.md or run 'shelfctl init --help'")
 		return nil

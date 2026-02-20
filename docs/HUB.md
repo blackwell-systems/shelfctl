@@ -53,24 +53,61 @@ The following operations are planned and will show "coming soon" when selected:
 
 ## First Time Use
 
-If you haven't configured any shelves yet, the hub will show a welcome message with setup instructions:
+If you haven't configured any shelves yet, the hub will show a welcome message and offer to guide you through setup:
 
 ```bash
 $ shelfctl
 
 ⚠ Welcome to shelfctl!
 
-You need to set up your first shelf before using the library.
+Setup status:
 
-Quick start:
-  1. Set your GitHub token:
-     export GITHUB_TOKEN=ghp_your_token_here
+  ✓ GitHub token configured
+  ✗ No shelves configured
 
-  2. Create your first shelf:
-     shelfctl init --repo shelf-books --name books --create-repo --create-release
+Next step: Create your first shelf
 
-  3. Run shelfctl again to use the interactive menu
+Would you like to create a shelf now? (y/n): y
+
+📚 Let's set up your first shelf!
+
+Repository name (e.g., shelf-books): shelf-programming
+Shelf name (e.g., books): programming
+
+This will create:
+  • GitHub repository: your-username/shelf-programming
+  • Release tag: library
+  • Shelf name: programming
+
+Proceed? (y/n): y
+
+Creating repo your-username/shelf-programming …
+✓ Created https://github.com/your-username/shelf-programming
+Creating release 'library' in your-username/shelf-programming …
+✓ Release ready: https://github.com/your-username/shelf-programming/releases/tag/library
+✓ Added shelf "programming" to config
+  config: /Users/you/.config/shelfctl/config.yml
+  owner:  your-username
+  repo:   shelf-programming
+
+✓ Shelf created successfully!
+
+What's next?
+  1. Add your first book:
+     shelfctl shelve
+
+  2. Or run the interactive menu:
+     shelfctl
 ```
+
+### Setup Status Indicators
+
+The welcome message shows visual status for each requirement:
+
+- ✓ **GitHub token configured** - Token is set and ready
+- ✗ **GitHub token not found** - Need to `export GITHUB_TOKEN=...`
+- ✓ **N shelf(s) configured** - Shelves are set up
+- ✗ **No shelves configured** - Need to run `shelfctl init` or accept the guided workflow
 
 ## Non-Interactive Mode
 

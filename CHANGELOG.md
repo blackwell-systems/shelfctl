@@ -14,7 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Status bar displaying shelf count and total books
   - Keyboard navigation with ↑/↓ or j/k
   - Search/filter with `/`
-  - Graceful first-time setup guidance
+  - Smart first-time setup guidance:
+    - Visual status check (✓/✗) for token and shelves
+    - Detects what's missing and shows specific next steps
+    - Offers guided interactive init workflow
+    - Prompts user through shelf creation with defaults
   - Currently wired: Browse Library, Add Book
   - Coming soon indicators for unimplemented features
 - **Interactive TUI mode using Bubble Tea library**

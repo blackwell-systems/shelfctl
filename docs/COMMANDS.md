@@ -68,10 +68,10 @@ For each shelf:
 ### Example output
 
 ```
-✓ programming (shelf-programming)
+[OK] programming (shelf-programming)
   catalog: catalog.yml (15 books)
 
-✗ history (shelf-history)
+[X] history (shelf-history)
   error: repository not found
 ```
 
@@ -178,7 +178,7 @@ When run in a terminal, `browse` shows an interactive browser with:
 - Keyboard navigation (↑/↓ or j/k)
 - Live filtering (press `/` to search)
 - Visual display with tags and cache status
-- Color-coded indicators (✓ = cached)
+- Color-coded indicators ([OK] = cached)
 
 Use `--no-interactive` or pipe output to get text mode.
 
@@ -427,8 +427,8 @@ shelfctl migrate batch queue.txt --continue
 The ledger file tracks completed migrations to support resumption. Format:
 
 ```
-✓ owner/repo@ref:path/to/file.pdf shelf=programming id=book-id
-✗ owner/repo@ref:failed.pdf error: file not found
+[OK] owner/repo@ref:path/to/file.pdf shelf=programming id=book-id
+[X] owner/repo@ref:failed.pdf error: file not found
 ```
 
 ---

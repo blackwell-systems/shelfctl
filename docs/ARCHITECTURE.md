@@ -47,10 +47,10 @@ The README is created during `shelfctl init` and automatically updated when you 
 3. **Split when needed** - When you hit 200-300 books, use `shelfctl split`
 
 This approach:
-- ✓ Gets you started quickly
-- ✓ Avoids premature optimization
-- ✓ Lets usage patterns emerge naturally
-- ✓ Easy to reorganize later
+- [OK] Gets you started quickly
+- [OK] Avoids premature optimization
+- [OK] Lets usage patterns emerge naturally
+- [OK] Easy to reorganize later
 
 ### When to Create Multiple Shelves
 
@@ -279,7 +279,7 @@ shelfctl import --from-shelf random-pdfs --to-shelf books --filter-tag cs
 
 ## Best Practices
 
-### ✓ Do
+### [OK] Do
 
 - Start with one broad shelf
 - Use tags liberally
@@ -288,7 +288,7 @@ shelfctl import --from-shelf random-pdfs --to-shelf books --filter-tag cs
 - Use descriptive names (`shelf-programming`, not `prog`)
 - Keep releases to 2-4 per shelf
 
-### ✗ Avoid
+### [X] Avoid
 
 - Creating many shelves upfront
 - Overly specific shelf names

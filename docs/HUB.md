@@ -67,7 +67,7 @@ If you haven't configured any shelves yet, the hub will show a welcome message a
 ```bash
 $ shelfctl
 
-⚠ Welcome to shelfctl!
+Welcome to shelfctl!
 
 Setup status:
 
@@ -203,16 +203,16 @@ shelfctl  # launches interactive menu
 ## Implementation Status
 
 **Phase 1 (Complete):**
-- ✅ Hub menu with navigation
-- ✅ Status bar showing shelf/book counts
-- ✅ Integration with browse command
-- ✅ Integration with shelve command
-- ✅ Smart welcome with status checks
-- ✅ Interactive init workflow
-- ✅ Architecture help system
-- ✅ Clean, focused menu (no "coming soon" clutter)
-- ✅ Auto-generated shelf READMEs
-- ✅ Delete shelf command
+- [DONE] Hub menu with navigation
+- [DONE] Status bar showing shelf/book counts
+- [DONE] Integration with browse command
+- [DONE] Integration with shelve command
+- [DONE] Smart welcome with status checks
+- [DONE] Interactive init workflow
+- [DONE] Architecture help system
+- [DONE] Clean, focused menu (no "coming soon" clutter)
+- [DONE] Auto-generated shelf READMEs
+- [DONE] Delete shelf command
 
 **Future Enhancements:**
 

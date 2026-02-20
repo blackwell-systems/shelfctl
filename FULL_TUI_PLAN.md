@@ -3,8 +3,8 @@
 ## Current State
 
 **Already have TUI:**
-- ✅ `browse` - Interactive book browser with navigation/search
-- ✅ `shelve` - Shelf picker → File picker → Metadata form
+- [DONE] `browse` - Interactive book browser with navigation/search
+- [DONE] `shelve` - Shelf picker → File picker → Metadata form
 
 **CLI-only (no TUI):**
 - `init` - Bootstrap shelf repos

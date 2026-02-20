@@ -105,7 +105,7 @@ shelfctl shelves
 
 Output:
 ```
-✓ programming (shelf-programming)
+[OK] programming (shelf-programming)
   catalog: catalog.yml (0 books)
 ```
 
@@ -158,7 +158,7 @@ shelfctl browse --shelf programming
 This shows a visual browser with:
 - Keyboard navigation (↑/↓ or j/k)
 - Live filtering (press `/` to search)
-- Color-coded indicators (✓ = cached)
+- Color-coded indicators ([OK] = cached)
 
 ### Text mode
 

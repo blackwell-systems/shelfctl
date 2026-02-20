@@ -75,15 +75,15 @@ Examples:
 			// If running interactively and --delete-repo not explicitly set, ask
 			if util.IsTTY() && !cmd.Flags().Changed("delete-repo") {
 				fmt.Println()
-				fmt.Println(color.CyanString("Do you also want to delete the GitHub repository?"))
+				fmt.Println(color.CyanString("What should happen to the GitHub repository?"))
 				fmt.Println()
-				fmt.Println(color.YellowString("  No  (default)") + " - Remove from config only, keep repo and all data")
-				fmt.Println(color.RedString("  Yes (destructive)") + " - Delete repository and all books permanently")
+				fmt.Println(color.GreenString("  1. Keep it") + " (default) - Remove from config only, keep repo and all data")
+				fmt.Println(color.RedString("  2. Delete it permanently") + " - Delete repository and all books forever")
 				fmt.Println()
-				fmt.Print("Delete repository? (y/N): ")
+				fmt.Print("Your choice (1/2): ")
 				var response string
 				_, _ = fmt.Scanln(&response)
-				if response == "y" || response == "Y" || response == "yes" || response == "YES" {
+				if response == "2" {
 					deleteRepo = true
 				}
 			}

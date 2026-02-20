@@ -135,6 +135,7 @@ shelfctl open sicp
 |---------|-------------|
 | `init` | Bootstrap a shelf repo and release |
 | `shelves` | Validate all configured shelves |
+| `delete-shelf` | Remove a shelf from configuration |
 | `browse` | Browse your library (interactive TUI or text) |
 | `info <id>` | Show metadata and cache status |
 | `open <id>` | Open a book (auto-downloads if needed) |

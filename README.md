@@ -30,13 +30,26 @@ Use `shelf-<topic>` as the repo pattern:
 
 (If one shelf gets too big later: `shelf-history-ancient`, `shelf-history-modern`, etc.)
 
-### Rolling release per shelf repo
+### Releases as sub-shelves
 
-Each shelf repo has a single rolling release tag:
+Each shelf repo has one or more release tags. The default is `library`, but you can use multiple releases within the same repo as **logical sub-shelves** — no new repo required:
 
-* `library` (default tag/name)
+```
+shelf-programming/
+  release: library         ← default, start here
+  release: languages       ← Python, Rust, Go, JS books
+  release: systems         ← OS, networking, compilers
+  release: theory          ← algorithms, math, CS fundamentals
+```
 
-Assets live there.
+**Two kinds of splits:**
+
+| Situation | Solution |
+|-----------|----------|
+| Too many books, want sub-topics | Add a new release to the same repo (`shelfctl move --to-release <tag>`) |
+| Repo approaching 5 GB | Create a new repo (`shelfctl move --to-shelf <name>`) |
+
+Use **releases** for organization. Use **new repos** only when forced by size.
 
 ---
 
@@ -88,7 +101,7 @@ Cache path:
     type: "github_release"
     owner: "YOUR_GH_OWNER"
     repo: "shelf-programming"
-    release: "library"
+    release: "systems"       # release tag; defaults to "library"
     asset: "ostep.pdf"
 
   meta:
@@ -140,6 +153,7 @@ shelves:
     owner: "dayna"
     repo: "shelf-programming"
     catalog_path: "catalog.yml"
+    default_release: "library"   # overrides defaults.release for this shelf
   - name: "history"
     owner: "dayna"
     repo: "shelf-history"
@@ -254,6 +268,39 @@ Flags:
 * `--asset-name <filename>`
 * `--no-push` (local edit only)
 
+### `shelfctl move <id> --to-release <tag>`
+
+Move a book to a different release within the same repo (logical sub-shelf split).
+
+Steps:
+
+1. download asset from old release (uses cache if available)
+2. upload to new release (create release if it doesn't exist)
+3. update `source.release` in `catalog.yml`
+4. delete old asset from old release
+5. commit + push catalog
+
+Flags:
+
+* `--to-release <tag>` move to different release, same repo
+* `--to-shelf <name>` move to different shelf repo entirely (new repo must exist in config)
+* `--dry-run` show what would happen without doing it
+* `--keep-old` skip deleting the old asset (useful if unsure)
+
+> **Note:** Moving between repos requires re-uploading the asset (GitHub has no cross-repo move API). The CLI streams directly from old release URL to new upload — no intermediate disk write unless the file is already cached.
+
+### `shelfctl split --shelf <name>`
+
+Interactive wizard to split a shelf. Groups books by tag, proposes release or repo assignments, then calls `move` in batch.
+
+Flags:
+
+* `--by-tag` group books by tag and propose sub-releases
+* `--dry-run`
+* `--n <max>` limit books processed per run (resume-safe)
+
+---
+
 ### `shelfctl migrate one <old_path>`
 
 Incremental migration without cloning old repo.
@@ -358,6 +405,8 @@ shelfctl/
       get.go
       open.go
       add.go
+      move.go
+      split.go
       migrate.go
 
     config/

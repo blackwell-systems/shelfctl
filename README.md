@@ -9,11 +9,13 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/blackwell-systems/shelfctl)](https://goreportcard.com/report/github.com/blackwell-systems/shelfctl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Manage thousands of PDFs, EPUBs, and documents using GitHub as zero-cost infrastructure.**
+**Organize the PDFs and books you already have scattered across GitHub repos.**
 
-shelfctl turns GitHub into a personal document library. Your account is already a free CDN and blob storage — no database, no S3, no servers to run. Organize books by topic in separate repos (`shelf-programming`, `shelf-history`), store files as Release assets, and track metadata in version-controlled `catalog.yml` files.
+Most developers have a mess: PDFs committed to random repos, old reading lists, papers in gists. shelfctl finds them, organizes them by topic, and turns your GitHub account into a searchable document library. No migration to another service — it works with what you already have.
 
-Search, open, and migrate documents from the CLI. Your entire library is portable git repos. Free for public collections, 2GB+ storage for private ones. Works anywhere git works.
+Your GitHub account is already free CDN and blob storage. shelfctl uses Release assets for files and `catalog.yml` for metadata. Organize by topic (`shelf-programming`, `shelf-history`), search from the CLI, open books instantly. Your entire library stays as portable git repos.
+
+Zero infrastructure. Zero cost for public repos, 2GB+ storage for private. Works anywhere git works.
 
 ---
 
@@ -56,13 +58,25 @@ make build
 
 ## Quick start
 
+**Already have PDFs in GitHub repos?** Organize them:
+
 ```bash
-# Set your GitHub token
 export GITHUB_TOKEN=ghp_...
 
-# Bootstrap a shelf
-shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+# Scan your existing repos for files
+shelfctl migrate scan --source you/old-books-repo > queue.txt
 
+# Create organized shelves
+shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+shelfctl init --repo shelf-research --name research --create-repo --create-release
+
+# Edit queue.txt to map files to shelves, then migrate
+shelfctl migrate batch queue.txt --n 10 --continue
+```
+
+**Starting fresh?** Add books directly:
+
+```bash
 # Add a book
 shelfctl add ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author "Abelson & Sussman" --tags lisp,cs
 
@@ -71,10 +85,6 @@ shelfctl list --shelf programming
 
 # Open a book (downloads to cache on first run)
 shelfctl open sicp
-
-# Migrate from an old monorepo
-shelfctl migrate scan --source you/old-books > queue.txt
-shelfctl migrate batch queue.txt --n 10 --continue
 ```
 
 ---

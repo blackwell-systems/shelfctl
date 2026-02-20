@@ -79,8 +79,8 @@ func resolveHTTP(url string) (*Source, error) {
 				return nil, err
 			}
 			if r.StatusCode != http.StatusOK {
-				r.Body.Close()
-				return nil, fmt.Errorf("GET %s: status %d", url, r.StatusCode)
+				_ = r.Body.Close()
+				return nil, fmt.Errorf("get %s: status %d", url, r.StatusCode)
 			}
 			return r.Body, nil
 		},
@@ -114,7 +114,7 @@ func resolveGitHub(input, token, apiBase string) (*Source, error) {
 				return nil, err
 			}
 			if resp.StatusCode != http.StatusOK {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				return nil, fmt.Errorf("github contents %s: status %d", path, resp.StatusCode)
 			}
 			return resp.Body, nil

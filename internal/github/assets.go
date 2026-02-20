@@ -64,7 +64,7 @@ func (c *Client) DownloadAsset(owner, repo string, assetID int64) (io.ReadCloser
 
 	// GitHub returns 302 to an S3 URL; the redirect client handles it.
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("download asset: unexpected status %d", resp.StatusCode)
 	}
 	return resp.Body, nil
@@ -120,6 +120,6 @@ func (c *Client) DeleteAsset(owner, repo string, assetID int64) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return checkStatus(resp)
 }

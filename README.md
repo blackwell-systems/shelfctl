@@ -4,6 +4,10 @@
   <img src="padded.png" alt="shelfctl">
 </p>
 
+[![CI](https://github.com/blackwell-systems/shelfctl/actions/workflows/ci.yml/badge.svg)](https://github.com/blackwell-systems/shelfctl/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/blackwell-systems/shelfctl)](https://goreportcard.com/report/github.com/blackwell-systems/shelfctl)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Zero-infrastructure document library. No database, no S3, no servers. Just GitHub repos you already have.
 
 Metadata lives in `catalog.yml`. Files (PDF/EPUB/etc.) are stored as GitHub Release assets. Free within GitHub limits, works anywhere git works.

@@ -526,7 +526,14 @@ func runHub() error {
 
 		// Handle command result
 		if cmdErr == nil {
-			// Command succeeded - show success message and return to hub
+			// Command succeeded - reload config to pick up any changes
+			var err error
+			cfg, err = config.Load()
+			if err != nil {
+				return fmt.Errorf("reloading config: %w", err)
+			}
+
+			// Show success message and return to hub
 			fmt.Println()
 			fmt.Println(color.CyanString("Press Enter to return to menu..."))
 			var dummy string

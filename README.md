@@ -1,6 +1,6 @@
 # shelfctl
 
-![shelfctl](logo.png)
+![shelfctl](padded.png)
 
 Zero-infrastructure document library. No database, no S3, no servers. Just GitHub repos you already have.
 

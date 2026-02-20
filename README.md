@@ -7,7 +7,7 @@
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/blackwellsystems)
 
 <p align="center">
-  <img src="padded.png" alt="shelfctl">
+  <img src="assets/padded.png" alt="shelfctl">
 </p>
 
 <p align="center">
@@ -26,6 +26,10 @@ Your GitHub account is already free CDN and blob storage. shelfctl uses Release 
 Zero infrastructure. Zero cost for public repos, 2GB+ storage for private. Works anywhere git works.
 
 ---
+
+<p align="center">
+  <img src="assets/shelf.png" alt="shelfctl architecture" width="800">
+</p>
 
 ## Why
 
@@ -161,6 +165,22 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 ## Note
 
 This tool manages user-provided files in user-owned GitHub repos and releases. It does not distribute content. Designed for personal document libraries (PDF/EPUB/etc.).
+
+---
+
+## Support This Project
+
+<p align="center">
+  <a href="https://github.com/blackwell-systems/shelfctl">
+    <img src="assets/enjoying.png" alt="Enjoying shelfctl? Star the repo!" width="600">
+  </a>
+</p>
+
+If you find shelfctl useful:
+- ⭐ **Star the repo** on GitHub
+- 🐛 **Report issues** or suggest features
+- 🤝 **Contribute** improvements (see [CONTRIBUTING.md](CONTRIBUTING.md))
+- ☕ **Buy me a coffee** via the badge above
 
 ---
 

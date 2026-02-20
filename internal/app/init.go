@@ -139,6 +139,14 @@ func createRepoAndRelease(owner, repoName string, createRepo, createRelease, pri
 }
 
 func createShelfREADME(shelfName, repoName, owner string) {
+	// Check if README.md already exists
+	_, _, err := gh.GetFileContent(owner, repoName, "README.md", "")
+	if err == nil {
+		// README already exists, skip creation
+		ok("README.md already exists, skipping")
+		return
+	}
+
 	header("Creating README.md …")
 	readmeContent := generateShelfREADME(shelfName, repoName, owner)
 	readmeBytes := []byte(readmeContent)

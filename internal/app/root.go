@@ -314,6 +314,16 @@ func runInteractiveInit() error {
 			shelfName = defaultShelfName
 			fmt.Printf("  Using: %s\n", color.GreenString(shelfName))
 		}
+
+		// Check if shelf name already exists in config
+		if cfg.ShelfByName(shelfName) != nil {
+			fmt.Println()
+			fmt.Println(color.RedString("✗ Shelf name %q is already in your config", shelfName))
+			fmt.Println()
+			fmt.Print("Enter a different shelf name: ")
+			continue
+		}
+
 		break
 	}
 
@@ -399,6 +409,9 @@ func runHub() error {
 			fmt.Println("Next step: Set your GitHub token")
 			fmt.Printf("  %s\n\n", color.CyanString("export GITHUB_TOKEN=ghp_your_token_here"))
 			fmt.Println("Then run 'shelfctl' again.")
+			fmt.Println()
+			fmt.Println("For more details, see docs/TUTORIAL.md or run 'shelfctl init --help'")
+			return nil
 		} else if !hasShelves {
 			fmt.Println("Next step: Create your first shelf")
 			fmt.Println()
@@ -410,19 +423,42 @@ func runHub() error {
 				_, _ = fmt.Scanln(&response)
 				if response == "y" || response == "Y" || response == "yes" {
 					fmt.Println()
-					return runInteractiveInit()
+					if err := runInteractiveInit(); err != nil {
+						return err
+					}
+
+					// Successfully created shelf - reload config and continue to hub
+					var err error
+					cfg, err = config.Load()
+					if err != nil {
+						return fmt.Errorf("reloading config: %w", err)
+					}
+
+					fmt.Println()
+					fmt.Println(color.CyanString("Press Enter to open the menu..."))
+					var dummy string
+					_, _ = fmt.Scanln(&dummy)
+
+					// Continue to hub loop below
+				} else {
+					fmt.Println()
+					fmt.Println("Or run manually:")
+					fmt.Printf("  %s\n\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
+					fmt.Println("Then run 'shelfctl' again to use the interactive menu.")
+					fmt.Println()
+					fmt.Println("For more details, see docs/TUTORIAL.md or run 'shelfctl init --help'")
+					return nil
 				}
+			} else {
+				fmt.Println()
+				fmt.Println("Or run manually:")
+				fmt.Printf("  %s\n\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
+				fmt.Println("Then run 'shelfctl' again to use the interactive menu.")
+				fmt.Println()
+				fmt.Println("For more details, see docs/TUTORIAL.md or run 'shelfctl init --help'")
+				return nil
 			}
-
-			fmt.Println()
-			fmt.Println("Or run manually:")
-			fmt.Printf("  %s\n\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
-			fmt.Println("Then run 'shelfctl' again to use the interactive menu.")
 		}
-
-		fmt.Println()
-		fmt.Println("For more details, see docs/TUTORIAL.md or run 'shelfctl init --help'")
-		return nil
 	}
 
 	// Hub loop - keep showing menu until user quits or command succeeds

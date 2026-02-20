@@ -73,30 +73,25 @@ Would you like to create a shelf now? (y/n): y
 
 Tip: Type 'help' or '?' at any prompt for detailed guidance
 
-Want to learn about shelf architecture first? (y/n/?): y
+Want to learn about shelf architecture first? (y/n/?): n
 
-═══════════════════════════════════════════════════════════
-  How Shelves Work
-═══════════════════════════════════════════════════════════
+This will create a GitHub repository to store your books.
 
-Structure:
-  Each shelf is a GitHub repository with:
-    • catalog.yml (in Git) - Metadata for your books
-    • Release assets (not in Git) - The actual PDF/EPUB files
+GitHub repository name (e.g., shelf-books) [?=help]: shelf-programming
 
-Organization Strategy:
-  1. Start broad - One shelf is often enough at first
-     Example: shelf-books (general collection)
+The shelf name is a short nickname used in commands like:
+  shelfctl shelve book.pdf --shelf programming
 
-  2. Use tags - Organize books within a shelf using tags
-     Example: --tags programming,golang,textbook
+Shelf name for commands (default: programming) [?=help]:
 
-  3. Split later - When a shelf grows large, split it
-     Use: shelfctl split (interactive wizard)
+Summary:
+  GitHub repository:  your-username/shelf-programming
+  Release tag:        library
+  Shelf name (config): programming
 
-[... more help content ...]
+You'll use the shelf name in commands: shelfctl shelve --shelf programming
 
-Repository name (e.g., shelf-books): shelf-programming
+Proceed? (y/n): y
 Shelf name (e.g., books): programming
 
 This will create:

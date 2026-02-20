@@ -164,12 +164,21 @@ func showShelfArchitectureHelp() {
 	fmt.Println("    Example: shelf-public (public repo), shelf-private (private repo)")
 	fmt.Println()
 
-	fmt.Println(color.YellowString("Naming Conventions:"))
-	fmt.Println("  • Use " + color.CyanString("shelf-<topic>") + " for the repository name")
-	fmt.Println("    Examples: shelf-programming, shelf-fiction, shelf-papers")
+	fmt.Println(color.YellowString("Two Names? Why?"))
+	fmt.Println("  You'll provide two names:")
 	fmt.Println()
-	fmt.Println("  • The shelf name (config) is shorter:")
-	fmt.Println("    Examples: programming, fiction, papers")
+	fmt.Println("  1. " + color.CyanString("Repository name") + " - The GitHub repo (e.g., shelf-programming)")
+	fmt.Println("     • This is what appears on GitHub")
+	fmt.Println("     • Use pattern: shelf-<topic>")
+	fmt.Println()
+	fmt.Println("  2. " + color.CyanString("Shelf name") + " - Short name for commands (e.g., programming)")
+	fmt.Println("     • This is what you type in commands")
+	fmt.Println("     • Usually just the topic without 'shelf-' prefix")
+	fmt.Println()
+	fmt.Println("  Example:")
+	fmt.Println("    Repository: " + color.WhiteString("shelf-programming"))
+	fmt.Println("    Shelf name: " + color.WhiteString("programming"))
+	fmt.Println("    Command:    " + color.CyanString("shelfctl shelve --shelf programming"))
 	fmt.Println()
 
 	fmt.Println(color.YellowString("Advanced: Sub-organization with Releases"))
@@ -232,9 +241,12 @@ func runInteractiveInit() error {
 	fmt.Println()
 
 	// Get repo name with help option
+	fmt.Println("This will create a GitHub repository to store your books.")
+	fmt.Println()
+
 	var repoName string
 	for {
-		fmt.Print("Repository name (e.g., shelf-books) [?=help]: ")
+		fmt.Print("GitHub repository name (e.g., shelf-books) [?=help]: ")
 		fmt.Scanln(&repoName)
 
 		if repoName == "help" || repoName == "?" {
@@ -245,15 +257,26 @@ func runInteractiveInit() error {
 
 		if repoName == "" {
 			repoName = "shelf-books"
-			fmt.Printf("  Using default: %s\n", repoName)
+			fmt.Printf("  Using default: %s\n", color.GreenString(repoName))
 		}
 		break
 	}
 
+	// Calculate smart default for shelf name
+	defaultShelfName := repoName
+	if len(repoName) > 6 && repoName[:6] == "shelf-" {
+		defaultShelfName = repoName[6:]
+	}
+
 	// Get shelf name with help option
+	fmt.Println()
+	fmt.Printf("The shelf name is a short nickname used in commands like:\n")
+	fmt.Printf("  %s\n", color.CyanString(fmt.Sprintf("shelfctl shelve book.pdf --shelf %s", defaultShelfName)))
+	fmt.Println()
+
 	var shelfName string
 	for {
-		fmt.Print("Shelf name (e.g., books) [?=help]: ")
+		fmt.Printf("Shelf name for commands (default: %s) [?=help]: ", color.GreenString(defaultShelfName))
 		fmt.Scanln(&shelfName)
 
 		if shelfName == "help" || shelfName == "?" {
@@ -263,22 +286,21 @@ func runInteractiveInit() error {
 		}
 
 		if shelfName == "" {
-			// Default: strip "shelf-" prefix if present
-			shelfName = repoName
-			if len(repoName) > 6 && repoName[:6] == "shelf-" {
-				shelfName = repoName[6:]
-			}
-			fmt.Printf("  Using default: %s\n", shelfName)
+			shelfName = defaultShelfName
+			fmt.Printf("  Using: %s\n", color.GreenString(shelfName))
 		}
 		break
 	}
 
 	// Confirm creation
 	fmt.Println()
-	fmt.Printf("This will create:\n")
-	fmt.Printf("  • GitHub repository: %s/%s\n", cfg.GitHub.Owner, repoName)
-	fmt.Printf("  • Release tag: library\n")
-	fmt.Printf("  • Shelf name: %s\n", shelfName)
+	fmt.Println(color.CyanString("Summary:"))
+	fmt.Printf("  GitHub repository:  %s/%s\n", cfg.GitHub.Owner, color.WhiteString(repoName))
+	fmt.Printf("  Release tag:        %s\n", color.WhiteString("library"))
+	fmt.Printf("  Shelf name (config):%s\n", color.WhiteString(shelfName))
+	fmt.Println()
+	fmt.Printf("You'll use the shelf name in commands: %s\n",
+		color.CyanString(fmt.Sprintf("shelfctl shelve --shelf %s", shelfName)))
 	fmt.Println()
 	fmt.Print("Proceed? (y/n): ")
 	var confirm string

@@ -323,6 +323,23 @@ Examples:
 					return fmt.Errorf("committing catalog: %w", err)
 				}
 				ok("Catalog committed and pushed")
+
+				// Update README.md with stats and recent addition
+				readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
+				if readmeErr == nil {
+					// README exists, update it
+					readmeContent := string(readmeData)
+					readmeContent = updateShelfREADMEStats(readmeContent, len(books))
+					readmeContent = appendToShelfREADME(readmeContent, book)
+
+					readmeMsg := fmt.Sprintf("Update README: add %s", bookID)
+					if err := gh.CommitFile(owner, shelf.Repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+						// Don't fail the whole operation if README update fails
+						warn("Could not update README.md: %v", err)
+					} else {
+						ok("README.md updated")
+					}
+				}
 			}
 
 			fmt.Println()

@@ -86,6 +86,20 @@ This creates a new shelf repository for storing books. Run 'shelfctl init --help
 				ok("Release ready: %s", rel.HTMLURL)
 			}
 
+			// Create README.md for the shelf
+			if createRepo {
+				header("Creating README.md …")
+				readmeContent := generateShelfREADME(shelfName, repoName, effectiveOwner)
+				readmeBytes := []byte(readmeContent)
+
+				commitMsg := "Initial commit: Add shelf README"
+				if err := gh.CommitFile(effectiveOwner, repoName, "README.md", readmeBytes, commitMsg); err != nil {
+					warn("Could not create README.md: %v", err)
+				} else {
+					ok("README.md created")
+				}
+			}
+
 			// Add shelf to config file.
 			currentCfg, err := config.Load()
 			if err != nil {

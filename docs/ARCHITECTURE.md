@@ -15,13 +15,26 @@ A shelf is a GitHub repository that stores your books:
 ```
 shelf-programming/
 ├── catalog.yml           # Metadata (in Git)
-├── README.md            # Optional (in Git)
+├── README.md            # Auto-generated inventory (in Git)
 └── releases/
     └── library/         # Release tag
         ├── sicp.pdf     # Asset (not in Git)
         ├── taocp.pdf    # Asset (not in Git)
         └── ...
 ```
+
+### README.md - Human-Readable Inventory
+
+Each shelf automatically gets a README.md that:
+
+- **Documents the shelf** - Title, description, creation date
+- **Shows quick stats** - Book count, last updated (auto-updated)
+- **Provides usage examples** - How to add/browse books in this shelf
+- **Tracks recently added** - Last 10 books added (auto-maintained)
+- **Enables curation** - Sections for organizing by topic, reading lists, favorites
+- **Links to resources** - Documentation and release assets
+
+The README is created during `shelfctl init` and automatically updated when you add books. You can customize it freely - updates are non-intrusive and only modify the stats sections.
 
 ## Organization Philosophy
 

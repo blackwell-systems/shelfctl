@@ -20,6 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Decision trees and GitHub limits
   - Linked from README.md and docs/index.md
   - Referenced inline during interactive init
+- **Automatic README.md Generation for Shelves**
+  - Each shelf now gets a README.md created automatically during init
+  - Template includes:
+    - Shelf description and quick stats (book count, last updated)
+    - Usage examples for adding and browsing books
+    - Organization sections (by topic, reading lists, favorites)
+    - Maintenance commands reference
+    - Links to documentation and releases
+  - Auto-updates on each book addition:
+    - Updates book count and last updated date
+    - Adds book to "Recently Added" section
+    - Non-intrusive: won't fail if README is customized
+  - Makes each shelf look professional on GitHub
+  - Provides human-readable inventory alongside catalog.yml
 - **Interactive Hub (Phase 1 Complete)**
   - Launch `shelfctl` with no arguments to get an interactive menu
   - Visual dashboard showing all available operations

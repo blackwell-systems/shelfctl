@@ -164,13 +164,20 @@ shelves:
     catalog_path: "catalog.yml"
 
 migration:
-  source_owner: "dayna"
-  source_repo: "books"        # your old monorepo
-  source_ref: "main"
-  mapping:
-    programming/: "programming"
-    history/: "history"
-    philosophy/: "philosophy"
+  sources:
+    - owner: "dayna"
+      repo: "books"           # old monorepo
+      ref: "main"
+      mapping:
+        programming/: "programming"
+        history/: "history"
+        philosophy/: "philosophy"
+    - owner: "dayna"
+      repo: "papers"          # second source repo (optional)
+      ref: "master"
+      mapping:
+        cs/: "programming"
+        misc/: "reading"
 ```
 
 ### Env overrides
@@ -244,27 +251,37 @@ Flags:
 
 * `--app <app>`
 
-### `shelfctl add <file> --shelf <name>`
+### `shelfctl add <file-or-url> --shelf <name>`
 
-Ingest a local file into release-assets + catalog.
+Ingest a local file **or a URL** into release-assets + catalog. This is the primary day-to-day command for adding new books.
+
+**Input types:**
+
+| Argument | Behaviour |
+|----------|-----------|
+| `/path/to/book.pdf` | read from disk |
+| `https://example.com/book.pdf` | stream download → sha256 in-flight → pipe to upload (no temp file) |
+| `github:owner/repo@ref:path/to/file.pdf` | download via GitHub Contents API (authenticated) |
 
 Steps:
 
-1. compute sha256 + size
-2. choose `id` (from `--id` or prompt; optionally `sha12`)
-3. determine asset filename:
+1. resolve input (file, HTTP URL, or GitHub path) as a readable stream
+2. compute sha256 + size in-flight while buffering for upload
+3. choose `id` (from `--id` or prompt; optionally `sha12`)
+4. determine asset filename:
 
    * if `asset_naming=id`: `<id>.<ext>`
    * else keep normalized original name
-4. ensure `library` release exists
-5. upload asset
-6. update `catalog.yml` (append + sort optional)
-7. commit + push catalog changes (using local clone of shelf repo OR GitHub Contents API)
+5. ensure target release exists (default `library`, or `--release <tag>`)
+6. upload asset
+7. update `catalog.yml` (append + sort optional)
+8. commit + push catalog changes
 
 Flags:
 
 * `--id`, `--title`, `--author`, `--year`
 * `--tags a,b,c`
+* `--release <tag>` target sub-shelf release (default: shelf's `default_release`)
 * `--asset-name <filename>`
 * `--no-push` (local edit only)
 
@@ -325,6 +342,34 @@ Flags:
 * `--n 5`
 * `--continue` (skip already migrated)
 * `--dry-run`
+
+### `shelfctl migrate scan [--source <owner/repo>]`
+
+List all files in a configured migration source repo and emit a queue file suitable for `migrate batch`. Lets you see what's there before committing to migrate it.
+
+Flags:
+
+* `--source <owner/repo>` override config (useful for one-off sources)
+* `--ext pdf,epub,mobi` filter by extension
+* `--out <file>` write queue to file (default: stdout)
+
+### `shelfctl import --from <owner/repo>`
+
+Import from an existing `shelfctl`-structured repo (reads `catalog.yml`, downloads each asset, re-uploads to your shelf). Use this to absorb another user's shelf or a second account's shelf.
+
+Steps:
+
+1. fetch `catalog.yml` from source repo
+2. for each entry: stream asset from source release → sha256 in-flight → upload to your target shelf release
+3. merge entries into your `catalog.yml` (skip duplicates by sha256)
+4. commit + push
+
+Flags:
+
+* `--shelf <name>` target shelf in your config
+* `--release <tag>` target release (default: shelf's `default_release`)
+* `--dry-run`
+* `--n <max>` limit per run (resume-safe via ledger)
 
 ---
 
@@ -407,7 +452,8 @@ shelfctl/
       add.go
       move.go
       split.go
-      migrate.go
+      migrate.go        # migrate one / batch / scan
+      import.go
 
     config/
       config.go         # viper load/validate
@@ -434,11 +480,65 @@ shelfctl/
     migrate/
       ledger.go         # jsonl ledger
       mapping.go
+      scan.go           # list files in source repo
+
+    ingest/
+      resolver.go       # detect file / http url / github:// input type
+      stream.go         # unified streaming reader with in-flight sha256
 
     util/
       hash.go
       io.go
       term.go           # tty detection, color enable/disable
+```
+
+---
+
+## Workflows
+
+### Drain a monorepo into shelves (one-time)
+
+This is the primary migration path: you have an existing GitHub repo full of books in flat or folder structure, and you want to restructure it into shelves.
+
+```bash
+# 1. Create shelves for each topic
+shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+shelfctl init --repo shelf-history --name history --create-repo --create-release
+
+# 2. Configure migration sources in ~/.config/shelfctl/config.yml
+#    (set migration.sources with owner/repo/ref/mapping)
+
+# 3. Scan what's in the old repo, write a queue file
+shelfctl migrate scan --source dayna/books --ext pdf,epub > queue.txt
+
+# 4. Review queue.txt, edit if needed, then drain in batches
+shelfctl migrate batch queue.txt --n 10 --continue
+
+# 5. Verify
+shelfctl shelves
+shelfctl list --shelf programming
+
+# 6. Repeat until queue is empty, then archive old repo
+```
+
+The ledger at `~/.local/share/shelfctl/migrated.jsonl` tracks every completed migration so `--continue` is safe to run repeatedly.
+
+### Ongoing ingestion (day-to-day)
+
+After migration, the same `add` command handles all new books regardless of source:
+
+```bash
+# From disk
+shelfctl add ~/Downloads/newbook.pdf --shelf programming --title "New Book" --tags go
+
+# Stream from a URL (no temp file)
+shelfctl add https://example.com/book.pdf --shelf history --title "..." --tags ancient
+
+# From another GitHub repo (authenticated)
+shelfctl add github:someuser/repo@main:books/title.pdf --shelf philosophy
+
+# Batch import from another shelf repo
+shelfctl import --from someuser/shelf-philosophy --shelf philosophy
 ```
 
 ---

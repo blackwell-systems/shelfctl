@@ -211,7 +211,15 @@ Validate shelves:
 
 ### `shelfctl browse`
 
-List books, filterable.
+Browse books in interactive TUI (when in terminal) or list as text (when piped/scripted).
+
+**Interactive mode** (default in terminal):
+- Visual browser with keyboard navigation
+- Live filtering with `/`
+- Color-coded cache indicators
+
+**Text mode** (when piped or with `--no-interactive`):
+- Plain text output for scripts and automation
 
 Flags:
 
@@ -219,6 +227,7 @@ Flags:
 * `--tag <tag>` (repeatable)
 * `--search <text>` (title/author/tags)
 * `--format <pdf|epub|...>`
+* `--no-interactive` (disable TUI)
 
 ### `shelfctl info <id>`
 
@@ -251,9 +260,15 @@ Flags:
 
 * `--app <app>`
 
-### `shelfctl shelve <file-or-url> --shelf <name>`
+### `shelfctl shelve [file-or-url]`
 
 Ingest a local file **or a URL** into release-assets + catalog. This is the primary day-to-day command for adding new books.
+
+**Interactive mode** (when no arguments provided):
+1. Shelf picker (if multiple shelves configured)
+2. File browser (starts in ~/Downloads, filters for documents)
+3. Metadata form (title, author, tags, ID)
+4. Automatic upload and catalog update
 
 **Input types:**
 
@@ -279,11 +294,14 @@ Steps:
 
 Flags:
 
+* `--shelf <name>` (interactive picker if omitted)
 * `--id`, `--title`, `--author`, `--year`
 * `--tags a,b,c`
 * `--release <tag>` target sub-shelf release (default: shelf's `default_release`)
 * `--asset-name <filename>`
 * `--no-push` (local edit only)
+* `--no-interactive` (disable TUI)
+* `--force` (skip duplicate checks and overwrite existing assets)
 
 ### `shelfctl move <id> --to-release <tag>`
 
@@ -445,15 +463,22 @@ shelfctl/
       root.go           # cobra root
       init.go
       shelves.go
-      list.go
+      browse.go         # (formerly list.go)
       info.go
-      get.go
-      open.go
-      add.go
+      open.go           # (inlines former get.go)
+      shelve.go         # (formerly add.go)
       move.go
       split.go
       migrate.go        # migrate one / batch / scan
       import.go
+
+    tui/
+      detection.go      # TUI mode detection
+      common.go         # shared styles
+      list_browser.go   # interactive book browser
+      shelve_form.go    # metadata entry form
+      file_picker.go    # filesystem browser
+      shelf_picker.go   # shelf selector
 
     config/
       config.go         # viper load/validate

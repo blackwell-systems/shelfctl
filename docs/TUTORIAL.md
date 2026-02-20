@@ -111,7 +111,23 @@ Output:
 
 ## Step 6: Add your first book
 
-Let's add a PDF from your Downloads folder:
+### Interactive mode (easiest)
+
+Just run `shelve` with no arguments for a fully guided workflow:
+
+```bash
+shelfctl shelve
+```
+
+This launches an interactive TUI that:
+1. Lets you pick the shelf (if you have multiple)
+2. Shows a file browser to select your book
+3. Provides a form to fill in metadata (title, author, tags, ID)
+4. Uploads and catalogs automatically
+
+### Command-line mode
+
+Or provide all details via flags:
 
 ```bash
 shelfctl shelve ~/Downloads/some-book.pdf \
@@ -129,10 +145,27 @@ What happened:
 2. A catalog entry was created with metadata and SHA256 checksum
 3. The catalog was committed and pushed
 
-## Step 7: List your books
+## Step 7: Browse your books
+
+### Interactive mode (TUI)
+
+Run `browse` in a terminal for an interactive browser:
 
 ```bash
 shelfctl browse --shelf programming
+```
+
+This shows a visual browser with:
+- Keyboard navigation (↑/↓ or j/k)
+- Live filtering (press `/` to search)
+- Color-coded indicators (✓ = cached)
+
+### Text mode
+
+Use `--no-interactive` or pipe output for scripts:
+
+```bash
+shelfctl browse --shelf programming --no-interactive
 ```
 
 Output:

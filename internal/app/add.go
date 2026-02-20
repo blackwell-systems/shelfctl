@@ -30,6 +30,7 @@ func newAddCmd() *cobra.Command {
 		assetName   string
 		noPush      bool
 		useSHA12    bool
+		force       bool
 	)
 
 	cmd := &cobra.Command{
@@ -133,10 +134,54 @@ Examples:
 				}
 			}
 
+			// Load existing catalog for duplicate checks.
+			catalogPath := shelf.EffectiveCatalogPath()
+			existingData, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+			if err != nil && err.Error() != "not found" {
+				return fmt.Errorf("reading catalog: %w", err)
+			}
+			existingBooks, _ := catalog.Parse(existingData)
+
+			// Check for content duplication by SHA256.
+			if !force {
+				for _, b := range existingBooks {
+					if b.Checksum.SHA256 == sha256 {
+						warn("File with same SHA256 already exists: %s (%s)", b.ID, b.Title)
+						fmt.Printf("Use --force to add anyway, or skip.\n")
+						return fmt.Errorf("duplicate content detected")
+					}
+				}
+			}
+
 			// Ensure release exists.
 			rel, err := gh.EnsureRelease(owner, shelf.Repo, releaseTag)
 			if err != nil {
 				return fmt.Errorf("ensuring release: %w", err)
+			}
+
+			// Check for asset name collision.
+			if !force {
+				existingAsset, err := gh.FindAsset(owner, shelf.Repo, rel.ID, assetName)
+				if err != nil {
+					return fmt.Errorf("checking existing assets: %w", err)
+				}
+				if existingAsset != nil {
+					warn("Asset with name %q already exists in release %s", assetName, releaseTag)
+					fmt.Printf("Use --force to overwrite, --asset-name for different name, or delete existing asset first.\n")
+					return fmt.Errorf("asset name collision")
+				}
+			} else {
+				// Force mode: delete existing asset if it exists.
+				existingAsset, err := gh.FindAsset(owner, shelf.Repo, rel.ID, assetName)
+				if err != nil {
+					return fmt.Errorf("checking existing assets: %w", err)
+				}
+				if existingAsset != nil {
+					warn("Deleting existing asset %q", assetName)
+					if err := gh.DeleteAsset(owner, shelf.Repo, existingAsset.ID); err != nil {
+						return fmt.Errorf("deleting existing asset: %w", err)
+					}
+				}
 			}
 
 			// Upload asset.
@@ -177,14 +222,8 @@ Examples:
 				},
 			}
 
-			// Load existing catalog.
-			catalogPath := shelf.EffectiveCatalogPath()
-			data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
-			if err != nil && err.Error() != "not found" {
-				return fmt.Errorf("reading catalog: %w", err)
-			}
-			books, _ := catalog.Parse(data)
-			books = catalog.Append(books, book)
+			// Append to catalog (we already loaded it earlier for duplicate checks).
+			books := catalog.Append(existingBooks, book)
 
 			newCatalog, err := catalog.Marshal(books)
 			if err != nil {
@@ -225,6 +264,7 @@ Examples:
 	cmd.Flags().StringVar(&tagsCSV, "tags", "", "Comma-separated tags")
 	cmd.Flags().StringVar(&assetName, "asset-name", "", "Override asset filename")
 	cmd.Flags().BoolVar(&noPush, "no-push", false, "Update catalog locally only (do not push)")
+	cmd.Flags().BoolVar(&force, "force", false, "Skip duplicate checks and overwrite existing assets")
 
 	_ = cmd.MarkFlagRequired("shelf")
 	return cmd

@@ -1,0 +1,60 @@
+# shelfctl configuration
+# Default location: ~/.config/shelfctl/config.yml
+
+github:
+  # Your GitHub username or organization
+  owner: "your-username"
+
+  # Environment variable containing your GitHub personal access token
+  # Create a token at: https://github.com/settings/tokens
+  # Required scopes: repo (full control of private repositories)
+  token_env: "GITHUB_TOKEN"
+
+  # GitHub API base URL (change for GitHub Enterprise)
+  api_base: "https://api.github.com"
+
+  # Backend type: "api" (default)
+  backend: "api"
+
+defaults:
+  # Default release tag for new books
+  release: "library"
+
+  # Local cache directory for downloaded files
+  cache_dir: "~/.local/share/shelfctl/cache"
+
+  # Asset naming strategy: "id" or "original"
+  # "id": book-id.pdf (recommended for consistency)
+  # "original": preserves original filename
+  asset_naming: "id"
+
+# Define your shelves (one per topic/category)
+shelves:
+  - name: "programming"
+    repo: "shelf-programming"
+    # owner: "different-owner"  # Optional: override global owner
+    # catalog_path: "catalog.yml"  # Optional: default is catalog.yml
+    # default_release: "2024"  # Optional: override global default
+
+  - name: "history"
+    repo: "shelf-history"
+
+  - name: "fiction"
+    repo: "shelf-fiction"
+
+# Migration sources (optional)
+# Used for migrating from old repos or other shelfctl instances
+migration:
+  sources:
+    - owner: "your-username"
+      repo: "old-books-repo"
+      ref: "main"
+      mapping:
+        # Map old file paths to target shelves
+        "programming/": "programming"
+        "history/": "history"
+
+# Serve configuration (future feature)
+serve:
+  port: 8080
+  host: "127.0.0.1"

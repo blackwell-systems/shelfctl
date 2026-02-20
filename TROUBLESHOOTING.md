@@ -1,0 +1,419 @@
+# Troubleshooting
+
+Common issues and solutions for shelfctl.
+
+## Authentication issues
+
+### "no GitHub token found"
+
+**Symptom**: Error when running any command except `init`.
+
+**Cause**: GitHub token not set in environment.
+
+**Solution**:
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+```
+
+Make it permanent by adding to your shell profile:
+
+```bash
+# bash
+echo 'export GITHUB_TOKEN=ghp_...' >> ~/.bashrc
+
+# zsh
+echo 'export GITHUB_TOKEN=ghp_...' >> ~/.zshrc
+```
+
+### "GitHub API error 401: Unauthorized"
+
+**Cause**: Token is invalid or expired.
+
+**Solution**:
+
+1. Go to https://github.com/settings/tokens
+2. Check if your token still exists
+3. If expired, generate a new one with `repo` scope
+4. Update your `GITHUB_TOKEN` environment variable
+
+### "GitHub API error 403: Forbidden"
+
+**Cause**: Token doesn't have the required `repo` scope.
+
+**Solution**:
+
+1. Go to https://github.com/settings/tokens
+2. Click on your shelfctl token
+3. Check "repo" (Full control of private repositories)
+4. Update token and save
+
+## Repository issues
+
+### "repository not found"
+
+**Cause**: Repository doesn't exist or token doesn't have access.
+
+**Solution**:
+
+If the repo should exist:
+- Check repo name spelling in config
+- Verify repo owner is correct
+- Ensure your token has access (make repo public or grant collaborator access)
+
+If you need to create it:
+
+```bash
+shelfctl init --repo shelf-name --name name --create-repo --create-release
+```
+
+### "catalog.yml not found"
+
+**Cause**: Shelf repo exists but has no catalog file.
+
+**Solution**:
+
+```bash
+# Re-run init (safe, won't duplicate config entry)
+shelfctl init --repo shelf-name --name name
+```
+
+This creates an empty catalog if one doesn't exist.
+
+## Upload issues
+
+### "asset already exists"
+
+**Symptom**: Error when adding a book with `--asset-name` that already exists.
+
+**Cause**: GitHub release assets must have unique names within a release.
+
+**Solutions**:
+
+1. Use different asset name:
+   ```bash
+   shelfctl add book.pdf --shelf prog --asset-name book-v2.pdf --title "..."
+   ```
+
+2. Use default `--asset-naming=id` (prevents collisions):
+   ```bash
+   shelfctl add book.pdf --shelf prog --id unique-id --title "..."
+   ```
+
+3. Delete the old asset from GitHub releases UI first
+
+### Upload times out
+
+**Symptom**: Large file upload fails with timeout.
+
+**Cause**: Default 5-minute timeout may not be enough for very large files or slow connections.
+
+**Solution**:
+
+Files over ~500MB may hit timeouts. Consider:
+- Splitting large files
+- Using a faster connection
+- Compressing PDFs (many PDFs can be optimized)
+
+### Checksum mismatch
+
+**Symptom**: Download succeeds but checksum verification fails.
+
+**Cause**: File was corrupted during upload or download, or asset was replaced on GitHub.
+
+**Solution**:
+
+```bash
+# Clear cache and re-download
+rm ~/.local/share/shelfctl/cache/book-id.pdf
+shelfctl get book-id
+```
+
+If problem persists, the asset on GitHub may be corrupt. Re-upload:
+
+```bash
+# Delete from GitHub releases UI, then:
+shelfctl add original-file.pdf --shelf name --id book-id --title "..."
+```
+
+## Configuration issues
+
+### "shelf not found in config"
+
+**Symptom**: `shelfctl add --shelf name` fails with "shelf not found".
+
+**Cause**: Shelf not defined in `~/.config/shelfctl/config.yml`.
+
+**Solution**:
+
+```bash
+# Add shelf to config
+shelfctl init --repo shelf-name --name name
+```
+
+Or edit `~/.config/shelfctl/config.yml` manually:
+
+```yaml
+shelves:
+  - name: "name"
+    repo: "shelf-name"
+```
+
+### Config file not found
+
+**Symptom**: Commands fail with "config file not found".
+
+**Cause**: No config at `~/.config/shelfctl/config.yml`.
+
+**Solution**:
+
+```bash
+mkdir -p ~/.config/shelfctl
+cp config.example.yml ~/.config/shelfctl/config.yml
+# Edit with your settings
+```
+
+### YAML parse error
+
+**Symptom**: "parsing config YAML: ..." error.
+
+**Cause**: Syntax error in config file.
+
+**Solution**:
+
+Check YAML syntax:
+- Consistent indentation (2 spaces)
+- Quoted strings with special characters
+- No tabs (use spaces only)
+
+Validate with:
+
+```bash
+# Install yq if needed: brew install yq
+yq eval ~/.config/shelfctl/config.yml
+```
+
+## Cache issues
+
+### Cache taking too much space
+
+**Symptom**: `~/.local/share/shelfctl/cache` is large.
+
+**Solution**:
+
+```bash
+# See cache size
+du -sh ~/.local/share/shelfctl/cache
+
+# Clear entire cache
+rm -rf ~/.local/share/shelfctl/cache/*
+
+# Files will be re-downloaded on next open/get
+```
+
+### Can't find cached file
+
+**Symptom**: `shelfctl open book-id` claims it's cached but file is missing.
+
+**Cause**: Cache file was deleted manually.
+
+**Solution**:
+
+```bash
+# Re-download
+shelfctl get book-id
+```
+
+## Migration issues
+
+### "file not found in source repo"
+
+**Symptom**: Migration fails for a file in the queue.
+
+**Cause**: File doesn't exist at that path in the source repo/ref.
+
+**Solution**:
+
+- Check the path is correct
+- Verify the ref (branch/tag) exists
+- File may have been moved or deleted
+
+Use `--continue` flag to skip failed entries:
+
+```bash
+shelfctl migrate batch queue.txt --continue
+```
+
+### Migration ledger corruption
+
+**Symptom**: Ledger file has bad format or mixed state.
+
+**Cause**: Manual editing or interrupted operations.
+
+**Solution**:
+
+```bash
+# Back up ledger
+cp .shelfctl-ledger.txt .shelfctl-ledger.txt.bak
+
+# Remove corrupt lines or start fresh
+rm .shelfctl-ledger.txt
+
+# Re-run with --continue (will skip already-migrated books)
+shelfctl migrate batch queue.txt --continue
+```
+
+## Performance issues
+
+### Commands are slow
+
+**Cause**: GitHub API rate limits or network latency.
+
+**Solution**:
+
+- Check GitHub API rate limit: `curl -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/rate_limit`
+- Wait if rate limited (resets hourly)
+- Use `--n` flag for batch operations to limit size
+
+### List command is slow with many books
+
+**Cause**: Loading and parsing many catalogs.
+
+**Solution**:
+
+- Use specific shelf: `shelfctl list --shelf programming`
+- Filter by tag: `shelfctl list --tag specific-tag`
+- Consider splitting large shelves with `shelfctl split`
+
+## GitHub-specific issues
+
+### Rate limit exceeded
+
+**Symptom**: "API rate limit exceeded" error.
+
+**Cause**: Made too many GitHub API requests (5000/hour for authenticated requests).
+
+**Solution**:
+
+Wait for the rate limit to reset (shown in error message), or:
+
+- Use `--n` flag to process in smaller batches
+- Space out operations
+- Authenticated requests have higher limits than unauthenticated
+
+### GitHub release limit
+
+**Symptom**: Can't upload more assets to a release.
+
+**Cause**: GitHub has soft limits on release asset size and count.
+
+**Solution**:
+
+Use multiple releases:
+
+```bash
+# Add books to different releases
+shelfctl add book1.pdf --shelf prog --release 2024
+shelfctl add book2.pdf --shelf prog --release 2025
+```
+
+Or split the shelf:
+
+```bash
+shelfctl split  # Interactive wizard
+```
+
+## ID and naming issues
+
+### "invalid ID — must match ^[a-z0-9][a-z0-9-]{1,62}$"
+
+**Cause**: Book ID contains invalid characters.
+
+**Solution**:
+
+IDs must:
+- Start with lowercase letter or digit
+- Contain only lowercase letters, digits, and hyphens
+- Be 2-63 characters long
+
+Good IDs:
+- `sicp`
+- `algorithm-design`
+- `isbn-9780262033848`
+- `smith2024-paper`
+
+Bad IDs:
+- `SICP` (uppercase)
+- `algorithm_design` (underscore)
+- `s` (too short)
+
+### Duplicate book ID
+
+**Symptom**: Adding a book with an existing ID.
+
+**Cause**: A book with that ID already exists in the catalog.
+
+**Solution**:
+
+The new entry will replace the old one. If you want both:
+
+```bash
+# Use different ID
+shelfctl add book.pdf --shelf prog --id sicp-v2 --title "SICP 2nd Ed"
+
+# Or use SHA-based ID
+shelfctl add book.pdf --shelf prog --id-sha12 --title "..."
+```
+
+## Platform-specific issues
+
+### "open" command doesn't work (Linux)
+
+**Cause**: `xdg-open` not installed or not in PATH.
+
+**Solution**:
+
+```bash
+# Install xdg-utils
+sudo apt-get install xdg-utils  # Debian/Ubuntu
+sudo yum install xdg-utils      # RHEL/CentOS
+```
+
+Or use `get` and open manually:
+
+```bash
+shelfctl get book-id
+# Opens in default PDF viewer
+```
+
+### Permission denied (macOS)
+
+**Symptom**: "operation not permitted" when opening files.
+
+**Cause**: macOS security settings.
+
+**Solution**:
+
+- System Preferences → Security & Privacy → Files and Folders
+- Grant terminal/shelfctl permission to access files
+
+## Still stuck?
+
+1. Check if issue already exists: https://github.com/blackwell-systems/shelfctl/issues
+2. Open a new issue with:
+   - shelfctl version: `shelfctl --version` (or commit hash)
+   - Operating system
+   - Full error message
+   - Steps to reproduce
+3. For sensitive issues (tokens, private repos), email maintainers directly
+
+## Debug mode
+
+For more verbose output, set environment variable:
+
+```bash
+export SHELFCTL_DEBUG=1
+shelfctl <command>
+```
+
+This shows API requests and responses (tokens are redacted).

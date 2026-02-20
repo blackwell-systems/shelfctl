@@ -7,15 +7,17 @@ import (
 	"os"
 )
 
+// SHA256File computes the SHA256 hash of a file at the given path.
 func SHA256File(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	return SHA256Reader(f)
 }
 
+// SHA256Reader computes the SHA256 hash of data from a reader.
 func SHA256Reader(r io.Reader) (string, error) {
 	h := sha256.New()
 	if _, err := io.Copy(h, r); err != nil {

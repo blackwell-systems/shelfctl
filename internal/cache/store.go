@@ -23,19 +23,22 @@ func (m *Manager) Store(owner, repo, bookID, assetFilename string, r io.Reader, 
 	}
 
 	if _, err := io.Copy(f, r); err != nil {
-		f.Close()
-		os.Remove(tmpPath)
+		_ = f.Close()
+		_ = os.Remove(tmpPath)
 		return "", fmt.Errorf("writing to cache: %w", err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("closing temp file: %w", err)
+	}
 
 	if err := VerifyFile(tmpPath, expectedSHA256); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return "", err
 	}
 
 	if err := os.Rename(tmpPath, destPath); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return "", err
 	}
 	return destPath, nil

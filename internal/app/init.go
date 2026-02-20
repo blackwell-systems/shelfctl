@@ -11,11 +11,11 @@ import (
 
 func newInitCmd() *cobra.Command {
 	var (
-		owner        string
-		repoName     string
-		shelfName    string
-		createRepo   bool
-		private      bool
+		owner         string
+		repoName      string
+		shelfName     string
+		createRepo    bool
+		private       bool
 		createRelease bool
 	)
 

@@ -65,7 +65,7 @@ func resolveHTTP(url string) (*Source, error) {
 		if cl := resp.ContentLength; cl > 0 {
 			size = cl
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 
 	name := guessFilenameFromURL(url)

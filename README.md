@@ -11,7 +11,7 @@
 
 **Organize the PDFs and books you already have scattered across GitHub repos.**
 
-Most developers have a mess: PDFs committed to random repos, old reading lists, papers in gists. shelfctl finds them, organizes them by topic, and turns your GitHub account into a searchable document library. No migration to another service — it works with what you already have.
+Most developers have a mess: one monolithic `books` repo with 500+ PDFs, or files scattered across random repos and gists. shelfctl splits the monolith into organized topic-based shelves and migrates scattered files into a searchable library. No migration to another service — it works with what you already have.
 
 Your GitHub account is already free CDN and blob storage. shelfctl uses Release assets for files and `catalog.yml` for metadata. Organize by topic (`shelf-programming`, `shelf-history`), search from the CLI, open books instantly. Your entire library stays as portable git repos.
 

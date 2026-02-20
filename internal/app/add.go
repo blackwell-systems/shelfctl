@@ -20,17 +20,17 @@ var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
 
 func newAddCmd() *cobra.Command {
 	var (
-		shelfName   string
-		releaseTag  string
-		bookID      string
-		title       string
-		author      string
-		year        int
-		tagsCSV     string
-		assetName   string
-		noPush      bool
-		useSHA12    bool
-		force       bool
+		shelfName  string
+		releaseTag string
+		bookID     string
+		title      string
+		author     string
+		year       int
+		tagsCSV    string
+		assetName  string
+		noPush     bool
+		useSHA12   bool
+		force      bool
 	)
 
 	cmd := &cobra.Command{

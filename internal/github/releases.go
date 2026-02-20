@@ -28,10 +28,10 @@ func (c *Client) GetReleaseByTag(owner, repo, tag string) (*Release, error) {
 func (c *Client) CreateRelease(owner, repo, tag, name string) (*Release, error) {
 	url := c.url("repos", owner, repo, "releases")
 	body := map[string]interface{}{
-		"tag_name":         tag,
-		"name":             name,
-		"draft":            false,
-		"prerelease":       false,
+		"tag_name":               tag,
+		"name":                   name,
+		"draft":                  false,
+		"prerelease":             false,
 		"generate_release_notes": false,
 	}
 	var r Release

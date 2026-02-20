@@ -9,6 +9,7 @@ type Config struct {
 	Serve     ServeConfig     `mapstructure:"serve"`
 }
 
+// GitHubConfig holds GitHub API connection settings.
 type GitHubConfig struct {
 	Owner    string `mapstructure:"owner"`
 	TokenEnv string `mapstructure:"token_env"`
@@ -17,6 +18,7 @@ type GitHubConfig struct {
 	Token    string `mapstructure:"-"` // resolved at runtime, never written
 }
 
+// DefaultsConfig holds default values for operations.
 type DefaultsConfig struct {
 	Release     string `mapstructure:"release"`
 	CacheDir    string `mapstructure:"cache_dir"`

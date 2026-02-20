@@ -11,11 +11,11 @@ import (
 
 func newMoveCmd() *cobra.Command {
 	var (
-		shelfName    string
-		toRelease    string
-		toShelfName  string
-		dryRun       bool
-		keepOld      bool
+		shelfName   string
+		toRelease   string
+		toShelfName string
+		dryRun      bool
+		keepOld     bool
 	)
 
 	cmd := &cobra.Command{

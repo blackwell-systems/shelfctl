@@ -11,9 +11,9 @@ import (
 
 // LedgerEntry records one completed migration.
 type LedgerEntry struct {
-	Source    string    `json:"source"`     // original path in old repo
-	BookID    string    `json:"book_id"`    // new catalog ID
-	Shelf     string    `json:"shelf"`      // target shelf name
+	Source    string    `json:"source"`  // original path in old repo
+	BookID    string    `json:"book_id"` // new catalog ID
+	Shelf     string    `json:"shelf"`   // target shelf name
 	Timestamp time.Time `json:"timestamp"`
 }
 

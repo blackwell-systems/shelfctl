@@ -35,17 +35,43 @@ func newShelveCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "shelve <file|url|github:owner/repo@ref:path>",
+		Use:   "shelve [file|url|github:owner/repo@ref:path]",
 		Short: "Add a book to your library",
 		Long: `Add a book from a local file, HTTP URL, or GitHub repo path. Uploads to release assets and updates catalog.yml.
 
+If no file is provided, launches an interactive file picker (when in terminal).
+
 Examples:
+  shelfctl shelve                                 # Interactive: picker → form → upload
+  shelfctl shelve ~/Downloads/sicp.pdf            # Interactive form for metadata
   shelfctl shelve ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author "Abelson & Sussman" --tags lisp,cs
   shelfctl shelve https://example.com/book.pdf --shelf history --title "..." --tags ancient
   shelfctl shelve github:user/repo@main:books/sicp.pdf --shelf programming`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			input := args[0]
+			var input string
+
+			// If no file provided, launch file picker in TUI mode
+			if len(args) == 0 {
+				if tui.ShouldUseTUI(cmd) {
+					// Get starting directory (try Downloads first, then home)
+					home := os.Getenv("HOME")
+					startPath := filepath.Join(home, "Downloads")
+					if _, err := os.Stat(startPath); err != nil {
+						startPath = home
+					}
+
+					selected, err := tui.RunFilePicker(startPath)
+					if err != nil {
+						return err
+					}
+					input = selected
+				} else {
+					return fmt.Errorf("file path required in non-interactive mode")
+				}
+			} else {
+				input = args[0]
+			}
 
 			shelf := cfg.ShelfByName(shelfName)
 			if shelf == nil {

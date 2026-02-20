@@ -188,10 +188,16 @@ func selectFile(args []string, useTUI bool) (string, error) {
 	}
 
 	if useTUI {
-		home := os.Getenv("HOME")
-		startPath := filepath.Join(home, "Downloads")
-		if _, err := os.Stat(startPath); err != nil {
-			startPath = home
+		// Try current directory first (most likely to have files)
+		startPath, err := os.Getwd()
+		if err != nil {
+			// Fall back to Downloads
+			home := os.Getenv("HOME")
+			startPath = filepath.Join(home, "Downloads")
+			if _, err := os.Stat(startPath); err != nil {
+				// Fall back to home
+				startPath = home
+			}
 		}
 
 		return tui.RunFilePicker(startPath)

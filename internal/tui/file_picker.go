@@ -149,9 +149,22 @@ func (m filePickerModel) View() string {
 func (m filePickerModel) loadDirectory(path string) (tea.Model, tea.Cmd) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		m.err = fmt.Errorf("reading directory: %w", err)
-		m.quitting = true
-		return m, tea.Quit
+		// Don't quit on permission errors - just show error in title and allow going back
+		m.list.Title = "Select File: " + path + " (Permission Denied - Press Backspace)"
+
+		// Add parent directory entry so user can navigate back
+		parent := filepath.Dir(path)
+		items := []list.Item{}
+		if parent != path {
+			items = append(items, FileItem{
+				Name:  "..",
+				Path:  parent,
+				IsDir: true,
+			})
+		}
+		m.list.SetItems(items)
+		m.currentPath = path
+		return m, nil
 	}
 
 	// Build file items

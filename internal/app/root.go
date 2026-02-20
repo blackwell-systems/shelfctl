@@ -413,25 +413,38 @@ func runHub() error {
 
 		// Route to the appropriate command based on action
 		var cmdErr error
+		var shouldExitOnSuccess bool
+
 		switch action {
 		case "browse":
+			// Browse is read-only, always return to hub
 			cmdErr = newBrowseCmd().Execute()
+			shouldExitOnSuccess = false
 		case "shelve":
+			// Shelve is a write operation, exit on success
 			cmdErr = newShelveCmd().Execute()
+			shouldExitOnSuccess = true
 		case "delete-shelf":
+			// Delete is a write operation, exit on success
 			cmdErr = newDeleteShelfCmd().Execute()
+			shouldExitOnSuccess = true
 		case "quit":
 			return nil
 		default:
 			return fmt.Errorf("unknown action: %s", action)
 		}
 
-		// If command succeeded, exit hub
+		// Handle command result
 		if cmdErr == nil {
-			return nil
+			// Command succeeded
+			if shouldExitOnSuccess {
+				return nil // Exit hub for write operations
+			}
+			// For read operations like browse, just continue to show menu again
+			continue
 		}
 
-		// If command failed/canceled, show error and return to hub
+		// Command failed/canceled, show error and return to hub
 		fmt.Println()
 		fmt.Println(color.RedString("Operation failed or canceled: %v", cmdErr))
 		fmt.Println()

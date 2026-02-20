@@ -22,7 +22,25 @@ func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Bootstrap a shelf repo and add it to your config",
-		Example: `  shelfctl init --repo shelf-programming --name programming --create-repo
+		Long: `Bootstrap a shelf repository for storing books.
+
+shelfctl organizes your books into "shelves" - GitHub repos where:
+  • Book metadata lives in catalog.yml (tracked in Git)
+  • Book files live in GitHub Release assets (not tracked in Git)
+  • You can have multiple shelves for different topics
+
+This command creates or registers a shelf repo in your config.
+
+Quick start:
+  1. Run: shelfctl init --repo shelf-books --name books --create-repo --create-release
+  2. Then: shelfctl shelve (launches interactive workflow)
+  3. Or: shelfctl shelve ~/book.pdf --shelf books --title "My Book"
+
+For more details, see: shelfctl --help or docs/TUTORIAL.md`,
+		Example: `  # Create a new shelf with repo and release
+  shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+
+  # Register an existing repo as a shelf
   shelfctl init --repo shelf-history --name history`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Resolve owner.
@@ -35,7 +53,12 @@ func newInitCmd() *cobra.Command {
 			}
 
 			if repoName == "" {
-				return fmt.Errorf("--repo is required")
+				return fmt.Errorf(`--repo is required
+
+Example:
+  shelfctl init --repo shelf-books --name books --create-repo --create-release
+
+This creates a new shelf repository for storing books. Run 'shelfctl init --help' for details.`)
 			}
 			if shelfName == "" {
 				// Default shelf name from repo: shelf-<name> → <name>
@@ -113,6 +136,21 @@ func newInitCmd() *cobra.Command {
 				hint := fmt.Sprintf("Make sure %s/%s exists on GitHub.", effectiveOwner, repoName)
 				fmt.Fprintln(os.Stderr, color.YellowString("hint:"), hint)
 			}
+
+			// Show next steps
+			fmt.Println()
+			fmt.Println(color.GreenString("✓ Shelf initialized!"))
+			fmt.Println()
+			fmt.Println("Next steps:")
+			fmt.Printf("  1. Add your first book (interactive):\n")
+			fmt.Printf("     %s\n\n", color.CyanString("shelfctl shelve"))
+			fmt.Printf("  2. Or with all details:\n")
+			fmt.Printf("     %s\n\n", color.CyanString(fmt.Sprintf("shelfctl shelve ~/book.pdf --shelf %s --title \"My Book\"", shelfName)))
+			fmt.Printf("  3. Browse your library:\n")
+			fmt.Printf("     %s\n\n", color.CyanString("shelfctl browse"))
+			fmt.Printf("  4. View your shelves:\n")
+			fmt.Printf("     %s\n", color.CyanString("shelfctl shelves"))
+
 			return nil
 		},
 	}

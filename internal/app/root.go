@@ -128,31 +128,139 @@ func header(format string, a ...interface{}) {
 	fmt.Println(color.CyanString(fmt.Sprintf(format, a...)))
 }
 
+// showShelfArchitectureHelp displays information about shelf structure and organization
+func showShelfArchitectureHelp() {
+	fmt.Println()
+	fmt.Println(color.CyanString("═══════════════════════════════════════════════════════════"))
+	fmt.Println(color.CyanString("  How Shelves Work"))
+	fmt.Println(color.CyanString("═══════════════════════════════════════════════════════════"))
+	fmt.Println()
+
+	fmt.Println(color.YellowString("Structure:"))
+	fmt.Println("  Each shelf is a GitHub repository with:")
+	fmt.Println("    • catalog.yml (in Git) - Metadata for your books")
+	fmt.Println("    • Release assets (not in Git) - The actual PDF/EPUB files")
+	fmt.Println()
+
+	fmt.Println(color.YellowString("Organization Strategy:"))
+	fmt.Println("  1. " + color.GreenString("Start broad") + " - One shelf is often enough at first")
+	fmt.Println("     Example: shelf-books (general collection)")
+	fmt.Println()
+	fmt.Println("  2. " + color.GreenString("Use tags") + " - Organize books within a shelf using tags")
+	fmt.Println("     Example: --tags programming,golang,textbook")
+	fmt.Println()
+	fmt.Println("  3. " + color.GreenString("Split later") + " - When a shelf grows large, split it")
+	fmt.Println("     Use: shelfctl split (interactive wizard)")
+	fmt.Println()
+
+	fmt.Println(color.YellowString("When to Create Multiple Shelves:"))
+	fmt.Println("  ✓ Different topics with distinct audiences")
+	fmt.Println("    Example: shelf-work, shelf-personal, shelf-research")
+	fmt.Println()
+	fmt.Println("  ✓ When a shelf exceeds ~200-300 books")
+	fmt.Println("    GitHub releases work best with moderate asset counts")
+	fmt.Println()
+	fmt.Println("  ✓ Different access requirements")
+	fmt.Println("    Example: shelf-public (public repo), shelf-private (private repo)")
+	fmt.Println()
+
+	fmt.Println(color.YellowString("Naming Conventions:"))
+	fmt.Println("  • Use " + color.CyanString("shelf-<topic>") + " for the repository name")
+	fmt.Println("    Examples: shelf-programming, shelf-fiction, shelf-papers")
+	fmt.Println()
+	fmt.Println("  • The shelf name (config) is shorter:")
+	fmt.Println("    Examples: programming, fiction, papers")
+	fmt.Println()
+
+	fmt.Println(color.YellowString("Advanced: Sub-organization with Releases"))
+	fmt.Println("  You can use multiple releases within one shelf:")
+	fmt.Println()
+	fmt.Println("  shelf-programming/")
+	fmt.Println("    release: library (default)")
+	fmt.Println("    release: textbooks")
+	fmt.Println("    release: papers")
+	fmt.Println()
+	fmt.Println("  Move books between releases with: shelfctl move --to-release")
+	fmt.Println()
+
+	fmt.Println(color.YellowString("Splitting Shelves:"))
+	fmt.Println("  Don't worry about perfect organization now!")
+	fmt.Println()
+	fmt.Println("  Later, you can run: " + color.CyanString("shelfctl split"))
+	fmt.Println()
+	fmt.Println("  This launches a wizard that:")
+	fmt.Println("    • Groups books by tags or other criteria")
+	fmt.Println("    • Helps you decide which books go where")
+	fmt.Println("    • Moves everything automatically")
+	fmt.Println()
+
+	fmt.Println(color.YellowString("Recommendation for First Shelf:"))
+	fmt.Println("  Start with " + color.GreenString("shelf-books") + " or " + color.GreenString("shelf-library"))
+	fmt.Println("  → Simple, general-purpose name")
+	fmt.Println("  → Easy to split later by topic")
+	fmt.Println("  → Use tags for organization in the meantime")
+	fmt.Println()
+
+	fmt.Println(color.CyanString("═══════════════════════════════════════════════════════════"))
+	fmt.Println()
+}
+
 // runInteractiveInit guides the user through creating their first shelf
 func runInteractiveInit() error {
 	fmt.Println(color.CyanString("📚 Let's set up your first shelf!"))
 	fmt.Println()
+	fmt.Println(color.GreenString("Tip:") + " Type 'help' or '?' at any prompt for more information about shelf structure")
+	fmt.Println()
 
-	// Get repo name
-	fmt.Print("Repository name (e.g., shelf-books): ")
+	// Offer architecture info upfront
+	fmt.Print("Want to learn about shelf architecture first? (y/n): ")
+	var wantInfo string
+	fmt.Scanln(&wantInfo)
+	if wantInfo == "y" || wantInfo == "Y" || wantInfo == "yes" {
+		showShelfArchitectureHelp()
+	}
+	fmt.Println()
+
+	// Get repo name with help option
 	var repoName string
-	fmt.Scanln(&repoName)
-	if repoName == "" {
-		repoName = "shelf-books"
-		fmt.Printf("  Using default: %s\n", repoName)
+	for {
+		fmt.Print("Repository name (e.g., shelf-books): ")
+		fmt.Scanln(&repoName)
+
+		if repoName == "help" || repoName == "?" {
+			showShelfArchitectureHelp()
+			fmt.Println()
+			continue
+		}
+
+		if repoName == "" {
+			repoName = "shelf-books"
+			fmt.Printf("  Using default: %s\n", repoName)
+		}
+		break
 	}
 
-	// Get shelf name
-	fmt.Print("Shelf name (e.g., books): ")
+	// Get shelf name with help option
 	var shelfName string
-	fmt.Scanln(&shelfName)
-	if shelfName == "" {
-		// Default: strip "shelf-" prefix if present
-		shelfName = repoName
-		if len(repoName) > 6 && repoName[:6] == "shelf-" {
-			shelfName = repoName[6:]
+	for {
+		fmt.Print("Shelf name (e.g., books): ")
+		fmt.Scanln(&shelfName)
+
+		if shelfName == "help" || shelfName == "?" {
+			showShelfArchitectureHelp()
+			fmt.Println()
+			continue
 		}
-		fmt.Printf("  Using default: %s\n", shelfName)
+
+		if shelfName == "" {
+			// Default: strip "shelf-" prefix if present
+			shelfName = repoName
+			if len(repoName) > 6 && repoName[:6] == "shelf-" {
+				shelfName = repoName[6:]
+			}
+			fmt.Printf("  Using default: %s\n", shelfName)
+		}
+		break
 	}
 
 	// Confirm creation

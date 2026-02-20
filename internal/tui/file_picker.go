@@ -44,7 +44,7 @@ func (d fileDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	isSelected := index == m.Index()
 
 	// Format display
-	icon := "  "
+	var icon string
 	if fileItem.IsDir {
 		icon = "📁"
 	} else {
@@ -54,9 +54,9 @@ func (d fileDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	display := fmt.Sprintf("%s %s", icon, fileItem.Name)
 
 	if isSelected {
-		fmt.Fprint(w, StyleHighlight.Render("› "+display))
+		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+display))
 	} else {
-		fmt.Fprint(w, "  "+StyleNormal.Render(display))
+		_, _ = fmt.Fprint(w, "  "+StyleNormal.Render(display))
 	}
 }
 
@@ -70,9 +70,9 @@ type filePickerModel struct {
 
 // filePickerKeys defines keyboard shortcuts
 type filePickerKeys struct {
-	quit   key.Binding
-	select_ key.Binding
-	parent key.Binding
+	quit       key.Binding
+	selectItem key.Binding
+	parent     key.Binding
 }
 
 var fileKeys = filePickerKeys{
@@ -80,7 +80,7 @@ var fileKeys = filePickerKeys{
 		key.WithKeys("q", "esc", "ctrl+c"),
 		key.WithHelp("q", "cancel"),
 	),
-	select_: key.NewBinding(
+	selectItem: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "select/open"),
 	),
@@ -108,7 +108,7 @@ func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = fmt.Errorf("canceled by user")
 			return m, tea.Quit
 
-		case key.Matches(msg, fileKeys.select_):
+		case key.Matches(msg, fileKeys.selectItem):
 			if item, ok := m.list.SelectedItem().(FileItem); ok {
 				if item.IsDir {
 					// Navigate into directory

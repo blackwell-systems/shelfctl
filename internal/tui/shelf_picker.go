@@ -40,9 +40,9 @@ func (d shelfDelegate) Render(w io.Writer, m list.Model, index int, item list.It
 	display := fmt.Sprintf("%s (%s)", shelfItem.Name, StyleHelp.Render(shelfItem.Repo))
 
 	if isSelected {
-		fmt.Fprint(w, StyleHighlight.Render("› "+display))
+		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+display))
 	} else {
-		fmt.Fprint(w, "  "+StyleNormal.Render(display))
+		_, _ = fmt.Fprint(w, "  "+StyleNormal.Render(display))
 	}
 }
 
@@ -54,8 +54,8 @@ type shelfPickerModel struct {
 }
 
 type shelfPickerKeys struct {
-	quit   key.Binding
-	select_ key.Binding
+	quit       key.Binding
+	selectItem key.Binding
 }
 
 var shelfKeys = shelfPickerKeys{
@@ -63,7 +63,7 @@ var shelfKeys = shelfPickerKeys{
 		key.WithKeys("q", "esc", "ctrl+c"),
 		key.WithHelp("q", "cancel"),
 	),
-	select_: key.NewBinding(
+	selectItem: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "select"),
 	),
@@ -87,7 +87,7 @@ func (m shelfPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = fmt.Errorf("canceled by user")
 			return m, tea.Quit
 
-		case key.Matches(msg, shelfKeys.select_):
+		case key.Matches(msg, shelfKeys.selectItem):
 			if item, ok := m.list.SelectedItem().(ShelfOption); ok {
 				m.selected = item.Name
 				m.quitting = true

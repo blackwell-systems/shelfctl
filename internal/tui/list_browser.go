@@ -20,7 +20,7 @@ type BookItem struct {
 	Repo      string
 }
 
-// Implement list.Item interface
+// FilterValue returns a string used for filtering in the list
 func (b BookItem) FilterValue() string {
 	// Include ID, title, tags, and shelf name in filter
 	tags := strings.Join(b.Book.Tags, " ")
@@ -74,7 +74,7 @@ func (d bookDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		s.WriteString("  " + StyleNormal.Render(idStr) + " " + title + tagStr + cachedMark)
 	}
 
-	fmt.Fprint(w, s.String())
+	_, _ = fmt.Fprint(w, s.String())
 }
 
 // keyMap defines keyboard shortcuts

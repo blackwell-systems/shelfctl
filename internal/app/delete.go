@@ -100,7 +100,7 @@ Examples:
 			if !skipConfirm {
 				fmt.Print("Type the shelf name to confirm deletion: ")
 				var confirmation string
-				fmt.Scanln(&confirmation)
+				_, _ = fmt.Scanln(&confirmation)
 
 				if confirmation != shelfName {
 					return fmt.Errorf("confirmation did not match - aborted")

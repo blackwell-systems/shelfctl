@@ -226,7 +226,7 @@ func runInteractiveInit() error {
 	for {
 		fmt.Print("Want to learn about shelf architecture first? (y/n/?): ")
 		var wantInfo string
-		fmt.Scanln(&wantInfo)
+		_, _ = fmt.Scanln(&wantInfo)
 
 		if wantInfo == "help" || wantInfo == "?" {
 			showShelfArchitectureHelp()
@@ -248,7 +248,7 @@ func runInteractiveInit() error {
 	var repoName string
 	for {
 		fmt.Print("GitHub repository name (e.g., shelf-books) [?=help]: ")
-		fmt.Scanln(&repoName)
+		_, _ = fmt.Scanln(&repoName)
 
 		if repoName == "help" || repoName == "?" {
 			showShelfArchitectureHelp()
@@ -278,7 +278,7 @@ func runInteractiveInit() error {
 	var shelfName string
 	for {
 		fmt.Printf("Shelf name for commands (default: %s) [?=help]: ", color.GreenString(defaultShelfName))
-		fmt.Scanln(&shelfName)
+		_, _ = fmt.Scanln(&shelfName)
 
 		if shelfName == "help" || shelfName == "?" {
 			showShelfArchitectureHelp()
@@ -305,7 +305,7 @@ func runInteractiveInit() error {
 	fmt.Println()
 	fmt.Print("Proceed? (y/n): ")
 	var confirm string
-	fmt.Scanln(&confirm)
+	_, _ = fmt.Scanln(&confirm)
 
 	if confirm != "y" && confirm != "Y" && confirm != "yes" {
 		fmt.Println(color.YellowString("Cancelled."))
@@ -383,7 +383,7 @@ func runHub() error {
 			if util.IsTTY() {
 				fmt.Print("Would you like to create a shelf now? (y/n): ")
 				var response string
-				fmt.Scanln(&response)
+				_, _ = fmt.Scanln(&response)
 				if response == "y" || response == "Y" || response == "yes" {
 					fmt.Println()
 					return runInteractiveInit()

@@ -74,11 +74,11 @@ shelfctl browse --shelf %s
 
 ## Maintenance
 
-This shelf is managed with shelfctl. The source of truth for metadata is ` + "`catalog.yml`" + `.
+This shelf is managed with shelfctl. The source of truth for metadata is `+"`catalog.yml`"+`.
 
-- **View catalog**: ` + "`cat catalog.yml`" + `
-- **Validate**: ` + "`shelfctl shelves`" + `
-- **Split shelf**: ` + "`shelfctl split`" + ` (when it grows large)
+- **View catalog**: `+"`cat catalog.yml`"+`
+- **Validate**: `+"`shelfctl shelves`"+`
+- **Split shelf**: `+"`shelfctl split`"+` (when it grows large)
 
 ## Links
 

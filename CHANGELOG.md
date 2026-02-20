@@ -8,55 +8,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Interactive TUI mode using Bubble Tea library
-  - `browse` command shows interactive browser with keyboard navigation
-  - `shelve` command with complete guided workflow: shelf picker → file picker → metadata form
-  - Run `shelfctl shelve` with no arguments for fully guided book addition
-  - Filtering, search, and visual selection throughout
-  - Auto-detects terminal mode vs piped/scripted output
-  - New `--no-interactive` global flag to disable TUI
-- Better command names for clarity
-  - `browse` (was `list`) - Browse library with TUI or text
-  - `shelve` (was `add`) - Add a book to your library
-  - `open` now auto-downloads (removed redundant `get` command)
+- **Interactive TUI mode using Bubble Tea library**
+  - `browse` command: Interactive browser with keyboard navigation, filtering, and search
+  - `shelve` command: Fully guided workflow with no arguments required
+    - Shelf picker (if multiple shelves)
+    - File browser (starts in ~/Downloads, filters for .pdf/.epub/.mobi/.djvu)
+    - Metadata form (title, author, tags, ID)
+  - Auto-detects terminal vs piped/scripted output
+  - New `--no-interactive` global flag to disable TUI mode
+  - All TUI components use alt screen and restore terminal state on exit
+- Comprehensive documentation
+  - `config.example.yml`: Template configuration with detailed comments
+  - `CONTRIBUTING.md`: Development setup, testing, and PR guidelines
+  - `docs/COMMANDS.md`: Complete command reference with examples
+  - `docs/TUTORIAL.md`: Step-by-step walkthrough from installation to workflows
+  - `docs/TROUBLESHOOTING.md`: Common issues and solutions
+  - `docs/SPEC.md`: Architecture and configuration schema
+  - `docs/index.md`: Documentation home page
+- Defensive measures for duplicate content detection
+  - `shelve` checks for SHA256 duplicates before upload
+  - `shelve` checks for asset name collisions before upload
+  - `--force` flag to bypass checks and overwrite existing assets
 
 ### Changed
-- **BREAKING:** Command renames for end-user clarity
+- **BREAKING: Command renames for end-user clarity**
   - `list` → `browse` (better matches interactive TUI functionality)
   - `add` → `shelve` (stronger library metaphor)
-  - `get` command removed (use `open` instead - it auto-downloads)
-- README improvements
-  - Fixed factual claims about GitHub storage limits (no more "1TB+" or "2GB storage" specifics)
-  - Reordered "Why" section for better pitch flow (on-demand first, then Git LFS comparison)
-  - Clarified API-based operation (no local repos required)
+  - `get` removed (use `open` - it auto-downloads when needed)
+  - All documentation and examples updated to reflect new names
+- **README improvements**
+  - Fixed factual claims about GitHub limits (removed "1TB+", "2GB storage" specifics)
+  - Reordered "Why" section: on-demand first, then Git LFS comparison
+  - Clarified API-based operation (no local repos required, run from anywhere)
   - Added logo2.png above Commands section
-- Reorganized documentation into `docs/` directory for better structure
-  - Moved TUTORIAL.md, COMMANDS.md, SPEC.md, TROUBLESHOOTING.md to docs/
-  - Created docs/index.md as documentation home page
-  - Added docs/nav.yml for documentation generator compatibility
-  - Updated README links to point to new locations
-
-- Defensive measures for duplicate content detection
-  - `shelve` command checks for existing files with same SHA256 checksum
-  - `shelve` command checks for asset name collisions before upload
-  - New `--force` flag to bypass duplicate checks and overwrite existing assets
-- Comprehensive documentation
-  - `config.example.yml`: Template configuration file with detailed comments
-  - `CONTRIBUTING.md`: Development setup, testing, and PR guidelines
-  - `COMMANDS.md`: Complete command reference with examples for all commands
-  - `TUTORIAL.md`: Step-by-step guide from installation to common workflows
-  - `TROUBLESHOOTING.md`: Common issues and solutions
-- README improvements
-  - Centered logo with padding
-  - Zero-infrastructure value proposition front and center
-  - New "Why" section highlighting benefits (no ops, zero cost, portable, scriptable)
-  - Fixed placeholder URLs (YOUR_GH_OWNER → blackwell-systems)
-  - Removed reference to non-existent config.example.yml
-
-- Operations made safer and more idempotent
-  - `shelve` command loads catalog once for both duplicate checks and appending
-  - Clearer error messages when duplicates are detected
-  - Force mode explicitly deletes existing asset before re-uploading
+- **Documentation structure**
+  - Moved all docs to `docs/` directory
+  - Created navigation structure for doc generators
+  - Updated all cross-references
+- **Operations made safer**
+  - `shelve` loads catalog once for both duplicate checks and appending
+  - Clearer error messages for duplicates
+  - Force mode explicitly deletes existing assets before re-uploading
+  - `open` command inlines download logic (previously called `get`)
 
 ## [0.1.0] - 2024-02-20
 

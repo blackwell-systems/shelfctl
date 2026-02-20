@@ -47,3 +47,13 @@ func (c *Client) RepoExists(owner, repo string) (bool, error) {
 	}
 	return err == nil, err
 }
+
+// DeleteRepo permanently deletes a repository.
+// This is a destructive operation that cannot be undone.
+func (c *Client) DeleteRepo(owner, repo string) error {
+	url := c.url("repos", owner, repo)
+	if err := c.doJSON(http.MethodDelete, url, nil, nil); err != nil {
+		return fmt.Errorf("delete repo %s/%s: %w", owner, repo, err)
+	}
+	return nil
+}

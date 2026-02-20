@@ -47,7 +47,7 @@ var menuItems = []MenuItem{
 type menuDelegate struct{}
 
 func (d menuDelegate) Height() int  { return 1 }
-func (d menuDelegate) Spacing() int { return 0 }
+func (d menuDelegate) Spacing() int { return 1 }
 func (d menuDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 	return nil
 }

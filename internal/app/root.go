@@ -96,6 +96,7 @@ func init() {
 	rootCmd.AddCommand(
 		newInitCmd(),
 		newShelvesCmd(),
+		newDeleteShelfCmd(),
 		newBrowseCmd(),
 		newInfoCmd(),
 		newOpenCmd(),

@@ -22,8 +22,8 @@ Zero-infrastructure document library using GitHub repos and releases as storage.
 3. [Create your first shelf](TUTORIAL.md#step-5-create-your-first-shelf)
 
 ### Common Tasks
-- [Add a book](COMMANDS.md#add) - `shelfctl add ~/book.pdf --shelf programming`
-- [Search your library](COMMANDS.md#list) - `shelfctl list --tag algorithms`
+- [Add a book](COMMANDS.md#add) - `shelfctl shelve ~/book.pdf --shelf programming`
+- [Search your library](COMMANDS.md#list) - `shelfctl browse --tag algorithms`
 - [Open a book](COMMANDS.md#open) - `shelfctl open book-id`
 - [Migrate existing files](COMMANDS.md#migrate-batch) - Organize your monolithic repo
 

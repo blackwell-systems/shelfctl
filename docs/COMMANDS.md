@@ -81,7 +81,7 @@ For each shelf:
 Ingest a document into a shelf.
 
 ```bash
-shelfctl add <file|url|github:owner/repo@ref:path> --shelf NAME [flags]
+shelfctl shelve <file|url|github:owner/repo@ref:path> --shelf NAME [flags]
 ```
 
 ### Arguments
@@ -108,25 +108,25 @@ Source can be:
 
 ```bash
 # Add local file with metadata
-shelfctl add ~/Downloads/sicp.pdf \
+shelfctl shelve ~/Downloads/sicp.pdf \
   --shelf programming \
   --title "Structure and Interpretation of Computer Programs" \
   --author "Abelson & Sussman" \
   --tags lisp,cs,textbook
 
 # Add from URL
-shelfctl add https://example.com/paper.pdf \
+shelfctl shelve https://example.com/paper.pdf \
   --shelf research \
   --title "Important Paper" \
   --year 2024
 
 # Add from GitHub repo
-shelfctl add github:user/books@main:pdfs/algo.pdf \
+shelfctl shelve github:user/books@main:pdfs/algo.pdf \
   --shelf cs \
   --title "Algorithm Design"
 
 # Use SHA-based ID for uniqueness
-shelfctl add book.pdf --shelf fiction --id-sha12 --title "Novel"
+shelfctl shelve book.pdf --shelf fiction --id-sha12 --title "Novel"
 ```
 
 ### What it does
@@ -145,7 +145,7 @@ shelfctl add book.pdf --shelf fiction --id-sha12 --title "Novel"
 List books with filtering.
 
 ```bash
-shelfctl list [--shelf NAME] [--tag TAG] [--format FORMAT]
+shelfctl browse [--shelf NAME] [--tag TAG] [--format FORMAT]
 ```
 
 ### Flags
@@ -159,16 +159,16 @@ shelfctl list [--shelf NAME] [--tag TAG] [--format FORMAT]
 
 ```bash
 # List all books
-shelfctl list
+shelfctl browse
 
 # List books in specific shelf
-shelfctl list --shelf programming
+shelfctl browse --shelf programming
 
 # Filter by tag
-shelfctl list --tag algorithms
+shelfctl browse --tag algorithms
 
 # Combine filters
-shelfctl list --shelf programming --tag lisp
+shelfctl browse --shelf programming --tag lisp
 ```
 
 ### Output
@@ -234,7 +234,7 @@ Added:     2024-01-15T10:30:00Z
 Download a book to local cache.
 
 ```bash
-shelfctl get <id>
+shelfctl open <id>
 ```
 
 ### Arguments
@@ -244,7 +244,7 @@ shelfctl get <id>
 ### Example
 
 ```bash
-shelfctl get sicp
+shelfctl open sicp
 ```
 
 ### What it does
@@ -279,7 +279,7 @@ shelfctl open sicp
 
 ### What it does
 
-1. Downloads book if not in cache (same as `get`)
+1. Downloads book if not in cache (same as `open`)
 2. Opens file with system default application
    - macOS: uses `open`
    - Linux: uses `xdg-open`

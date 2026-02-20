@@ -114,7 +114,7 @@ Output:
 Let's add a PDF from your Downloads folder:
 
 ```bash
-shelfctl add ~/Downloads/some-book.pdf \
+shelfctl shelve ~/Downloads/some-book.pdf \
   --shelf programming \
   --title "Introduction to Algorithms" \
   --author "CLRS" \
@@ -132,7 +132,7 @@ What happened:
 ## Step 7: List your books
 
 ```bash
-shelfctl list --shelf programming
+shelfctl browse --shelf programming
 ```
 
 Output:
@@ -191,7 +191,7 @@ shelfctl shelves
 You can add books directly from URLs:
 
 ```bash
-shelfctl add https://example.com/paper.pdf \
+shelfctl shelve https://example.com/paper.pdf \
   --shelf research \
   --title "Important Research Paper" \
   --tags ai,ml \
@@ -204,14 +204,14 @@ Use tags to organize books within a shelf:
 
 ```bash
 # Add a book about Lisp
-shelfctl add ~/Downloads/sicp.pdf \
+shelfctl shelve ~/Downloads/sicp.pdf \
   --shelf programming \
   --title "Structure and Interpretation of Computer Programs" \
   --author "Abelson & Sussman" \
   --tags lisp,functional,textbook
 
 # Add a book about algorithms
-shelfctl add ~/Downloads/algo-design.pdf \
+shelfctl shelve ~/Downloads/algo-design.pdf \
   --shelf programming \
   --title "Algorithm Design" \
   --author "Kleinberg & Tardos" \
@@ -221,8 +221,8 @@ shelfctl add ~/Downloads/algo-design.pdf \
 Filter by tag:
 
 ```bash
-shelfctl list --shelf programming --tag lisp
-shelfctl list --shelf programming --tag algorithms
+shelfctl browse --shelf programming --tag lisp
+shelfctl browse --shelf programming --tag algorithms
 ```
 
 ## Common workflows
@@ -234,7 +234,7 @@ Create a shell script:
 ```bash
 #!/bin/bash
 for file in ~/Downloads/books/*.pdf; do
-  shelfctl add "$file" \
+  shelfctl shelve "$file" \
     --shelf programming \
     --title "$(basename "$file" .pdf)" \
     --tags imported
@@ -257,13 +257,13 @@ You can use releases within a shelf for sub-organization:
 
 ```bash
 # Add to a specific year
-shelfctl add book.pdf \
+shelfctl shelve book.pdf \
   --shelf research \
   --release 2024 \
   --title "Recent Paper"
 
 # Add to archive
-shelfctl add old-book.pdf \
+shelfctl shelve old-book.pdf \
   --shelf programming \
   --release archive \
   --title "Old Book"
@@ -315,8 +315,8 @@ The `--id` flag lets you control book IDs. Good practices:
 Add to your shell profile:
 
 ```bash
-alias shelfadd='shelfctl add'
-alias shelflist='shelfctl list'
+alias shelfadd='shelfctl shelve'
+alias shelflist='shelfctl browse'
 alias shelfopen='shelfctl open'
 ```
 
@@ -399,7 +399,7 @@ export GITHUB_TOKEN=ghp_...
 shelfctl init --repo shelf-books --name books --create-repo --create-release
 
 # 5. Add a book
-shelfctl add ~/book.pdf --shelf books --title "My Book" --tags reading
+shelfctl shelve ~/book.pdf --shelf books --title "My Book" --tags reading
 
 # 6. Open it
 shelfctl open my-book

@@ -79,11 +79,10 @@ func init() {
 	rootCmd.AddCommand(
 		newInitCmd(),
 		newShelvesCmd(),
-		newListCmd(),
+		newBrowseCmd(),
 		newInfoCmd(),
-		newGetCmd(),
 		newOpenCmd(),
-		newAddCmd(),
+		newShelveCmd(),
 		newMoveCmd(),
 		newSplitCmd(),
 		newMigrateCmd(),

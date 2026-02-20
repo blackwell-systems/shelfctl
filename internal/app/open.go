@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -29,12 +30,35 @@ func newOpenCmd() *cobra.Command {
 			// Ensure cached.
 			if !cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
 				fmt.Printf("Not cached — downloading %s …\n", id)
-				// Reuse get logic.
-				getCmd := newGetCmd()
-				getCmd.SetArgs([]string{id, "--shelf", shelf.Name})
-				if err := getCmd.Execute(); err != nil {
-					return fmt.Errorf("downloading: %w", err)
+
+				// Find the release and asset.
+				rel, err := gh.GetReleaseByTag(owner, shelf.Repo, b.Source.Release)
+				if err != nil {
+					return fmt.Errorf("release %q: %w", b.Source.Release, err)
 				}
+				asset, err := gh.FindAsset(owner, shelf.Repo, rel.ID, b.Source.Asset)
+				if err != nil {
+					return fmt.Errorf("finding asset: %w", err)
+				}
+				if asset == nil {
+					return fmt.Errorf("asset %q not found in release %q", b.Source.Asset, b.Source.Release)
+				}
+
+				fmt.Printf("Downloading %s  (%s) …\n",
+					color.WhiteString(b.ID),
+					color.CyanString(humanBytes(asset.Size)))
+
+				rc, err := gh.DownloadAsset(owner, shelf.Repo, asset.ID)
+				if err != nil {
+					return fmt.Errorf("download: %w", err)
+				}
+				defer func() { _ = rc.Close() }()
+
+				path, err := cacheMgr.Store(owner, shelf.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
+				if err != nil {
+					return fmt.Errorf("cache: %w", err)
+				}
+				ok("Cached: %s", path)
 			}
 
 			path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)

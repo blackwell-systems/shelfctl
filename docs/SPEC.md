@@ -209,7 +209,7 @@ Validate shelves:
 * `catalog.yml` exists (or offer `--fix` to create)
 * `library` release exists (or offer `--fix` to create)
 
-### `shelfctl list`
+### `shelfctl browse`
 
 List books, filterable.
 
@@ -224,7 +224,7 @@ Flags:
 
 Show metadata and local cache status.
 
-### `shelfctl get <id>`
+### `shelfctl open <id>`
 
 Download **exactly one** asset to cache.
 
@@ -251,7 +251,7 @@ Flags:
 
 * `--app <app>`
 
-### `shelfctl add <file-or-url> --shelf <name>`
+### `shelfctl shelve <file-or-url> --shelf <name>`
 
 Ingest a local file **or a URL** into release-assets + catalog. This is the primary day-to-day command for adding new books.
 
@@ -326,7 +326,7 @@ Steps:
 
 1. download file from old repo via GitHub Contents API (raw)
 2. route to shelf via `migration.mapping` (prefix match)
-3. call `add` path from temp
+3. call `shelve` path from temp
 4. append record to a local ledger
 
 Ledger:
@@ -516,7 +516,7 @@ shelfctl migrate batch queue.txt --n 10 --continue
 
 # 5. Verify
 shelfctl shelves
-shelfctl list --shelf programming
+shelfctl browse --shelf programming
 
 # 6. Repeat until queue is empty, then archive old repo
 ```
@@ -525,17 +525,17 @@ The ledger at `~/.local/share/shelfctl/migrated.jsonl` tracks every completed mi
 
 ### Ongoing ingestion (day-to-day)
 
-After migration, the same `add` command handles all new books regardless of source:
+After migration, the same `shelve` command handles all new books regardless of source:
 
 ```bash
 # From disk
-shelfctl add ~/Downloads/newbook.pdf --shelf programming --title "New Book" --tags go
+shelfctl shelve ~/Downloads/newbook.pdf --shelf programming --title "New Book" --tags go
 
 # Stream from a URL (no temp file)
-shelfctl add https://example.com/book.pdf --shelf history --title "..." --tags ancient
+shelfctl shelve https://example.com/book.pdf --shelf history --title "..." --tags ancient
 
 # From another GitHub repo (authenticated)
-shelfctl add github:someuser/repo@main:books/title.pdf --shelf philosophy
+shelfctl shelve github:someuser/repo@main:books/title.pdf --shelf philosophy
 
 # Batch import from another shelf repo
 shelfctl import --from someuser/shelf-philosophy --shelf philosophy
@@ -548,8 +548,8 @@ shelfctl import --from someuser/shelf-philosophy --shelf philosophy
 MVP is done when, for private repos:
 
 1. `shelfctl shelves` validates all shelves and creates missing `library` release with `--fix`
-2. `shelfctl add <file> --shelf history --title ... --tags ...` uploads to release + updates `catalog.yml` and pushes
-3. `shelfctl get <id>` downloads exactly one asset, verifies sha256, caches it
+2. `shelfctl shelve <file> --shelf history --title ... --tags ...` uploads to release + updates `catalog.yml` and pushes
+3. `shelfctl open <id>` downloads exactly one asset, verifies sha256, caches it
 4. `shelfctl open <id>` opens cached file (or downloads then opens)
 5. `shelfctl migrate one <old_path>` pulls one file from old monorepo via API and ingests to correct shelf
 
@@ -586,9 +586,9 @@ serve:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/shelves` | list configured shelves with book count |
-| GET | `/api/books` | list books, same filter params as `shelfctl list` |
+| GET | `/api/books` | list books, same filter params as `shelfctl browse` |
 | GET | `/api/books/:id` | single book metadata + cache status |
-| POST | `/api/books` | ingest (wraps `add` logic) |
+| POST | `/api/books` | ingest (wraps `shelve` logic) |
 | GET | `/api/books/:id/open` | ensure cached + open with system viewer |
 | GET | `/api/books/:id/download` | stream asset to browser |
 | GET | `/api/migrate/status` | ledger summary |

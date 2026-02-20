@@ -34,7 +34,7 @@ Zero infrastructure. Start free; only pay if you opt into LFS or exceed GitHub's
 
 **No ops burden**: No database to maintain, no blob storage to configure, no servers to patch. GitHub handles availability, backups, and CDN distribution.
 
-**Portable**: Your library is just git repos. Clone anywhere, migrate anytime. No vendor lock-in, no proprietary formats.
+**Portable**: All API-based—no local repos required. Same config works on any machine. Your library is standard GitHub repos you can access from anywhere.
 
 **Scriptable**: CLI-first design. Pipe commands, write shell scripts, integrate with your existing workflows.
 
@@ -49,7 +49,8 @@ Zero infrastructure. Start free; only pay if you opt into LFS or exceed GitHub's
 - Each topic gets a GitHub repo: `shelf-programming`, `shelf-history`, etc.
 - Files (PDFs, EPUBs) are stored as **Release assets** — not committed to git.
 - `catalog.yml` in each repo is the source of truth for metadata.
-- **Download individual books on demand** — no need to clone repos or download entire releases.
+- **Everything happens via GitHub API** — no local cloning required. Run commands from anywhere.
+- **Download individual books on demand** — `shelfctl open book-id` fetches just that file from GitHub's CDN.
 - `shelfctl` manages the whole lifecycle: add, get, open, migrate, split.
 
 ---
@@ -92,10 +93,10 @@ shelfctl migrate batch queue.txt --n 10 --continue
 
 ```bash
 # Add a book
-shelfctl add ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author "Abelson & Sussman" --tags lisp,cs
+shelfctl shelve ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author "Abelson & Sussman" --tags lisp,cs
 
 # List books across all shelves
-shelfctl list --shelf programming
+shelfctl browse --shelf programming
 
 # Open a book — downloads just this one file (6MB), not the entire release
 shelfctl open sicp
@@ -116,17 +117,16 @@ shelfctl open sicp
 |---------|-------------|
 | `init` | Bootstrap a shelf repo and release |
 | `shelves` | Validate all configured shelves |
-| `list` | List books with filtering |
+| `browse` | Browse your library (interactive TUI or text) |
 | `info <id>` | Show metadata and cache status |
-| `get <id>` | Download to local cache |
-| `open <id>` | Open a book (downloads if needed) |
-| `add <file\|url>` | Ingest a file or URL into a shelf |
+| `open <id>` | Open a book (auto-downloads if needed) |
+| `shelve <file\|url>` | Add a book to your library |
 | `move <id>` | Move between releases or shelves |
 | `split` | Interactive wizard to split a shelf |
 | `migrate one` | Migrate a single file from an old repo |
 | `migrate batch` | Migrate a queue of files |
 | `migrate scan` | List files in a source repo |
-| `import` | Import from another shelfctl shelf |
+| `import` | Import all books from another shelf |
 
 ---
 

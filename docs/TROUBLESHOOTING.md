@@ -92,12 +92,12 @@ This creates an empty catalog if one doesn't exist.
 
 1. Use different asset name:
    ```bash
-   shelfctl add book.pdf --shelf prog --asset-name book-v2.pdf --title "..."
+   shelfctl shelve book.pdf --shelf prog --asset-name book-v2.pdf --title "..."
    ```
 
 2. Use default `--asset-naming=id` (prevents collisions):
    ```bash
-   shelfctl add book.pdf --shelf prog --id unique-id --title "..."
+   shelfctl shelve book.pdf --shelf prog --id unique-id --title "..."
    ```
 
 3. Delete the old asset from GitHub releases UI first
@@ -126,21 +126,21 @@ Files over ~500MB may hit timeouts. Consider:
 ```bash
 # Clear cache and re-download
 rm ~/.local/share/shelfctl/cache/book-id.pdf
-shelfctl get book-id
+shelfctl open book-id
 ```
 
 If problem persists, the asset on GitHub may be corrupt. Re-upload:
 
 ```bash
 # Delete from GitHub releases UI, then:
-shelfctl add original-file.pdf --shelf name --id book-id --title "..."
+shelfctl shelve original-file.pdf --shelf name --id book-id --title "..."
 ```
 
 ## Configuration issues
 
 ### "shelf not found in config"
 
-**Symptom**: `shelfctl add --shelf name` fails with "shelf not found".
+**Symptom**: `shelfctl shelve --shelf name` fails with "shelf not found".
 
 **Cause**: Shelf not defined in `~/.config/shelfctl/config.yml`.
 
@@ -221,7 +221,7 @@ rm -rf ~/.local/share/shelfctl/cache/*
 
 ```bash
 # Re-download
-shelfctl get book-id
+shelfctl open book-id
 ```
 
 ## Migration issues
@@ -281,8 +281,8 @@ shelfctl migrate batch queue.txt --continue
 
 **Solution**:
 
-- Use specific shelf: `shelfctl list --shelf programming`
-- Filter by tag: `shelfctl list --tag specific-tag`
+- Use specific shelf: `shelfctl browse --shelf programming`
+- Filter by tag: `shelfctl browse --tag specific-tag`
 - Consider splitting large shelves with `shelfctl split`
 
 ## GitHub-specific issues
@@ -313,8 +313,8 @@ Use multiple releases:
 
 ```bash
 # Add books to different releases
-shelfctl add book1.pdf --shelf prog --release 2024
-shelfctl add book2.pdf --shelf prog --release 2025
+shelfctl shelve book1.pdf --shelf prog --release 2024
+shelfctl shelve book2.pdf --shelf prog --release 2025
 ```
 
 Or split the shelf:
@@ -359,10 +359,10 @@ The new entry will replace the old one. If you want both:
 
 ```bash
 # Use different ID
-shelfctl add book.pdf --shelf prog --id sicp-v2 --title "SICP 2nd Ed"
+shelfctl shelve book.pdf --shelf prog --id sicp-v2 --title "SICP 2nd Ed"
 
 # Or use SHA-based ID
-shelfctl add book.pdf --shelf prog --id-sha12 --title "..."
+shelfctl shelve book.pdf --shelf prog --id-sha12 --title "..."
 ```
 
 ## Platform-specific issues
@@ -379,10 +379,10 @@ sudo apt-get install xdg-utils  # Debian/Ubuntu
 sudo yum install xdg-utils      # RHEL/CentOS
 ```
 
-Or use `get` and open manually:
+Or use `open` and open manually:
 
 ```bash
-shelfctl get book-id
+shelfctl open book-id
 # Opens in default PDF viewer
 ```
 

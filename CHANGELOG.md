@@ -7,17 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Interactive TUI mode using Bubble Tea library
+  - `browse` command shows interactive browser with keyboard navigation
+  - Filtering, search, and visual book selection
+  - Auto-detects terminal mode vs piped/scripted output
+  - New `--no-interactive` global flag to disable TUI
+- Better command names for clarity
+  - `browse` (was `list`) - Browse library with TUI or text
+  - `shelve` (was `add`) - Add a book to your library
+  - `open` now auto-downloads (removed redundant `get` command)
+
 ### Changed
+- **BREAKING:** Command renames for end-user clarity
+  - `list` → `browse` (better matches interactive TUI functionality)
+  - `add` → `shelve` (stronger library metaphor)
+  - `get` command removed (use `open` instead - it auto-downloads)
+- README improvements
+  - Fixed factual claims about GitHub storage limits (no more "1TB+" or "2GB storage" specifics)
+  - Reordered "Why" section for better pitch flow (on-demand first, then Git LFS comparison)
+  - Clarified API-based operation (no local repos required)
+  - Added logo2.png above Commands section
 - Reorganized documentation into `docs/` directory for better structure
   - Moved TUTORIAL.md, COMMANDS.md, SPEC.md, TROUBLESHOOTING.md to docs/
   - Created docs/index.md as documentation home page
   - Added docs/nav.yml for documentation generator compatibility
   - Updated README links to point to new locations
 
-### Added
 - Defensive measures for duplicate content detection
-  - `add` command now checks for existing files with same SHA256 checksum
-  - `add` command now checks for asset name collisions before upload
+  - `shelve` command checks for existing files with same SHA256 checksum
+  - `shelve` command checks for asset name collisions before upload
   - New `--force` flag to bypass duplicate checks and overwrite existing assets
 - Comprehensive documentation
   - `config.example.yml`: Template configuration file with detailed comments
@@ -32,9 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed placeholder URLs (YOUR_GH_OWNER → blackwell-systems)
   - Removed reference to non-existent config.example.yml
 
-### Changed
 - Operations made safer and more idempotent
-  - `add` command loads catalog once for both duplicate checks and appending
+  - `shelve` command loads catalog once for both duplicate checks and appending
   - Clearer error messages when duplicates are detected
   - Force mode explicitly deletes existing asset before re-uploading
 

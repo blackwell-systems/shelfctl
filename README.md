@@ -12,7 +12,9 @@
 
 **Organize the PDFs and books you already have scattered across GitHub repos.**
 
-Most developers have a mess: one monolithic `books` repo with 500+ PDFs, or files scattered across random repos and gists. shelfctl splits the monolith into organized topic-based shelves and migrates scattered files into a searchable library. No migration to another service — it works with what you already have.
+Most developers have a mess: one monolithic `books` repo with 500+ PDFs, or files scattered across random repos and gists. Maybe you've hit Git's file size limits or that "this exceeds GitHub's file size limit of 100.00 MB" error. Maybe you're using Git LFS but it's expensive and clunky.
+
+shelfctl solves this by using GitHub Releases (free CDN, no size limits for individual files) instead of git commits. Split your monolith into organized topic-based shelves, migrate scattered files, search and download on-demand. No migration to another service — it works with what you already have.
 
 Your GitHub account is already free CDN and blob storage. shelfctl uses Release assets for files and `catalog.yml` for metadata. Organize by topic (`shelf-programming`, `shelf-history`), search from the CLI, open books instantly. Your entire library stays as portable git repos.
 
@@ -21,6 +23,8 @@ Zero infrastructure. Zero cost for public repos, 2GB+ storage for private. Works
 ---
 
 ## Why
+
+**Better than Git LFS**: Tired of "exceeds GitHub's file size limit" errors? Git LFS costs money ($5/mo for 50GB) and makes clones slow. shelfctl uses GitHub Releases instead — free, no individual file limits, instant selective downloads. Your library can be 1TB+ across repos.
 
 **No ops burden**: No database to maintain, no blob storage to configure, no servers to patch. GitHub handles availability, backups, and CDN distribution.
 

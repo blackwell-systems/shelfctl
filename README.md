@@ -4,13 +4,16 @@
   <img src="padded.png" alt="shelfctl">
 </p>
 
+[![Blackwell Systems™](https://raw.githubusercontent.com/blackwell-systems/blackwell-docs-theme/main/badge-trademark.svg)](https://github.com/blackwell-systems)
 [![CI](https://github.com/blackwell-systems/shelfctl/actions/workflows/ci.yml/badge.svg)](https://github.com/blackwell-systems/shelfctl/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/blackwell-systems/shelfctl)](https://goreportcard.com/report/github.com/blackwell-systems/shelfctl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Zero-infrastructure document library. No database, no S3, no servers. Just GitHub repos you already have.
+**Manage thousands of PDFs, EPUBs, and documents using GitHub as zero-cost infrastructure.**
 
-Metadata lives in `catalog.yml`. Files (PDF/EPUB/etc.) are stored as GitHub Release assets. Free within GitHub limits, works anywhere git works.
+shelfctl turns GitHub into a personal document library. Your account is already a free CDN and blob storage — no database, no S3, no servers to run. Organize books by topic in separate repos (`shelf-programming`, `shelf-history`), store files as Release assets, and track metadata in version-controlled `catalog.yml` files.
+
+Search, open, and migrate documents from the CLI. Your entire library is portable git repos. Free for public collections, 2GB+ storage for private ones. Works anywhere git works.
 
 ---
 

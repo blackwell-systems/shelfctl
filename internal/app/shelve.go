@@ -34,11 +34,12 @@ type shelveParams struct {
 }
 
 type ingestedFile struct {
-	tmpPath string
-	sha256  string
-	size    int64
-	format  string
-	srcName string
+	tmpPath     string
+	sha256      string
+	size        int64
+	format      string
+	srcName     string
+	pdfMetadata *ingest.PDFMetadata
 }
 
 func newShelveCmd() *cobra.Command {
@@ -232,13 +233,23 @@ func ingestFile(src *ingest.Source, input string) (*ingestedFile, error) {
 
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(src.Name), "."))
 
-	return &ingestedFile{
+	result := &ingestedFile{
 		tmpPath: tmpPath,
 		sha256:  hr.SHA256(),
 		size:    hr.Size(),
 		format:  ext,
 		srcName: src.Name,
-	}, nil
+	}
+
+	// Extract PDF metadata if it's a PDF
+	if ext == "pdf" {
+		if pdfMeta, err := ingest.ExtractPDFMetadata(tmpPath); err == nil {
+			result.pdfMetadata = pdfMeta
+		}
+		// Silently ignore errors - not all PDFs have metadata
+	}
+
+	return result, nil
 }
 
 type bookMetadata struct {
@@ -252,6 +263,18 @@ type bookMetadata struct {
 
 func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, ingested *ingestedFile, useTUI bool) (*bookMetadata, error) {
 	defaultTitle := strings.TrimSuffix(srcName, filepath.Ext(srcName))
+	defaultAuthor := ""
+
+	// Use PDF metadata if available
+	if ingested.pdfMetadata != nil {
+		if ingested.pdfMetadata.Title != "" {
+			defaultTitle = ingested.pdfMetadata.Title
+		}
+		if ingested.pdfMetadata.Author != "" {
+			defaultAuthor = ingested.pdfMetadata.Author
+		}
+	}
+
 	defaultID := slugify(defaultTitle)
 
 	useTUIForm := useTUI && params.title == "" && params.bookID == "" && !params.useSHA12
@@ -261,6 +284,7 @@ func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, i
 		formData, err := tui.RunShelveForm(tui.ShelveFormDefaults{
 			Filename: srcName,
 			Title:    defaultTitle,
+			Author:   defaultAuthor,
 			ID:       defaultID,
 		})
 		if err != nil {

@@ -20,6 +20,7 @@ type ShelveFormData struct {
 type ShelveFormDefaults struct {
 	Filename string
 	Title    string
+	Author   string
 	ID       string
 }
 
@@ -54,7 +55,11 @@ func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 
 	// Author field
 	m.inputs[fieldAuthor] = textinput.New()
-	m.inputs[fieldAuthor].Placeholder = "Author name"
+	if defaults.Author != "" {
+		m.inputs[fieldAuthor].Placeholder = defaults.Author
+	} else {
+		m.inputs[fieldAuthor].Placeholder = "Author name"
+	}
 	m.inputs[fieldAuthor].CharLimit = 100
 	m.inputs[fieldAuthor].Width = 50
 

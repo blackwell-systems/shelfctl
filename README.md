@@ -14,15 +14,20 @@
   <img src="assets/shelf.png" alt="shelfctl architecture" width="800">
 </p>
 
-**Organize the PDFs and books you already have scattered across GitHub repos.**
+**Organize the PDFs and books you already have scattered across GitHub.**
 
-Most developers have a mess: one monolithic `books` repo with 500+ PDFs, or files scattered across random repos and gists. Maybe you've hit Git's file size limits or that "this exceeds GitHub's file size limit of 100.00 MB" error. Maybe you're using Git LFS but it's expensive and clunky.
+Most devs end up with a mess: one monolithic "books" repo with hundreds of PDFs, or files scattered across random repos and gists. Eventually you hit GitHub's 100MB limit, or you bolt on Git LFS and discover it's expensive and annoying for a personal library.
 
-shelfctl solves this by using GitHub Releases (release assets avoid Git's 100MB file limit) instead of git commits. Split your monolith into organized topic-based shelves, migrate scattered files, search and download on-demand. No migration to another service — it works with what you already have.
+shelfctl fixes this by storing files as GitHub Release assets (not Git commits) and keeping metadata in a simple `catalog.yml`. That means you can split a bloated repo into topic-based shelves, migrate books out of existing repos, and search + download on demand—without moving your library to a new service.
 
-Your GitHub account is already free CDN and blob storage. shelfctl uses Release assets for files and `catalog.yml` for metadata. Organize by topic (`shelf-programming`, `shelf-history`), search from the CLI, open books instantly. Your entire library stays as portable git repos.
+Your GitHub account already gives you reliable distribution and storage primitives. shelfctl turns them into a library:
+- Release assets for the PDFs/EPUBs
+- `catalog.yml` for searchable metadata
+- one repo per shelf (`shelf-programming`, `shelf-history`, …)
 
-Zero infrastructure. Start free; only pay if you opt into LFS or exceed GitHub's plan limits. Works anywhere git works.
+Browse and search from the CLI, fetch only what you need, and open books immediately. Your library stays portable, backed by normal git repos.
+
+Zero infrastructure. Free by default—only pay if you choose Git LFS or exceed GitHub plan limits. Works anywhere you can use GitHub.
 
 ---
 

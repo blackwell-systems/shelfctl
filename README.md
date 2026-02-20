@@ -139,7 +139,17 @@ shelves:
     repo: "shelf-history"
 ```
 
-See [`SPEC.md`](SPEC.md) for the full configuration schema.
+See [`config.example.yml`](config.example.yml) for a complete example.
+
+---
+
+## Documentation
+
+- **[Tutorial](docs/TUTORIAL.md)** - Step-by-step walkthrough from installation to advanced workflows
+- **[Commands Reference](docs/COMMANDS.md)** - Complete documentation for all commands
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Technical Spec](docs/SPEC.md)** - Architecture and configuration schema
+- **[Contributing](CONTRIBUTING.md)** - Development guidelines
 
 ---
 
@@ -151,4 +161,4 @@ This tool manages user-provided files in user-owned GitHub repos and releases. I
 
 ## License
 
-MIT
+MIT - See [LICENSE](LICENSE) for details

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Reorganized documentation into `docs/` directory for better structure
+  - Moved TUTORIAL.md, COMMANDS.md, SPEC.md, TROUBLESHOOTING.md to docs/
+  - Created docs/index.md as documentation home page
+  - Added docs/nav.yml for documentation generator compatibility
+  - Updated README links to point to new locations
+
 ### Added
 - Defensive measures for duplicate content detection
   - `add` command now checks for existing files with same SHA256 checksum

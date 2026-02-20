@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Comprehensive Architecture Documentation**
+  - New `docs/ARCHITECTURE.md` guide covering:
+    - Core concepts (shelves, catalogs, assets)
+    - Organization philosophy (start broad, split later)
+    - When to create multiple shelves vs using tags/releases
+    - Naming conventions and best practices
+    - Splitting strategies and scaling guidelines
+    - Common patterns for different use cases
+    - Migration strategies from existing repos
+    - Decision trees and GitHub limits
+  - Linked from README.md and docs/index.md
+  - Referenced inline during interactive init
 - **Interactive Hub (Phase 1 Complete)**
   - Launch `shelfctl` with no arguments to get an interactive menu
   - Visual dashboard showing all available operations
@@ -18,7 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Visual status check (✓/✗) for token and shelves
     - Detects what's missing and shows specific next steps
     - Offers guided interactive init workflow
-    - Prompts user through shelf creation with defaults
+    - Inline architecture help with 'help' or '?' at any prompt
+    - Clear distinction between repository name and shelf name
+    - Example commands showing how shelf name is used
+    - Smart defaults calculated from repository name
+    - Enhanced summary confirmation with visual formatting
   - Currently wired: Browse Library, Add Book
   - Coming soon indicators for unimplemented features
 - **Interactive TUI mode using Bubble Tea library**

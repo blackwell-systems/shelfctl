@@ -25,18 +25,8 @@ func newSplitCmd() *cobra.Command {
 			if shelfName == "" {
 				return fmt.Errorf("--shelf is required")
 			}
-			shelf := cfg.ShelfByName(shelfName)
-			if shelf == nil {
-				return fmt.Errorf("shelf %q not found in config", shelfName)
-			}
-			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
-			catalogPath := shelf.EffectiveCatalogPath()
 
-			data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
-			if err != nil {
-				return err
-			}
-			books, err := catalog.Parse(data)
+			books, err := loadShelfBooks(shelfName)
 			if err != nil {
 				return err
 			}
@@ -50,90 +40,26 @@ func newSplitCmd() *cobra.Command {
 				return fmt.Errorf("currently only --by-tag splitting is supported")
 			}
 
-			// Collect unique tags.
-			tagMap := map[string][]string{} // tag → book IDs
-			for _, b := range books {
-				for _, t := range b.Tags {
-					tagMap[t] = append(tagMap[t], b.ID)
-				}
-			}
-
+			tagMap := buildTagMap(books)
 			if len(tagMap) == 0 {
 				fmt.Println("No tags found — cannot split by tag.")
 				return nil
 			}
 
-			header("Proposed split for shelf: %s", shelfName)
-			type proposal struct {
-				release string
-				bookIDs []string
-			}
-			var proposals []proposal
-
-			sc := bufio.NewScanner(os.Stdin)
-			for tag, ids := range tagMap {
-				fmt.Printf("\n  Tag: %s  (%d books)\n", tag, len(ids))
-				for _, id := range ids {
-					fmt.Printf("    - %s\n", id)
-				}
-				fmt.Printf("  Move to release (enter tag name, or blank to skip): ")
-				if !sc.Scan() {
-					break
-				}
-				rel := strings.TrimSpace(sc.Text())
-				if rel == "" {
-					fmt.Println("  (skipped)")
-					continue
-				}
-				proposals = append(proposals, proposal{release: rel, bookIDs: ids})
-			}
-
+			proposals := collectSplitProposals(shelfName, tagMap)
 			if len(proposals) == 0 {
 				fmt.Println("Nothing to move.")
 				return nil
 			}
 
-			header("\nProposed moves:")
-			count := 0
-			for _, p := range proposals {
-				for _, id := range p.bookIDs {
-					if maxN > 0 && count >= maxN {
-						fmt.Printf("  (limit of %d reached)\n", maxN)
-						break
-					}
-					fmt.Printf("  %s → release/%s\n", id, p.release)
-					count++
-				}
-			}
+			displayProposedMoves(proposals, maxN)
 
 			if dryRun {
 				fmt.Println("\n(dry run — no changes made)")
 				return nil
 			}
 
-			fmt.Print("\nProceed? [y/N]: ")
-			if sc.Scan() && strings.ToLower(strings.TrimSpace(sc.Text())) == "y" {
-				count = 0
-				for _, p := range proposals {
-					for _, id := range p.bookIDs {
-						if maxN > 0 && count >= maxN {
-							break
-						}
-						fmt.Printf("Moving %s → %s …\n", id, p.release)
-						moveCmd := newMoveCmd()
-						moveCmd.SetArgs([]string{id, "--shelf", shelfName, "--to-release", p.release})
-						if err := moveCmd.Execute(); err != nil {
-							warn("Failed to move %s: %v", id, err)
-						}
-						count++
-					}
-				}
-				ok("Split complete")
-			} else {
-				fmt.Println("Aborted.")
-			}
-
-			return nil
+			return executeSplitMoves(shelfName, proposals, maxN)
 		},
 	}
 
@@ -142,4 +68,101 @@ func newSplitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show proposed moves without executing")
 	cmd.Flags().IntVar(&maxN, "n", 0, "Limit number of books processed per run (0 = unlimited)")
 	return cmd
+}
+
+type splitProposal struct {
+	release string
+	bookIDs []string
+}
+
+func loadShelfBooks(shelfName string) ([]catalog.Book, error) {
+	shelf := cfg.ShelfByName(shelfName)
+	if shelf == nil {
+		return nil, fmt.Errorf("shelf %q not found in config", shelfName)
+	}
+	owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+	catalogPath := shelf.EffectiveCatalogPath()
+
+	data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+	if err != nil {
+		return nil, err
+	}
+	return catalog.Parse(data)
+}
+
+func buildTagMap(books []catalog.Book) map[string][]string {
+	tagMap := map[string][]string{} // tag → book IDs
+	for _, b := range books {
+		for _, t := range b.Tags {
+			tagMap[t] = append(tagMap[t], b.ID)
+		}
+	}
+	return tagMap
+}
+
+func collectSplitProposals(shelfName string, tagMap map[string][]string) []splitProposal {
+	header("Proposed split for shelf: %s", shelfName)
+	var proposals []splitProposal
+
+	sc := bufio.NewScanner(os.Stdin)
+	for tag, ids := range tagMap {
+		fmt.Printf("\n  Tag: %s  (%d books)\n", tag, len(ids))
+		for _, id := range ids {
+			fmt.Printf("    - %s\n", id)
+		}
+		fmt.Printf("  Move to release (enter tag name, or blank to skip): ")
+		if !sc.Scan() {
+			break
+		}
+		rel := strings.TrimSpace(sc.Text())
+		if rel == "" {
+			fmt.Println("  (skipped)")
+			continue
+		}
+		proposals = append(proposals, splitProposal{release: rel, bookIDs: ids})
+	}
+
+	return proposals
+}
+
+func displayProposedMoves(proposals []splitProposal, maxN int) {
+	header("\nProposed moves:")
+	count := 0
+	for _, p := range proposals {
+		for _, id := range p.bookIDs {
+			if maxN > 0 && count >= maxN {
+				fmt.Printf("  (limit of %d reached)\n", maxN)
+				break
+			}
+			fmt.Printf("  %s → release/%s\n", id, p.release)
+			count++
+		}
+	}
+}
+
+func executeSplitMoves(shelfName string, proposals []splitProposal, maxN int) error {
+	sc := bufio.NewScanner(os.Stdin)
+	fmt.Print("\nProceed? [y/N]: ")
+	if !sc.Scan() || strings.ToLower(strings.TrimSpace(sc.Text())) != "y" {
+		fmt.Println("Aborted.")
+		return nil
+	}
+
+	count := 0
+	for _, p := range proposals {
+		for _, id := range p.bookIDs {
+			if maxN > 0 && count >= maxN {
+				break
+			}
+			fmt.Printf("Moving %s → %s …\n", id, p.release)
+			moveCmd := newMoveCmd()
+			moveCmd.SetArgs([]string{id, "--shelf", shelfName, "--to-release", p.release})
+			if err := moveCmd.Execute(); err != nil {
+				warn("Failed to move %s: %v", id, err)
+			}
+			count++
+		}
+	}
+	ok("Split complete")
+	return nil
 }

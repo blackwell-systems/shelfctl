@@ -401,7 +401,47 @@ func runHub() error {
 		return nil
 	}
 
-	// Gather context for the hub
+	// Hub loop - keep showing menu until user quits or command succeeds
+	for {
+		// Gather context for the hub (refresh each time)
+		ctx := buildHubContext()
+
+		action, err := tui.RunHub(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Route to the appropriate command based on action
+		var cmdErr error
+		switch action {
+		case "browse":
+			cmdErr = newBrowseCmd().Execute()
+		case "shelve":
+			cmdErr = newShelveCmd().Execute()
+		case "delete-shelf":
+			cmdErr = newDeleteShelfCmd().Execute()
+		case "quit":
+			return nil
+		default:
+			return fmt.Errorf("unknown action: %s", action)
+		}
+
+		// If command succeeded, exit hub
+		if cmdErr == nil {
+			return nil
+		}
+
+		// If command failed/canceled, show error and return to hub
+		fmt.Println()
+		fmt.Println(color.RedString("Operation failed or canceled: %v", cmdErr))
+		fmt.Println()
+		fmt.Println(color.CyanString("Press Enter to return to menu..."))
+		var dummy string
+		_, _ = fmt.Scanln(&dummy)
+	}
+}
+
+func buildHubContext() tui.HubContext {
 	ctx := tui.HubContext{
 		ShelfCount: len(cfg.Shelves),
 	}
@@ -417,22 +457,5 @@ func runHub() error {
 		}
 	}
 
-	action, err := tui.RunHub(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Route to the appropriate command based on action
-	switch action {
-	case "browse":
-		return newBrowseCmd().Execute()
-	case "shelve":
-		return newShelveCmd().Execute()
-	case "delete-shelf":
-		return newDeleteShelfCmd().Execute()
-	case "quit":
-		return nil
-	default:
-		return fmt.Errorf("unknown action: %s", action)
-	}
+	return ctx
 }

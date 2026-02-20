@@ -261,7 +261,7 @@ func RunFilePicker(startPath string) (string, error) {
 
 	// Load initial directory
 	initialModel, _ := m.loadDirectory(startPath)
-	m = initialModel.(filePickerModel)
+	m, _ = initialModel.(filePickerModel)
 
 	// Run the program
 	p := tea.NewProgram(m, tea.WithAltScreen())

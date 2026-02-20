@@ -53,12 +53,7 @@ For more details, see: shelfctl --help or docs/TUTORIAL.md`,
 			}
 
 			if repoName == "" {
-				return fmt.Errorf(`--repo is required
-
-Example:
-  shelfctl init --repo shelf-books --name books --create-repo --create-release
-
-This creates a new shelf repository for storing books. Run 'shelfctl init --help' for details.`)
+				return fmt.Errorf("--repo is required (run 'shelfctl init --help' for examples)")
 			}
 			if shelfName == "" {
 				// Default shelf name from repo: shelf-<name> → <name>

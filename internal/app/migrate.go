@@ -44,134 +44,21 @@ func newMigrateOneCmd() *cobra.Command {
 				return err
 			}
 
-			done, err := ledger.Contains(oldPath)
-			if err != nil {
+			if done, err := ledger.Contains(oldPath); err != nil {
 				return err
-			}
-			if done {
+			} else if done {
 				ok("Already migrated: %s", oldPath)
 				return nil
 			}
 
 			// Resolve migration sources to search.
-			sources := cfg.Migration.Sources
-			if sourceSpec != "" {
-				parts := strings.SplitN(sourceSpec, "/", 2)
-				if len(parts) != 2 {
-					return fmt.Errorf("--source must be owner/repo")
-				}
-				var filtered []config.MigrationSource
-				for _, s := range sources {
-					if s.Owner == parts[0] && s.Repo == parts[1] {
-						filtered = append(filtered, s)
-					}
-				}
-				if len(filtered) == 0 {
-					return fmt.Errorf("source %q not found in migration config", sourceSpec)
-				}
-				sources = filtered
-			}
-
-			src, shelfName, found := migrate.FindRoute(oldPath, sources)
-			if !found {
-				return fmt.Errorf("no migration mapping matches path %q", oldPath)
-			}
-
-			shelf := cfg.ShelfByName(shelfName)
-			if shelf == nil {
-				return fmt.Errorf("target shelf %q not in config", shelfName)
-			}
-
-			ref := src.Ref
-			if ref == "" {
-				ref = "main"
-			}
-
-			fmt.Printf("Fetching %s from %s/%s@%s …\n", oldPath, src.Owner, src.Repo, ref)
-			fileData, _, err := gh.GetFileContent(src.Owner, src.Repo, oldPath, ref)
-			if err != nil {
-				return fmt.Errorf("fetching source file: %w", err)
-			}
-
-			// Compute hash and size.
-			hr := ingest.NewReader(bytes.NewReader(fileData))
-			buf := make([]byte, 32*1024)
-			for {
-				_, readErr := hr.Read(buf)
-				if readErr != nil {
-					break
-				}
-			}
-			sha256sum := hr.SHA256()
-			size := hr.Size()
-
-			ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(oldPath), "."))
-			baseName := filepath.Base(oldPath)
-			suggestedID := slugify(strings.TrimSuffix(baseName, filepath.Ext(baseName)))
-
-			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
-			releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
-			assetName := suggestedID + "." + ext
-
-			rel, err := gh.EnsureRelease(owner, shelf.Repo, releaseTag)
+			sources, err := resolveMigrationSources(sourceSpec)
 			if err != nil {
 				return err
 			}
 
-			_, err = gh.UploadAsset(owner, shelf.Repo, rel.ID, assetName,
-				bytes.NewReader(fileData), size, "application/octet-stream")
-			if err != nil {
-				return fmt.Errorf("uploading: %w", err)
-			}
-			ok("Uploaded %s", assetName)
-
-			book := catalog.Book{
-				ID:        suggestedID,
-				Title:     strings.TrimSuffix(baseName, filepath.Ext(baseName)),
-				Format:    ext,
-				SizeBytes: size,
-				Checksum:  catalog.Checksum{SHA256: sha256sum},
-				Source: catalog.Source{
-					Type:    "github_release",
-					Owner:   owner,
-					Repo:    shelf.Repo,
-					Release: releaseTag,
-					Asset:   assetName,
-				},
-				Meta: catalog.Meta{
-					AddedAt:      time.Now().UTC().Format(time.RFC3339),
-					MigratedFrom: fmt.Sprintf("%s/%s:%s", src.Owner, src.Repo, oldPath),
-				},
-			}
-
-			catalogPath := shelf.EffectiveCatalogPath()
-			data, _, _ := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
-			books, _ := catalog.Parse(data)
-			books = catalog.Append(books, book)
-			newData, err := catalog.Marshal(books)
-			if err != nil {
-				return err
-			}
-
-			if !noPush {
-				msg := fmt.Sprintf("migrate: add %s (from %s/%s)", suggestedID, src.Owner, src.Repo)
-				if err := gh.CommitFile(owner, shelf.Repo, catalogPath, newData, msg); err != nil {
-					return err
-				}
-				ok("Catalog updated")
-			}
-
-			if err := ledger.Append(migrate.LedgerEntry{
-				Source: oldPath,
-				BookID: suggestedID,
-				Shelf:  shelfName,
-			}); err != nil {
-				warn("Could not update ledger: %v", err)
-			}
-
-			fmt.Printf("  %s → shelf/%s  id=%s\n",
-				color.CyanString(oldPath), shelfName, color.WhiteString(suggestedID))
-			return nil
+			// Find and migrate the file
+			return migrateOneFile(oldPath, sources, ledger, noPush)
 		},
 	}
 
@@ -205,49 +92,9 @@ func newMigrateBatchCmd() *cobra.Command {
 				return err
 			}
 
-			sc := bufio.NewScanner(f)
-			processed := 0
-			skipped := 0
-
-			for sc.Scan() {
-				line := strings.TrimSpace(sc.Text())
-				if line == "" || strings.HasPrefix(line, "#") {
-					continue
-				}
-				if n > 0 && processed >= n {
-					fmt.Printf("Limit of %d reached. Re-run to continue.\n", n)
-					break
-				}
-
-				if cont {
-					done, _ := ledger.Contains(line)
-					if done {
-						skipped++
-						continue
-					}
-				}
-
-				if dryRun {
-					fmt.Printf("  would migrate: %s\n", line)
-					processed++
-					continue
-				}
-
-				fmt.Printf("[%d] %s …\n", processed+1, line)
-				oneCmd := newMigrateOneCmd()
-				oneArgs := []string{line}
-				if noPush {
-					oneArgs = append(oneArgs, "--no-push")
-				}
-				oneCmd.SetArgs(oneArgs)
-				if err := oneCmd.Execute(); err != nil {
-					warn("Failed: %v", err)
-				}
-				processed++
-			}
-
+			processed, skipped := processMigrationQueue(f, ledger, n, cont, dryRun, noPush)
 			fmt.Printf("\nDone. processed=%d skipped=%d\n", processed, skipped)
-			return sc.Err()
+			return nil
 		},
 	}
 
@@ -274,66 +121,13 @@ func newMigrateScanCmd() *cobra.Command {
 				return fmt.Errorf("no migration sources configured; use --source owner/repo")
 			}
 
-			var exts []string
-			if extsCSV != "" {
-				for _, e := range strings.Split(extsCSV, ",") {
-					exts = append(exts, strings.TrimSpace(e))
-				}
+			exts := parseExtensions(extsCSV)
+			files, err := scanMigrationSources(sourceSpec, sources, exts)
+			if err != nil {
+				return err
 			}
 
-			var files []migrate.FileEntry
-
-			if sourceSpec != "" {
-				parts := strings.SplitN(sourceSpec, "/", 2)
-				if len(parts) != 2 {
-					return fmt.Errorf("--source must be owner/repo")
-				}
-				ref := "main"
-				for _, s := range sources {
-					if s.Owner == parts[0] && s.Repo == parts[1] && s.Ref != "" {
-						ref = s.Ref
-					}
-				}
-				f, err := migrate.ScanRepo(cfg.GitHub.Token, cfg.GitHub.APIBase, parts[0], parts[1], ref, exts)
-				if err != nil {
-					return err
-				}
-				files = append(files, f...)
-			} else {
-				for _, src := range sources {
-					ref := src.Ref
-					if ref == "" {
-						ref = "main"
-					}
-					f, err := migrate.ScanRepo(cfg.GitHub.Token, cfg.GitHub.APIBase, src.Owner, src.Repo, ref, exts)
-					if err != nil {
-						warn("Scan %s/%s: %v", src.Owner, src.Repo, err)
-						continue
-					}
-					files = append(files, f...)
-				}
-			}
-
-			out := os.Stdout
-			if outFile != "" {
-				var err error
-				out, err = os.Create(outFile)
-				if err != nil {
-					return err
-				}
-				defer func() { _ = out.Close() }()
-			}
-
-			for _, fe := range files {
-				_, _ = fmt.Fprintln(out, fe.Path)
-			}
-
-			if outFile != "" {
-				ok("Wrote %d paths to %s", len(files), outFile)
-			} else {
-				fmt.Fprintf(os.Stderr, "# %d files\n", len(files))
-			}
-			return nil
+			return writeFileList(files, outFile)
 		},
 	}
 
@@ -341,4 +135,292 @@ func newMigrateScanCmd() *cobra.Command {
 	cmd.Flags().StringVar(&extsCSV, "ext", "", "Filter by comma-separated extensions (e.g. pdf,epub)")
 	cmd.Flags().StringVar(&outFile, "out", "", "Write to file instead of stdout")
 	return cmd
+}
+
+// Helper functions for migrate one command
+
+func resolveMigrationSources(sourceSpec string) ([]config.MigrationSource, error) {
+	sources := cfg.Migration.Sources
+	if sourceSpec == "" {
+		return sources, nil
+	}
+
+	parts := strings.SplitN(sourceSpec, "/", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("--source must be owner/repo")
+	}
+
+	var filtered []config.MigrationSource
+	for _, s := range sources {
+		if s.Owner == parts[0] && s.Repo == parts[1] {
+			filtered = append(filtered, s)
+		}
+	}
+	if len(filtered) == 0 {
+		return nil, fmt.Errorf("source %q not found in migration config", sourceSpec)
+	}
+	return filtered, nil
+}
+
+func migrateOneFile(oldPath string, sources []config.MigrationSource, ledger *migrate.Ledger, noPush bool) error {
+	src, shelfName, found := migrate.FindRoute(oldPath, sources)
+	if !found {
+		return fmt.Errorf("no migration mapping matches path %q", oldPath)
+	}
+
+	shelf := cfg.ShelfByName(shelfName)
+	if shelf == nil {
+		return fmt.Errorf("target shelf %q not in config", shelfName)
+	}
+
+	// Fetch and process the file
+	fileData, sha256sum, size, err := fetchSourceFile(src, oldPath)
+	if err != nil {
+		return err
+	}
+
+	// Upload to destination
+	suggestedID, assetName, err := uploadMigratedFile(shelf, oldPath, fileData, size)
+	if err != nil {
+		return err
+	}
+
+	// Update catalog
+	book := buildMigratedBook(suggestedID, assetName, oldPath, sha256sum, size, shelf, src)
+	if err := updateCatalogWithBook(shelf, book, src, noPush); err != nil {
+		return err
+	}
+
+	// Update ledger
+	if err := ledger.Append(migrate.LedgerEntry{
+		Source: oldPath,
+		BookID: suggestedID,
+		Shelf:  shelfName,
+	}); err != nil {
+		warn("Could not update ledger: %v", err)
+	}
+
+	fmt.Printf("  %s → shelf/%s  id=%s\n",
+		color.CyanString(oldPath), shelfName, color.WhiteString(suggestedID))
+	return nil
+}
+
+func fetchSourceFile(src config.MigrationSource, oldPath string) ([]byte, string, int64, error) {
+	ref := src.Ref
+	if ref == "" {
+		ref = "main"
+	}
+
+	fmt.Printf("Fetching %s from %s/%s@%s …\n", oldPath, src.Owner, src.Repo, ref)
+	fileData, _, err := gh.GetFileContent(src.Owner, src.Repo, oldPath, ref)
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("fetching source file: %w", err)
+	}
+
+	// Compute hash and size.
+	hr := ingest.NewReader(bytes.NewReader(fileData))
+	buf := make([]byte, 32*1024)
+	for {
+		_, readErr := hr.Read(buf)
+		if readErr != nil {
+			break
+		}
+	}
+
+	return fileData, hr.SHA256(), hr.Size(), nil
+}
+
+func uploadMigratedFile(shelf *config.ShelfConfig, oldPath string, fileData []byte, size int64) (string, string, error) {
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(oldPath), "."))
+	baseName := filepath.Base(oldPath)
+	suggestedID := slugify(strings.TrimSuffix(baseName, filepath.Ext(baseName)))
+
+	owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+	releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
+	assetName := suggestedID + "." + ext
+
+	rel, err := gh.EnsureRelease(owner, shelf.Repo, releaseTag)
+	if err != nil {
+		return "", "", err
+	}
+
+	_, err = gh.UploadAsset(owner, shelf.Repo, rel.ID, assetName,
+		bytes.NewReader(fileData), size, "application/octet-stream")
+	if err != nil {
+		return "", "", fmt.Errorf("uploading: %w", err)
+	}
+	ok("Uploaded %s", assetName)
+
+	return suggestedID, assetName, nil
+}
+
+func buildMigratedBook(suggestedID, assetName, oldPath, sha256sum string, size int64,
+	shelf *config.ShelfConfig, src config.MigrationSource) catalog.Book {
+	owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+	releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(oldPath), "."))
+	baseName := filepath.Base(oldPath)
+
+	return catalog.Book{
+		ID:        suggestedID,
+		Title:     strings.TrimSuffix(baseName, filepath.Ext(baseName)),
+		Format:    ext,
+		SizeBytes: size,
+		Checksum:  catalog.Checksum{SHA256: sha256sum},
+		Source: catalog.Source{
+			Type:    "github_release",
+			Owner:   owner,
+			Repo:    shelf.Repo,
+			Release: releaseTag,
+			Asset:   assetName,
+		},
+		Meta: catalog.Meta{
+			AddedAt:      time.Now().UTC().Format(time.RFC3339),
+			MigratedFrom: fmt.Sprintf("%s/%s:%s", src.Owner, src.Repo, oldPath),
+		},
+	}
+}
+
+func updateCatalogWithBook(shelf *config.ShelfConfig, book catalog.Book, src config.MigrationSource, noPush bool) error {
+	owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+	catalogPath := shelf.EffectiveCatalogPath()
+
+	data, _, _ := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+	books, _ := catalog.Parse(data)
+	books = catalog.Append(books, book)
+	newData, err := catalog.Marshal(books)
+	if err != nil {
+		return err
+	}
+
+	if !noPush {
+		msg := fmt.Sprintf("migrate: add %s (from %s/%s)", book.ID, src.Owner, src.Repo)
+		if err := gh.CommitFile(owner, shelf.Repo, catalogPath, newData, msg); err != nil {
+			return err
+		}
+		ok("Catalog updated")
+	}
+
+	return nil
+}
+
+// Helper functions for migrate batch command
+
+func processMigrationQueue(f *os.File, ledger *migrate.Ledger, n int, cont, dryRun, noPush bool) (int, int) {
+	sc := bufio.NewScanner(f)
+	processed := 0
+	skipped := 0
+
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if n > 0 && processed >= n {
+			fmt.Printf("Limit of %d reached. Re-run to continue.\n", n)
+			break
+		}
+
+		if cont {
+			done, _ := ledger.Contains(line)
+			if done {
+				skipped++
+				continue
+			}
+		}
+
+		if dryRun {
+			fmt.Printf("  would migrate: %s\n", line)
+			processed++
+			continue
+		}
+
+		fmt.Printf("[%d] %s …\n", processed+1, line)
+		oneCmd := newMigrateOneCmd()
+		oneArgs := []string{line}
+		if noPush {
+			oneArgs = append(oneArgs, "--no-push")
+		}
+		oneCmd.SetArgs(oneArgs)
+		if err := oneCmd.Execute(); err != nil {
+			warn("Failed: %v", err)
+		}
+		processed++
+	}
+
+	return processed, skipped
+}
+
+// Helper functions for migrate scan command
+
+func parseExtensions(extsCSV string) []string {
+	var exts []string
+	if extsCSV != "" {
+		for _, e := range strings.Split(extsCSV, ",") {
+			exts = append(exts, strings.TrimSpace(e))
+		}
+	}
+	return exts
+}
+
+func scanMigrationSources(sourceSpec string, sources []config.MigrationSource, exts []string) ([]migrate.FileEntry, error) {
+	var files []migrate.FileEntry
+
+	if sourceSpec != "" {
+		return scanSingleSource(sourceSpec, sources, exts)
+	}
+
+	for _, src := range sources {
+		ref := src.Ref
+		if ref == "" {
+			ref = "main"
+		}
+		f, err := migrate.ScanRepo(cfg.GitHub.Token, cfg.GitHub.APIBase, src.Owner, src.Repo, ref, exts)
+		if err != nil {
+			warn("Scan %s/%s: %v", src.Owner, src.Repo, err)
+			continue
+		}
+		files = append(files, f...)
+	}
+
+	return files, nil
+}
+
+func scanSingleSource(sourceSpec string, sources []config.MigrationSource, exts []string) ([]migrate.FileEntry, error) {
+	parts := strings.SplitN(sourceSpec, "/", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("--source must be owner/repo")
+	}
+
+	ref := "main"
+	for _, s := range sources {
+		if s.Owner == parts[0] && s.Repo == parts[1] && s.Ref != "" {
+			ref = s.Ref
+		}
+	}
+
+	return migrate.ScanRepo(cfg.GitHub.Token, cfg.GitHub.APIBase, parts[0], parts[1], ref, exts)
+}
+
+func writeFileList(files []migrate.FileEntry, outFile string) error {
+	out := os.Stdout
+	if outFile != "" {
+		var err error
+		out, err = os.Create(outFile)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = out.Close() }()
+	}
+
+	for _, fe := range files {
+		_, _ = fmt.Fprintln(out, fe.Path)
+	}
+
+	if outFile != "" {
+		ok("Wrote %d paths to %s", len(files), outFile)
+	} else {
+		fmt.Fprintf(os.Stderr, "# %d files\n", len(files))
+	}
+	return nil
 }

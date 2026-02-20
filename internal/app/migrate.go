@@ -198,7 +198,7 @@ func newMigrateBatchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 
 			ledger, err := migrate.OpenLedger(migrate.DefaultLedgerPath())
 			if err != nil {
@@ -321,11 +321,11 @@ func newMigrateScanCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				defer out.Close()
+				defer func() { _ = out.Close() }()
 			}
 
 			for _, fe := range files {
-				fmt.Fprintln(out, fe.Path)
+				_, _ = fmt.Fprintln(out, fe.Path)
 			}
 
 			if outFile != "" {

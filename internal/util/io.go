@@ -9,7 +9,7 @@ import (
 
 // EnsureDir creates the directory at path, including parent directories.
 func EnsureDir(path string) error {
-	return os.MkdirAll(path, 0755)
+	return os.MkdirAll(path, 0750)
 }
 
 // ExpandHome expands a leading ~/ to the user's home directory.

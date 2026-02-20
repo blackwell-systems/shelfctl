@@ -61,7 +61,7 @@ func newGetCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("download: %w", err)
 			}
-			defer rc.Close()
+			defer func() { _ = rc.Close() }()
 
 			path, err := cacheMgr.Store(owner, shelf.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
 			if err != nil {

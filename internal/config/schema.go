@@ -25,6 +25,7 @@ type DefaultsConfig struct {
 	AssetNaming string `mapstructure:"asset_naming"` // "id" or "original"
 }
 
+// ShelfConfig defines a single shelf (topic-based document collection).
 type ShelfConfig struct {
 	Name           string `mapstructure:"name"`
 	Owner          string `mapstructure:"owner"`
@@ -33,10 +34,12 @@ type ShelfConfig struct {
 	DefaultRelease string `mapstructure:"default_release"`
 }
 
+// MigrationConfig holds settings for migrating files from other repos.
 type MigrationConfig struct {
 	Sources []MigrationSource `mapstructure:"sources"`
 }
 
+// MigrationSource defines a source repository for migration.
 type MigrationSource struct {
 	Owner   string            `mapstructure:"owner"`
 	Repo    string            `mapstructure:"repo"`
@@ -44,6 +47,7 @@ type MigrationSource struct {
 	Mapping map[string]string `mapstructure:"mapping"`
 }
 
+// ServeConfig holds settings for the HTTP server (future feature).
 type ServeConfig struct {
 	Port int    `mapstructure:"port"`
 	Host string `mapstructure:"host"`

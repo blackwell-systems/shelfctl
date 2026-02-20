@@ -30,7 +30,7 @@ func DefaultLedgerPath() string {
 
 // OpenLedger opens (or creates) the ledger at path.
 func OpenLedger(path string) (*Ledger, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
 		return nil, err
 	}
 	return &Ledger{path: path}, nil

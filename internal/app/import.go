@@ -130,30 +130,42 @@ Skips duplicates by sha256.`,
 				// Buffer to temp file.
 				tmp, err := os.CreateTemp("", "shelfctl-import-*")
 				if err != nil {
-					rc.Close()
+					_ = rc.Close()
 					return err
 				}
 				tmpPath := tmp.Name()
 
 				hr := ingest.NewReader(rc)
 				if _, err := io.Copy(tmp, hr); err != nil {
-					tmp.Close()
-					rc.Close()
-					os.Remove(tmpPath)
+					_ = tmp.Close()
+					_ = rc.Close()
+					_ = os.Remove(tmpPath)
 					warn("Buffer failed for %s: %v", b.ID, err)
 					skipped++
 					continue
 				}
-				tmp.Close()
-				rc.Close()
+				_ = tmp.Close()
+				_ = rc.Close()
 
-				fi, _ := os.Stat(tmpPath)
-				uploadFile, _ := os.Open(tmpPath)
 
+				fi, err := os.Stat(tmpPath)
+				if err != nil {
+					_ = os.Remove(tmpPath)
+					warn("Stat failed for %s: %v", b.ID, err)
+					skipped++
+					continue
+				}
+				uploadFile, err := os.Open(tmpPath)
+				if err != nil {
+					_ = os.Remove(tmpPath)
+					warn("Open failed for %s: %v", b.ID, err)
+					skipped++
+					continue
+				}
 				_, err = gh.UploadAsset(dstOwner, shelf.Repo, dstRel.ID, b.Source.Asset,
 					uploadFile, fi.Size(), "application/octet-stream")
-				uploadFile.Close()
-				os.Remove(tmpPath)
+				_ = uploadFile.Close()
+				_ = os.Remove(tmpPath)
 				if err != nil {
 					warn("Upload failed for %s: %v", b.ID, err)
 					skipped++

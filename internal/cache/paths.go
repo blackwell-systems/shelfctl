@@ -30,5 +30,5 @@ func (m *Manager) Exists(owner, repo, bookID, assetFilename string) bool {
 // EnsureDir creates all intermediate directories for a cache path.
 func (m *Manager) EnsureDir(owner, repo, bookID string) error {
 	dir := filepath.Join(m.baseDir, owner, repo, bookID)
-	return os.MkdirAll(dir, 0755)
+	return os.MkdirAll(dir, 0750)
 }

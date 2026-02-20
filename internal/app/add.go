@@ -89,20 +89,20 @@ Examples:
 			// Buffer to a temp file so we know the size before uploading.
 			tmp, err := os.CreateTemp("", "shelfctl-add-*")
 			if err != nil {
-				rc.Close()
+				_ = rc.Close()
 				return err
 			}
 			tmpPath := tmp.Name()
-			defer os.Remove(tmpPath)
+			defer func() { _ = os.Remove(tmpPath) }()
 
 			hr := ingest.NewReader(rc)
 			if _, err := io.Copy(tmp, hr); err != nil {
-				tmp.Close()
-				rc.Close()
+				_ = tmp.Close()
+				_ = rc.Close()
 				return fmt.Errorf("buffering source: %w", err)
 			}
-			tmp.Close()
-			rc.Close()
+			_ = tmp.Close()
+			_ = rc.Close()
 
 			sha256 := hr.SHA256()
 			size := hr.Size()
@@ -192,7 +192,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			defer uploadFile.Close()
+			defer func() { _ = uploadFile.Close() }()
 
 			asset, err := gh.UploadAsset(owner, shelf.Repo, rel.ID, assetName, uploadFile, size, "application/octet-stream")
 			if err != nil {
@@ -232,7 +232,7 @@ Examples:
 
 			if noPush {
 				// Write locally only.
-				if err := os.WriteFile(catalogPath, newCatalog, 0644); err != nil {
+				if err := os.WriteFile(catalogPath, newCatalog, 0600); err != nil {
 					return err
 				}
 				ok("Catalog updated locally (not pushed)")

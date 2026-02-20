@@ -8,6 +8,7 @@
 [![CI](https://github.com/blackwell-systems/shelfctl/actions/workflows/ci.yml/badge.svg)](https://github.com/blackwell-systems/shelfctl/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/blackwell-systems/shelfctl)](https://goreportcard.com/report/github.com/blackwell-systems/shelfctl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/blackwellsystems)
 
 **Organize the PDFs and books you already have scattered across GitHub repos.**
 
@@ -23,6 +24,8 @@ Zero infrastructure. Zero cost for public repos, 2GB+ storage for private. Works
 
 **No ops burden**: No database to maintain, no blob storage to configure, no servers to patch. GitHub handles availability, backups, and CDN distribution.
 
+**On-demand downloads**: Download individual books without cloning repos or pulling entire releases. `shelfctl open book-id` fetches just that one file from GitHub's CDN and opens it. Your library can be 100GB+ but you only download what you need.
+
 **Zero cost to start**: Free for public repos. Private repos get 2GB storage + 10GB bandwidth/month on GitHub Free. Scale up only if you need it.
 
 **Portable**: Your library is just git repos. Clone anywhere, migrate anytime. No vendor lock-in, no proprietary formats.
@@ -36,6 +39,7 @@ Zero infrastructure. Zero cost for public repos, 2GB+ storage for private. Works
 - Each topic gets a GitHub repo: `shelf-programming`, `shelf-history`, etc.
 - Files (PDFs, EPUBs) are stored as **Release assets** — not committed to git.
 - `catalog.yml` in each repo is the source of truth for metadata.
+- **Download individual books on demand** — no need to clone repos or download entire releases.
 - `shelfctl` manages the whole lifecycle: add, get, open, migrate, split.
 
 ---
@@ -80,10 +84,13 @@ shelfctl migrate batch queue.txt --n 10 --continue
 # Add a book
 shelfctl add ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author "Abelson & Sussman" --tags lisp,cs
 
-# List books
+# List books across all shelves
 shelfctl list --shelf programming
 
-# Open a book (downloads to cache on first run)
+# Open a book — downloads just this one file (6MB), not the entire release
+shelfctl open sicp
+
+# On another machine? Same command fetches it on-demand from GitHub
 shelfctl open sicp
 ```
 

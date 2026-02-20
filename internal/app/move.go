@@ -90,27 +90,30 @@ func newMoveCmd() *cobra.Command {
 			// Buffer to temp file (needed for Content-Length).
 			tmp, err := os.CreateTemp("", "shelfctl-move-*")
 			if err != nil {
-				rc.Close()
+				_ = rc.Close()
 				return err
 			}
 			tmpPath := tmp.Name()
-			defer os.Remove(tmpPath)
+			defer func() { _ = os.Remove(tmpPath) }()
 
 			if _, err := io.Copy(tmp, rc); err != nil {
-				tmp.Close()
-				rc.Close()
+				_ = tmp.Close()
+				_ = rc.Close()
 				return err
 			}
-			tmp.Close()
-			rc.Close()
+			_ = tmp.Close()
+			_ = rc.Close()
 
-			fi, _ := os.Stat(tmpPath)
-			uploadFile, err := os.Open(tmpPath)
-			if err != nil {
-				return err
-			}
-			defer uploadFile.Close()
 
+		fi, err := os.Stat(tmpPath)
+		if err != nil {
+			return err
+		}
+		uploadFile, err := os.Open(tmpPath)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = uploadFile.Close() }()
 			_, err = gh.UploadAsset(dstOwner, dstRepo, dstRel.ID, b.Source.Asset,
 				uploadFile, fi.Size(), "application/octet-stream")
 			if err != nil {

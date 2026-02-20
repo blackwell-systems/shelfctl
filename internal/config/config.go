@@ -74,7 +74,7 @@ func Load() (*Config, error) {
 // Save writes the config to the default path.
 func Save(cfg *Config) error {
 	path := DefaultPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
 		return err
 	}
 	f, err := os.Create(path)

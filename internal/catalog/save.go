@@ -25,7 +25,7 @@ func Save(path string, books []Book) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0600)
 }
 
 // Append adds a book to the list and returns the updated slice.

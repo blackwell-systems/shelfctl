@@ -26,10 +26,10 @@ func (c *Client) CommitFile(owner, repo, filePath string, content []byte, messag
 	}
 
 	fullPath := filepath.Join(tmpDir, filepath.FromSlash(filePath))
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0750); err != nil {
 		return err
 	}
-	if err := os.WriteFile(fullPath, content, 0644); err != nil {
+	if err := os.WriteFile(fullPath, content, 0600); err != nil {
 		return err
 	}
 

@@ -19,20 +19,30 @@ import (
 
 var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
 
+type shelveParams struct {
+	shelfName  string
+	releaseTag string
+	bookID     string
+	title      string
+	author     string
+	year       int
+	tagsCSV    string
+	assetName  string
+	noPush     bool
+	useSHA12   bool
+	force      bool
+}
+
+type ingestedFile struct {
+	tmpPath  string
+	sha256   string
+	size     int64
+	format   string
+	srcName  string
+}
+
 func newShelveCmd() *cobra.Command {
-	var (
-		shelfName  string
-		releaseTag string
-		bookID     string
-		title      string
-		author     string
-		year       int
-		tagsCSV    string
-		assetName  string
-		noPush     bool
-		useSHA12   bool
-		force      bool
-	)
+	params := &shelveParams{}
 
 	cmd := &cobra.Command{
 		Use:   "shelve [file|url|github:owner/repo@ref:path]",
@@ -49,322 +59,408 @@ Examples:
   shelfctl shelve github:user/repo@main:books/sicp.pdf --shelf programming`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// If in TUI mode and missing required inputs, launch interactive workflow
-			useTUIWorkflow := tui.ShouldUseTUI(cmd) && (shelfName == "" || len(args) == 0)
-
-			// Step 1: Select shelf if not provided
-			if shelfName == "" {
-				if useTUIWorkflow {
-					if len(cfg.Shelves) == 0 {
-						return fmt.Errorf("no shelves configured — run 'shelfctl init' first")
-					}
-
-					// Build shelf options
-					var options []tui.ShelfOption
-					for _, s := range cfg.Shelves {
-						options = append(options, tui.ShelfOption{
-							Name: s.Name,
-							Repo: s.Repo,
-						})
-					}
-
-					selected, err := tui.RunShelfPicker(options)
-					if err != nil {
-						return err
-					}
-					shelfName = selected
-				} else {
-					return fmt.Errorf("--shelf flag required in non-interactive mode")
-				}
-			}
-
-			shelf := cfg.ShelfByName(shelfName)
-			if shelf == nil {
-				return fmt.Errorf("shelf %q not found in config", shelfName)
-			}
-
-			// Step 2: Select file if not provided
-			var input string
-			if len(args) == 0 {
-				if useTUIWorkflow {
-					// Get starting directory (try Downloads first, then home)
-					home := os.Getenv("HOME")
-					startPath := filepath.Join(home, "Downloads")
-					if _, err := os.Stat(startPath); err != nil {
-						startPath = home
-					}
-
-					selected, err := tui.RunFilePicker(startPath)
-					if err != nil {
-						return err
-					}
-					input = selected
-				} else {
-					return fmt.Errorf("file path required in non-interactive mode")
-				}
-			} else {
-				input = args[0]
-			}
-			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
-			if releaseTag == "" {
-				releaseTag = shelf.EffectiveRelease(cfg.Defaults.Release)
-			}
-
-			// Resolve input source.
-			src, err := ingest.Resolve(input, cfg.GitHub.Token, cfg.GitHub.APIBase)
-			if err != nil {
-				return err
-			}
-
-			// Determine extension and format.
-			ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(src.Name), "."))
-			format := ext
-
-			// Calculate defaults for prompts/form
-			defaultTitle := strings.TrimSuffix(src.Name, filepath.Ext(src.Name))
-			defaultID := slugify(defaultTitle)
-
-			// Check if we should use TUI form for metadata entry
-			useTUIForm := tui.ShouldUseTUI(cmd) && title == "" && bookID == "" && !useSHA12
-
-			if useTUIForm {
-				// Launch interactive form
-				formData, err := tui.RunShelveForm(tui.ShelveFormDefaults{
-					Filename: src.Name,
-					Title:    defaultTitle,
-					ID:       defaultID,
-				})
-				if err != nil {
-					return fmt.Errorf("form canceled or failed: %w", err)
-				}
-
-				// Use form data
-				title = formData.Title
-				author = formData.Author
-				tagsCSV = formData.Tags
-				bookID = formData.ID
-			} else {
-				// Non-TUI mode: use flags or bufio prompts
-				// Determine title (required).
-				if title == "" {
-					title = promptOrDefault("Title", defaultTitle)
-				}
-			}
-
-			// Determine asset filename.
-			if assetName == "" {
-				naming := cfg.Defaults.AssetNaming
-				if naming == "original" {
-					assetName = src.Name
-				}
-				// "id" naming determined after we have the ID.
-			}
-
-			// Open the source and compute hash + size.
-			fmt.Printf("Ingesting %s …\n", color.CyanString(input))
-			rc, err := src.Open()
-			if err != nil {
-				return fmt.Errorf("opening source: %w", err)
-			}
-
-			// Buffer to a temp file so we know the size before uploading.
-			tmp, err := os.CreateTemp("", "shelfctl-add-*")
-			if err != nil {
-				_ = rc.Close()
-				return err
-			}
-			tmpPath := tmp.Name()
-			defer func() { _ = os.Remove(tmpPath) }()
-
-			hr := ingest.NewReader(rc)
-			if _, err := io.Copy(tmp, hr); err != nil {
-				_ = tmp.Close()
-				_ = rc.Close()
-				return fmt.Errorf("buffering source: %w", err)
-			}
-			_ = tmp.Close()
-			_ = rc.Close()
-
-			sha256 := hr.SHA256()
-			size := hr.Size()
-
-			// Determine book ID (if not already set by TUI form or flags).
-			if bookID == "" {
-				if useSHA12 {
-					bookID = sha256[:12]
-				} else {
-					bookID = promptOrDefault("ID", slugify(title))
-				}
-			}
-			if !idRe.MatchString(bookID) {
-				return fmt.Errorf("invalid ID %q — must match ^[a-z0-9][a-z0-9-]{1,62}$", bookID)
-			}
-
-			// Finalize asset name now that we have the ID.
-			if assetName == "" {
-				assetName = bookID + "." + ext
-			}
-
-			// Parse tags.
-			var tags []string
-			if tagsCSV != "" {
-				for _, t := range strings.Split(tagsCSV, ",") {
-					if t = strings.TrimSpace(t); t != "" {
-						tags = append(tags, t)
-					}
-				}
-			}
-
-			// Load existing catalog for duplicate checks.
-			catalogPath := shelf.EffectiveCatalogPath()
-			existingData, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
-			if err != nil && err.Error() != "not found" {
-				return fmt.Errorf("reading catalog: %w", err)
-			}
-			existingBooks, _ := catalog.Parse(existingData)
-
-			// Check for content duplication by SHA256.
-			if !force {
-				for _, b := range existingBooks {
-					if b.Checksum.SHA256 == sha256 {
-						warn("File with same SHA256 already exists: %s (%s)", b.ID, b.Title)
-						fmt.Printf("Use --force to add anyway, or skip.\n")
-						return fmt.Errorf("duplicate content detected")
-					}
-				}
-			}
-
-			// Ensure release exists.
-			rel, err := gh.EnsureRelease(owner, shelf.Repo, releaseTag)
-			if err != nil {
-				return fmt.Errorf("ensuring release: %w", err)
-			}
-
-			// Check for asset name collision.
-			if !force {
-				existingAsset, err := gh.FindAsset(owner, shelf.Repo, rel.ID, assetName)
-				if err != nil {
-					return fmt.Errorf("checking existing assets: %w", err)
-				}
-				if existingAsset != nil {
-					warn("Asset with name %q already exists in release %s", assetName, releaseTag)
-					fmt.Printf("Use --force to overwrite, --asset-name for different name, or delete existing asset first.\n")
-					return fmt.Errorf("asset name collision")
-				}
-			} else {
-				// Force mode: delete existing asset if it exists.
-				existingAsset, err := gh.FindAsset(owner, shelf.Repo, rel.ID, assetName)
-				if err != nil {
-					return fmt.Errorf("checking existing assets: %w", err)
-				}
-				if existingAsset != nil {
-					warn("Deleting existing asset %q", assetName)
-					if err := gh.DeleteAsset(owner, shelf.Repo, existingAsset.ID); err != nil {
-						return fmt.Errorf("deleting existing asset: %w", err)
-					}
-				}
-			}
-
-			// Upload asset.
-			fmt.Printf("Uploading %s → %s/%s/%s …\n",
-				assetName, owner, shelf.Repo, releaseTag)
-
-			uploadFile, err := os.Open(tmpPath)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = uploadFile.Close() }()
-
-			asset, err := gh.UploadAsset(owner, shelf.Repo, rel.ID, assetName, uploadFile, size, "application/octet-stream")
-			if err != nil {
-				return fmt.Errorf("uploading: %w", err)
-			}
-			ok("Uploaded: %s", asset.BrowserDownloadURL)
-
-			// Build catalog entry.
-			book := catalog.Book{
-				ID:        bookID,
-				Title:     title,
-				Author:    author,
-				Year:      year,
-				Tags:      tags,
-				Format:    format,
-				SizeBytes: size,
-				Checksum:  catalog.Checksum{SHA256: sha256},
-				Source: catalog.Source{
-					Type:    "github_release",
-					Owner:   owner,
-					Repo:    shelf.Repo,
-					Release: releaseTag,
-					Asset:   assetName,
-				},
-				Meta: catalog.Meta{
-					AddedAt: time.Now().UTC().Format(time.RFC3339),
-				},
-			}
-
-			// Append to catalog (we already loaded it earlier for duplicate checks).
-			books := catalog.Append(existingBooks, book)
-
-			newCatalog, err := catalog.Marshal(books)
-			if err != nil {
-				return err
-			}
-
-			if noPush {
-				// Write locally only.
-				if err := os.WriteFile(catalogPath, newCatalog, 0600); err != nil {
-					return err
-				}
-				ok("Catalog updated locally (not pushed)")
-			} else {
-				msg := fmt.Sprintf("add: %s — %s", bookID, title)
-				if err := gh.CommitFile(owner, shelf.Repo, catalogPath, newCatalog, msg); err != nil {
-					return fmt.Errorf("committing catalog: %w", err)
-				}
-				ok("Catalog committed and pushed")
-
-				// Update README.md with stats and recent addition
-				readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
-				if readmeErr == nil {
-					// README exists, update it
-					readmeContent := string(readmeData)
-					readmeContent = updateShelfREADMEStats(readmeContent, len(books))
-					readmeContent = appendToShelfREADME(readmeContent, book)
-
-					readmeMsg := fmt.Sprintf("Update README: add %s", bookID)
-					if err := gh.CommitFile(owner, shelf.Repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
-						// Don't fail the whole operation if README update fails
-						warn("Could not update README.md: %v", err)
-					} else {
-						ok("README.md updated")
-					}
-				}
-			}
-
-			fmt.Println()
-			fmt.Printf("  id:      %s\n", color.WhiteString(bookID))
-			fmt.Printf("  title:   %s\n", title)
-			fmt.Printf("  sha256:  %s\n", sha256)
-			fmt.Printf("  size:    %s\n", humanBytes(size))
-			fmt.Printf("  asset:   %s\n", assetName)
-			return nil
+			return runShelve(cmd, args, params)
 		},
 	}
 
-	cmd.Flags().StringVar(&shelfName, "shelf", "", "Target shelf name (interactive prompt if not provided)")
-	cmd.Flags().StringVar(&releaseTag, "release", "", "Target release tag (default: shelf's default_release)")
-	cmd.Flags().StringVar(&bookID, "id", "", "Book ID (default: prompt / slugified title)")
-	cmd.Flags().BoolVar(&useSHA12, "id-sha12", false, "Use first 12 chars of sha256 as ID")
-	cmd.Flags().StringVar(&title, "title", "", "Book title")
-	cmd.Flags().StringVar(&author, "author", "", "Author")
-	cmd.Flags().IntVar(&year, "year", 0, "Publication year")
-	cmd.Flags().StringVar(&tagsCSV, "tags", "", "Comma-separated tags")
-	cmd.Flags().StringVar(&assetName, "asset-name", "", "Override asset filename")
-	cmd.Flags().BoolVar(&noPush, "no-push", false, "Update catalog locally only (do not push)")
-	cmd.Flags().BoolVar(&force, "force", false, "Skip duplicate checks and overwrite existing assets")
+	cmd.Flags().StringVar(&params.shelfName, "shelf", "", "Target shelf name (interactive prompt if not provided)")
+	cmd.Flags().StringVar(&params.releaseTag, "release", "", "Target release tag (default: shelf's default_release)")
+	cmd.Flags().StringVar(&params.bookID, "id", "", "Book ID (default: prompt / slugified title)")
+	cmd.Flags().BoolVar(&params.useSHA12, "id-sha12", false, "Use first 12 chars of sha256 as ID")
+	cmd.Flags().StringVar(&params.title, "title", "", "Book title")
+	cmd.Flags().StringVar(&params.author, "author", "", "Author")
+	cmd.Flags().IntVar(&params.year, "year", 0, "Publication year")
+	cmd.Flags().StringVar(&params.tagsCSV, "tags", "", "Comma-separated tags")
+	cmd.Flags().StringVar(&params.assetName, "asset-name", "", "Override asset filename")
+	cmd.Flags().BoolVar(&params.noPush, "no-push", false, "Update catalog locally only (do not push)")
+	cmd.Flags().BoolVar(&params.force, "force", false, "Skip duplicate checks and overwrite existing assets")
 
 	return cmd
+}
+
+func runShelve(cmd *cobra.Command, args []string, params *shelveParams) error {
+	useTUIWorkflow := tui.ShouldUseTUI(cmd) && (params.shelfName == "" || len(args) == 0)
+
+	// Step 1: Select shelf
+	shelfName, err := selectShelf(params.shelfName, useTUIWorkflow)
+	if err != nil {
+		return err
+	}
+
+	shelf := cfg.ShelfByName(shelfName)
+	if shelf == nil {
+		return fmt.Errorf("shelf %q not found in config", shelfName)
+	}
+
+	// Step 2: Select file
+	input, err := selectFile(args, useTUIWorkflow)
+	if err != nil {
+		return err
+	}
+
+	owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+	if params.releaseTag == "" {
+		params.releaseTag = shelf.EffectiveRelease(cfg.Defaults.Release)
+	}
+
+	// Step 3: Resolve and ingest source
+	src, err := ingest.Resolve(input, cfg.GitHub.Token, cfg.GitHub.APIBase)
+	if err != nil {
+		return err
+	}
+
+	ingested, err := ingestFile(src, input)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(ingested.tmpPath)
+
+	// Step 4: Collect metadata
+	metadata, err := collectMetadata(cmd, params, src.Name, ingested, useTUIWorkflow)
+	if err != nil {
+		return err
+	}
+
+	// Step 5: Load catalog and check duplicates
+	catalogPath := shelf.EffectiveCatalogPath()
+	existingBooks, err := loadCatalog(owner, shelf.Repo, catalogPath)
+	if err != nil {
+		return err
+	}
+
+	if err := checkDuplicates(existingBooks, ingested.sha256, params.force); err != nil {
+		return err
+	}
+
+	// Step 6: Ensure release and handle asset collisions
+	rel, err := gh.EnsureRelease(owner, shelf.Repo, params.releaseTag)
+	if err != nil {
+		return fmt.Errorf("ensuring release: %w", err)
+	}
+
+	if err := handleAssetCollision(owner, shelf.Repo, rel.ID, metadata.assetName, params.releaseTag, params.force); err != nil {
+		return err
+	}
+
+	// Step 7: Upload asset
+	if err := uploadAsset(owner, shelf.Repo, rel.ID, metadata.assetName, ingested.tmpPath, ingested.size, params.releaseTag); err != nil {
+		return err
+	}
+
+	// Step 8: Update catalog
+	book := buildCatalogEntry(metadata, ingested, owner, shelf.Repo, params.releaseTag)
+	if err := updateCatalog(owner, shelf.Repo, catalogPath, existingBooks, book, params.noPush); err != nil {
+		return err
+	}
+
+	// Print summary
+	printBookSummary(metadata.bookID, metadata.title, ingested.sha256, ingested.size, metadata.assetName)
+	return nil
+}
+
+func selectShelf(shelfName string, useTUI bool) (string, error) {
+	if shelfName != "" {
+		return shelfName, nil
+	}
+
+	if useTUI {
+		if len(cfg.Shelves) == 0 {
+			return "", fmt.Errorf("no shelves configured — run 'shelfctl init' first")
+		}
+
+		var options []tui.ShelfOption
+		for _, s := range cfg.Shelves {
+			options = append(options, tui.ShelfOption{
+				Name: s.Name,
+				Repo: s.Repo,
+			})
+		}
+
+		return tui.RunShelfPicker(options)
+	}
+
+	return "", fmt.Errorf("--shelf flag required in non-interactive mode")
+}
+
+func selectFile(args []string, useTUI bool) (string, error) {
+	if len(args) > 0 {
+		return args[0], nil
+	}
+
+	if useTUI {
+		home := os.Getenv("HOME")
+		startPath := filepath.Join(home, "Downloads")
+		if _, err := os.Stat(startPath); err != nil {
+			startPath = home
+		}
+
+		return tui.RunFilePicker(startPath)
+	}
+
+	return "", fmt.Errorf("file path required in non-interactive mode")
+}
+
+func ingestFile(src *ingest.Source, input string) (*ingestedFile, error) {
+	fmt.Printf("Ingesting %s …\n", color.CyanString(input))
+	rc, err := src.Open()
+	if err != nil {
+		return nil, fmt.Errorf("opening source: %w", err)
+	}
+
+	tmp, err := os.CreateTemp("", "shelfctl-add-*")
+	if err != nil {
+		_ = rc.Close()
+		return nil, err
+	}
+	tmpPath := tmp.Name()
+
+	hr := ingest.NewReader(rc)
+	if _, err := io.Copy(tmp, hr); err != nil {
+		_ = tmp.Close()
+		_ = rc.Close()
+		_ = os.Remove(tmpPath)
+		return nil, fmt.Errorf("buffering source: %w", err)
+	}
+	_ = tmp.Close()
+	_ = rc.Close()
+
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(src.Name), "."))
+
+	return &ingestedFile{
+		tmpPath: tmpPath,
+		sha256:  hr.SHA256(),
+		size:    hr.Size(),
+		format:  ext,
+		srcName: src.Name,
+	}, nil
+}
+
+type bookMetadata struct {
+	bookID    string
+	title     string
+	author    string
+	year      int
+	tags      []string
+	assetName string
+}
+
+func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, ingested *ingestedFile, useTUI bool) (*bookMetadata, error) {
+	defaultTitle := strings.TrimSuffix(srcName, filepath.Ext(srcName))
+	defaultID := slugify(defaultTitle)
+
+	useTUIForm := useTUI && params.title == "" && params.bookID == "" && !params.useSHA12
+
+	var title, author, bookID, tagsCSV string
+	if useTUIForm {
+		formData, err := tui.RunShelveForm(tui.ShelveFormDefaults{
+			Filename: srcName,
+			Title:    defaultTitle,
+			ID:       defaultID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("form canceled or failed: %w", err)
+		}
+
+		title = formData.Title
+		author = formData.Author
+		tagsCSV = formData.Tags
+		bookID = formData.ID
+	} else {
+		title = params.title
+		author = params.author
+		tagsCSV = params.tagsCSV
+		bookID = params.bookID
+
+		if title == "" {
+			title = promptOrDefault("Title", defaultTitle)
+		}
+	}
+
+	// Determine asset filename
+	assetName := params.assetName
+	if assetName == "" {
+		naming := cfg.Defaults.AssetNaming
+		if naming == "original" {
+			assetName = srcName
+		}
+	}
+
+	// Determine book ID
+	if bookID == "" {
+		if params.useSHA12 {
+			bookID = ingested.sha256[:12]
+		} else {
+			bookID = promptOrDefault("ID", slugify(title))
+		}
+	}
+
+	if !idRe.MatchString(bookID) {
+		return nil, fmt.Errorf("invalid ID %q — must match ^[a-z0-9][a-z0-9-]{1,62}$", bookID)
+	}
+
+	// Finalize asset name
+	if assetName == "" {
+		assetName = bookID + "." + ingested.format
+	}
+
+	// Parse tags
+	var tags []string
+	if tagsCSV != "" {
+		for _, t := range strings.Split(tagsCSV, ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+
+	return &bookMetadata{
+		bookID:    bookID,
+		title:     title,
+		author:    author,
+		year:      params.year,
+		tags:      tags,
+		assetName: assetName,
+	}, nil
+}
+
+func loadCatalog(owner, repo, catalogPath string) ([]catalog.Book, error) {
+	existingData, _, err := gh.GetFileContent(owner, repo, catalogPath, "")
+	if err != nil && err.Error() != "not found" {
+		return nil, fmt.Errorf("reading catalog: %w", err)
+	}
+	existingBooks, _ := catalog.Parse(existingData)
+	return existingBooks, nil
+}
+
+func checkDuplicates(existingBooks []catalog.Book, sha256 string, force bool) error {
+	if force {
+		return nil
+	}
+
+	for _, b := range existingBooks {
+		if b.Checksum.SHA256 == sha256 {
+			warn("File with same SHA256 already exists: %s (%s)", b.ID, b.Title)
+			fmt.Printf("Use --force to add anyway, or skip.\n")
+			return fmt.Errorf("duplicate content detected")
+		}
+	}
+	return nil
+}
+
+func handleAssetCollision(owner, repo string, releaseID int64, assetName, releaseTag string, force bool) error {
+	existingAsset, err := gh.FindAsset(owner, repo, releaseID, assetName)
+	if err != nil {
+		return fmt.Errorf("checking existing assets: %w", err)
+	}
+
+	if existingAsset == nil {
+		return nil
+	}
+
+	if !force {
+		warn("Asset with name %q already exists in release %s", assetName, releaseTag)
+		fmt.Printf("Use --force to overwrite, --asset-name for different name, or delete existing asset first.\n")
+		return fmt.Errorf("asset name collision")
+	}
+
+	warn("Deleting existing asset %q", assetName)
+	if err := gh.DeleteAsset(owner, repo, existingAsset.ID); err != nil {
+		return fmt.Errorf("deleting existing asset: %w", err)
+	}
+	return nil
+}
+
+func uploadAsset(owner, repo string, releaseID int64, assetName, tmpPath string, size int64, releaseTag string) error {
+	fmt.Printf("Uploading %s → %s/%s/%s …\n", assetName, owner, repo, releaseTag)
+
+	uploadFile, err := os.Open(tmpPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = uploadFile.Close() }()
+
+	asset, err := gh.UploadAsset(owner, repo, releaseID, assetName, uploadFile, size, "application/octet-stream")
+	if err != nil {
+		return fmt.Errorf("uploading: %w", err)
+	}
+
+	ok("Uploaded: %s", asset.BrowserDownloadURL)
+	return nil
+}
+
+func buildCatalogEntry(metadata *bookMetadata, ingested *ingestedFile, owner, repo, releaseTag string) catalog.Book {
+	return catalog.Book{
+		ID:        metadata.bookID,
+		Title:     metadata.title,
+		Author:    metadata.author,
+		Year:      metadata.year,
+		Tags:      metadata.tags,
+		Format:    ingested.format,
+		SizeBytes: ingested.size,
+		Checksum:  catalog.Checksum{SHA256: ingested.sha256},
+		Source: catalog.Source{
+			Type:    "github_release",
+			Owner:   owner,
+			Repo:    repo,
+			Release: releaseTag,
+			Asset:   metadata.assetName,
+		},
+		Meta: catalog.Meta{
+			AddedAt: time.Now().UTC().Format(time.RFC3339),
+		},
+	}
+}
+
+func updateCatalog(owner, repo, catalogPath string, existingBooks []catalog.Book, book catalog.Book, noPush bool) error {
+	books := catalog.Append(existingBooks, book)
+	newCatalog, err := catalog.Marshal(books)
+	if err != nil {
+		return err
+	}
+
+	if noPush {
+		if err := os.WriteFile(catalogPath, newCatalog, 0600); err != nil {
+			return err
+		}
+		ok("Catalog updated locally (not pushed)")
+		return nil
+	}
+
+	msg := fmt.Sprintf("add: %s — %s", book.ID, book.Title)
+	if err := gh.CommitFile(owner, repo, catalogPath, newCatalog, msg); err != nil {
+		return fmt.Errorf("committing catalog: %w", err)
+	}
+	ok("Catalog committed and pushed")
+
+	updateREADME(owner, repo, books, book)
+	return nil
+}
+
+func updateREADME(owner, repo string, books []catalog.Book, book catalog.Book) {
+	readmeData, _, readmeErr := gh.GetFileContent(owner, repo, "README.md", "")
+	if readmeErr != nil {
+		return
+	}
+
+	readmeContent := string(readmeData)
+	readmeContent = updateShelfREADMEStats(readmeContent, len(books))
+	readmeContent = appendToShelfREADME(readmeContent, book)
+
+	readmeMsg := fmt.Sprintf("Update README: add %s", book.ID)
+	if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+		warn("Could not update README.md: %v", err)
+	} else {
+		ok("README.md updated")
+	}
+}
+
+func printBookSummary(bookID, title, sha256 string, size int64, assetName string) {
+	fmt.Println()
+	fmt.Printf("  id:      %s\n", color.WhiteString(bookID))
+	fmt.Printf("  title:   %s\n", title)
+	fmt.Printf("  sha256:  %s\n", sha256)
+	fmt.Printf("  size:    %s\n", humanBytes(size))
+	fmt.Printf("  asset:   %s\n", assetName)
 }
 
 // promptOrDefault reads a line from stdin, falling back to def on empty input.

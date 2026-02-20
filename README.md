@@ -42,6 +42,10 @@ Zero infrastructure. Zero cost for public repos, 2GB+ storage for private. Works
 
 ---
 
+<p align="center">
+  <img src="assets/shelf3.png" alt="shelfctl features" width="800">
+</p>
+
 ## How it works
 
 - Each topic gets a GitHub repo: `shelf-programming`, `shelf-history`, etc.

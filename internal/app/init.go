@@ -109,11 +109,21 @@ func validateInitParams(owner, repoName, shelfName string) (string, string, erro
 func createRepoAndRelease(owner, repoName string, createRepo, createRelease, private bool) error {
 	if createRepo {
 		header("Creating repo %s/%s …", owner, repoName)
-		repo, err := gh.CreateRepo(repoName, private)
-		if err != nil {
-			return fmt.Errorf("create repo: %w", err)
+
+		// Check if repo already exists first
+		existingRepo, err := gh.GetRepo(owner, repoName)
+		if err == nil && existingRepo != nil {
+			// Repo already exists - skip creation
+			warn("Repository %s/%s already exists, skipping creation", owner, repoName)
+			ok("Using existing repo: %s", existingRepo.HTMLURL)
+		} else {
+			// Repo doesn't exist, create it
+			repo, err := gh.CreateRepo(repoName, private)
+			if err != nil {
+				return fmt.Errorf("create repo: %w", err)
+			}
+			ok("Created %s", repo.HTMLURL)
 		}
-		ok("Created %s", repo.HTMLURL)
 	}
 
 	if createRelease {

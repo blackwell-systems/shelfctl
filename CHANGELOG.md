@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Interactive TUI mode using Bubble Tea library
   - `browse` command shows interactive browser with keyboard navigation
+  - `shelve` command shows interactive form for book metadata entry
   - Filtering, search, and visual book selection
   - Auto-detects terminal mode vs piped/scripted output
   - New `--no-interactive` global flag to disable TUI

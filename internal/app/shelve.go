@@ -12,6 +12,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/ingest"
+	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -61,14 +62,40 @@ Examples:
 				return err
 			}
 
-			// Determine title (required).
-			if title == "" {
-				title = promptOrDefault("Title", strings.TrimSuffix(src.Name, filepath.Ext(src.Name)))
-			}
-
 			// Determine extension and format.
 			ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(src.Name), "."))
 			format := ext
+
+			// Calculate defaults for prompts/form
+			defaultTitle := strings.TrimSuffix(src.Name, filepath.Ext(src.Name))
+			defaultID := slugify(defaultTitle)
+
+			// Check if we should use TUI form for metadata entry
+			useTUIForm := tui.ShouldUseTUI(cmd) && title == "" && bookID == "" && !useSHA12
+
+			if useTUIForm {
+				// Launch interactive form
+				formData, err := tui.RunShelveForm(tui.ShelveFormDefaults{
+					Filename: src.Name,
+					Title:    defaultTitle,
+					ID:       defaultID,
+				})
+				if err != nil {
+					return fmt.Errorf("form canceled or failed: %w", err)
+				}
+
+				// Use form data
+				title = formData.Title
+				author = formData.Author
+				tagsCSV = formData.Tags
+				bookID = formData.ID
+			} else {
+				// Non-TUI mode: use flags or bufio prompts
+				// Determine title (required).
+				if title == "" {
+					title = promptOrDefault("Title", defaultTitle)
+				}
+			}
 
 			// Determine asset filename.
 			if assetName == "" {
@@ -107,7 +134,7 @@ Examples:
 			sha256 := hr.SHA256()
 			size := hr.Size()
 
-			// Determine book ID.
+			// Determine book ID (if not already set by TUI form or flags).
 			if bookID == "" {
 				if useSHA12 {
 					bookID = sha256[:12]

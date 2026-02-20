@@ -128,9 +128,12 @@ export GITHUB_TOKEN=ghp_...
 # Scan your existing repos for files
 shelfctl migrate scan --source you/old-books-repo > queue.txt
 
-# Create organized shelves
+# Create organized shelves (private by default)
 shelfctl init --repo shelf-programming --name programming --create-repo --create-release
 shelfctl init --repo shelf-research --name research --create-repo --create-release
+
+# Or make a shelf public
+shelfctl init --repo shelf-public --name public --create-repo --create-release --private=false
 
 # Edit queue.txt to map files to shelves, then migrate
 shelfctl migrate batch queue.txt --n 10 --continue

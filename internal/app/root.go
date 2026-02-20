@@ -327,10 +327,29 @@ func runInteractiveInit() error {
 		break
 	}
 
+	// Ask about repository visibility
+	fmt.Println()
+	fmt.Println(color.CyanString("Repository visibility:"))
+	fmt.Println()
+	fmt.Println(color.GreenString("  1. Private") + " (default) - Only you can see this repo")
+	fmt.Println(color.YellowString("  2. Public") + " - Anyone can see this repo")
+	fmt.Println()
+	fmt.Print("Your choice (1/2): ")
+	var visibilityChoice string
+	_, _ = fmt.Scanln(&visibilityChoice)
+
+	isPrivate := true // default
+	visibilityLabel := "Private"
+	if visibilityChoice == "2" {
+		isPrivate = false
+		visibilityLabel = "Public"
+	}
+
 	// Confirm creation
 	fmt.Println()
 	fmt.Println(color.CyanString("Summary:"))
 	fmt.Printf("  GitHub repository:  %s/%s\n", cfg.GitHub.Owner, color.WhiteString(repoName))
+	fmt.Printf("  Visibility:         %s\n", color.WhiteString(visibilityLabel))
 	fmt.Printf("  Release tag:        %s\n", color.WhiteString("library"))
 	fmt.Printf("  Shelf name (config):%s\n", color.WhiteString(shelfName))
 	fmt.Println()
@@ -352,12 +371,16 @@ func runInteractiveInit() error {
 	// Run init command
 	fmt.Println()
 	initCmd := newInitCmd()
-	initCmd.SetArgs([]string{
+	args := []string{
 		"--repo", repoName,
 		"--name", shelfName,
 		"--create-repo",
 		"--create-release",
-	})
+	}
+	if !isPrivate {
+		args = append(args, "--private=false")
+	}
+	initCmd.SetArgs(args)
 
 	if err := initCmd.Execute(); err != nil {
 		return fmt.Errorf("init failed: %w", err)

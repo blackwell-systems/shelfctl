@@ -177,6 +177,10 @@ func RunHub(ctx HubContext) (string, error) {
 				continue
 			}
 		}
+		// Hide browse if there are no books to browse
+		if ctx.BookCount == 0 && item.Key == "browse" {
+			continue
+		}
 		items = append(items, item)
 	}
 

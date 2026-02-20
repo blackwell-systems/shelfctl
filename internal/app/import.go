@@ -91,16 +91,16 @@ func parseOwnerRepo(fromFlag string) (string, string, error) {
 }
 
 type importContext struct {
-	shelf          *config.ShelfConfig
-	srcOwner       string
-	srcRepo        string
-	dstOwner       string
-	releaseTag     string
-	catalogPath    string
-	srcBooks       []catalog.Book
-	dstBooks       []catalog.Book
-	existingSHAs   map[string]bool
-	dstRel         *ghclient.Release
+	shelf        *config.ShelfConfig
+	srcOwner     string
+	srcRepo      string
+	dstOwner     string
+	releaseTag   string
+	catalogPath  string
+	srcBooks     []catalog.Book
+	dstBooks     []catalog.Book
+	existingSHAs map[string]bool
+	dstRel       *ghclient.Release
 }
 
 func setupImportContext(shelfName, releaseTag, srcOwner, srcRepo string) (*importContext, error) {

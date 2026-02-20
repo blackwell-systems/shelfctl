@@ -34,11 +34,11 @@ type shelveParams struct {
 }
 
 type ingestedFile struct {
-	tmpPath  string
-	sha256   string
-	size     int64
-	format   string
-	srcName  string
+	tmpPath string
+	sha256  string
+	size    int64
+	format  string
+	srcName string
 }
 
 func newShelveCmd() *cobra.Command {

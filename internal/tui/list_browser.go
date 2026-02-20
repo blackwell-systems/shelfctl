@@ -109,11 +109,28 @@ var keys = keyMap{
 	),
 }
 
+// BrowserAction represents an action requested from the browser
+type BrowserAction string
+
+const (
+	ActionNone        BrowserAction = ""
+	ActionShowDetails BrowserAction = "details"
+	ActionOpen        BrowserAction = "open"
+	ActionDownload    BrowserAction = "download"
+)
+
+// BrowserResult holds the result of a browser session
+type BrowserResult struct {
+	Action   BrowserAction
+	BookItem *BookItem
+}
+
 // model holds the state for the list browser
 type model struct {
 	list     list.Model
 	quitting bool
-	action   string // Action to report back (e.g., "open:book-id")
+	action   BrowserAction
+	selected *BookItem
 }
 
 func (m model) Init() tea.Cmd {
@@ -136,7 +153,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.enter):
 			// Show book details
 			if item, ok := m.list.SelectedItem().(BookItem); ok {
-				m.action = fmt.Sprintf("show-details:%s", item.Book.ID)
+				m.action = ActionShowDetails
+				m.selected = &item
 				m.quitting = true
 				return m, tea.Quit
 			}
@@ -144,7 +162,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.open):
 			// Open book
 			if item, ok := m.list.SelectedItem().(BookItem); ok {
-				m.action = fmt.Sprintf("open:%s/%s/%s", item.Owner, item.Repo, item.Book.ID)
+				m.action = ActionOpen
+				m.selected = &item
 				m.quitting = true
 				return m, tea.Quit
 			}
@@ -152,7 +171,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.get):
 			// Download book
 			if item, ok := m.list.SelectedItem().(BookItem); ok {
-				m.action = fmt.Sprintf("get:%s/%s/%s", item.Owner, item.Repo, item.Book.ID)
+				m.action = ActionDownload
+				m.selected = &item
 				m.quitting = true
 				return m, tea.Quit
 			}
@@ -176,10 +196,10 @@ func (m model) View() string {
 }
 
 // RunListBrowser launches an interactive book browser.
-// Returns nil on clean exit, or error if there was a problem.
-func RunListBrowser(books []BookItem) error {
+// Returns the action and selected book, or error if there was a problem.
+func RunListBrowser(books []BookItem) (*BrowserResult, error) {
 	if len(books) == 0 {
-		return fmt.Errorf("no books to display")
+		return nil, fmt.Errorf("no books to display")
 	}
 
 	// Convert BookItems to list.Items
@@ -212,16 +232,16 @@ func RunListBrowser(books []BookItem) error {
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {
-		return fmt.Errorf("running TUI: %w", err)
+		return nil, fmt.Errorf("running TUI: %w", err)
 	}
 
-	// Handle any actions requested
-	if fm, ok := finalModel.(model); ok && fm.action != "" {
-		// For now, just print the action
-		// In a future iteration, we could actually execute these actions
-		fmt.Println(StyleHelp.Render("Action requested: " + fm.action))
-		fmt.Println(StyleHelp.Render("(Action execution not yet implemented)"))
+	// Return the action result
+	if fm, ok := finalModel.(model); ok {
+		return &BrowserResult{
+			Action:   fm.action,
+			BookItem: fm.selected,
+		}, nil
 	}
 
-	return nil
+	return &BrowserResult{Action: ActionNone}, nil
 }

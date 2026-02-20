@@ -80,7 +80,17 @@ func newBrowseCmd() *cobra.Command {
 					return nil
 				}
 
-				return tui.RunListBrowser(allItems)
+				result, err := tui.RunListBrowser(allItems)
+				if err != nil {
+					return err
+				}
+
+				// Handle browser actions
+				if result.Action != tui.ActionNone && result.BookItem != nil {
+					return handleBrowserAction(result)
+				}
+
+				return nil
 			}
 
 			// CLI mode: use existing text output
@@ -139,4 +149,133 @@ func newBrowseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&search, "search", "", "Full-text search (title, author, tags)")
 	cmd.Flags().StringVar(&format, "format", "", "Filter by format (pdf, epub, …)")
 	return cmd
+}
+
+// handleBrowserAction executes the action requested from the book browser
+func handleBrowserAction(result *tui.BrowserResult) error {
+	item := result.BookItem
+	b := &item.Book
+
+	switch result.Action {
+	case tui.ActionShowDetails:
+		// Show book details
+		header("Book: %s", b.ID)
+		printField("title", b.Title)
+		if b.Author != "" {
+			printField("author", b.Author)
+		}
+		if b.Year != 0 {
+			printField("year", fmt.Sprintf("%d", b.Year))
+		}
+		printField("format", b.Format)
+		if len(b.Tags) > 0 {
+			printField("tags", strings.Join(b.Tags, ", "))
+		}
+		if b.SizeBytes > 0 {
+			printField("size", humanBytes(b.SizeBytes))
+		}
+		if b.Checksum.SHA256 != "" {
+			printField("sha256", b.Checksum.SHA256)
+		}
+		printField("shelf", item.ShelfName)
+		printField("release", b.Source.Release)
+		printField("asset", b.Source.Asset)
+		if b.Meta.AddedAt != "" {
+			printField("added_at", b.Meta.AddedAt)
+		}
+		if b.Meta.MigratedFrom != "" {
+			printField("migrated_from", b.Meta.MigratedFrom)
+		}
+
+		cacheStatus := color.RedString("not cached")
+		if item.Cached {
+			path := cacheMgr.Path(item.Owner, item.Repo, b.ID, b.Source.Asset)
+			cacheStatus = color.GreenString("cached") + "  " + path
+		}
+		printField("cache", cacheStatus)
+		return nil
+
+	case tui.ActionDownload:
+		// Download to cache only (don't open)
+		if item.Cached {
+			fmt.Println(color.GreenString("✓") + " Already cached")
+			path := cacheMgr.Path(item.Owner, item.Repo, b.ID, b.Source.Asset)
+			fmt.Println("  " + path)
+			return nil
+		}
+
+		header("Downloading %s", b.ID)
+
+		// Get release and asset
+		rel, err := gh.GetReleaseByTag(item.Owner, item.Repo, b.Source.Release)
+		if err != nil {
+			return fmt.Errorf("release %q: %w", b.Source.Release, err)
+		}
+		asset, err := gh.FindAsset(item.Owner, item.Repo, rel.ID, b.Source.Asset)
+		if err != nil {
+			return fmt.Errorf("finding asset: %w", err)
+		}
+		if asset == nil {
+			return fmt.Errorf("asset %q not found in release %q", b.Source.Asset, b.Source.Release)
+		}
+
+		fmt.Printf("Downloading %s  (%s) …\n",
+			color.WhiteString(b.ID),
+			color.CyanString(humanBytes(asset.Size)))
+
+		rc, err := gh.DownloadAsset(item.Owner, item.Repo, asset.ID)
+		if err != nil {
+			return fmt.Errorf("download: %w", err)
+		}
+		defer func() { _ = rc.Close() }()
+
+		path, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
+		if err != nil {
+			return fmt.Errorf("cache: %w", err)
+		}
+		ok("Cached: %s", path)
+		return nil
+
+	case tui.ActionOpen:
+		// Download if needed, then open
+		if !item.Cached {
+			fmt.Printf("Not cached — downloading %s …\n", b.ID)
+
+			// Get release and asset
+			rel, err := gh.GetReleaseByTag(item.Owner, item.Repo, b.Source.Release)
+			if err != nil {
+				return fmt.Errorf("release %q: %w", b.Source.Release, err)
+			}
+			asset, err := gh.FindAsset(item.Owner, item.Repo, rel.ID, b.Source.Asset)
+			if err != nil {
+				return fmt.Errorf("finding asset: %w", err)
+			}
+			if asset == nil {
+				return fmt.Errorf("asset %q not found in release %q", b.Source.Asset, b.Source.Release)
+			}
+
+			fmt.Printf("Downloading %s  (%s) …\n",
+				color.WhiteString(b.ID),
+				color.CyanString(humanBytes(asset.Size)))
+
+			rc, err := gh.DownloadAsset(item.Owner, item.Repo, asset.ID)
+			if err != nil {
+				return fmt.Errorf("download: %w", err)
+			}
+			defer func() { _ = rc.Close() }()
+
+			path, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
+			if err != nil {
+				return fmt.Errorf("cache: %w", err)
+			}
+			ok("Cached: %s", path)
+		}
+
+		// Open the file
+		path := cacheMgr.Path(item.Owner, item.Repo, b.ID, b.Source.Asset)
+		return openFile(path, "")
+
+	default:
+		return nil
+	}
 }

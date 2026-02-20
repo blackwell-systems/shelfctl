@@ -49,11 +49,44 @@ Examples:
   shelfctl shelve github:user/repo@main:books/sicp.pdf --shelf programming`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var input string
+			// If in TUI mode and missing required inputs, launch interactive workflow
+			useTUIWorkflow := tui.ShouldUseTUI(cmd) && (shelfName == "" || len(args) == 0)
 
-			// If no file provided, launch file picker in TUI mode
+			// Step 1: Select shelf if not provided
+			if shelfName == "" {
+				if useTUIWorkflow {
+					if len(cfg.Shelves) == 0 {
+						return fmt.Errorf("no shelves configured — run 'shelfctl init' first")
+					}
+
+					// Build shelf options
+					var options []tui.ShelfOption
+					for _, s := range cfg.Shelves {
+						options = append(options, tui.ShelfOption{
+							Name: s.Name,
+							Repo: s.Repo,
+						})
+					}
+
+					selected, err := tui.RunShelfPicker(options)
+					if err != nil {
+						return err
+					}
+					shelfName = selected
+				} else {
+					return fmt.Errorf("--shelf flag required in non-interactive mode")
+				}
+			}
+
+			shelf := cfg.ShelfByName(shelfName)
+			if shelf == nil {
+				return fmt.Errorf("shelf %q not found in config", shelfName)
+			}
+
+			// Step 2: Select file if not provided
+			var input string
 			if len(args) == 0 {
-				if tui.ShouldUseTUI(cmd) {
+				if useTUIWorkflow {
 					// Get starting directory (try Downloads first, then home)
 					home := os.Getenv("HOME")
 					startPath := filepath.Join(home, "Downloads")
@@ -71,11 +104,6 @@ Examples:
 				}
 			} else {
 				input = args[0]
-			}
-
-			shelf := cfg.ShelfByName(shelfName)
-			if shelf == nil {
-				return fmt.Errorf("shelf %q not found in config", shelfName)
 			}
 			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 			if releaseTag == "" {
@@ -307,7 +335,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&shelfName, "shelf", "", "Target shelf name (required)")
+	cmd.Flags().StringVar(&shelfName, "shelf", "", "Target shelf name (interactive prompt if not provided)")
 	cmd.Flags().StringVar(&releaseTag, "release", "", "Target release tag (default: shelf's default_release)")
 	cmd.Flags().StringVar(&bookID, "id", "", "Book ID (default: prompt / slugified title)")
 	cmd.Flags().BoolVar(&useSHA12, "id-sha12", false, "Use first 12 chars of sha256 as ID")
@@ -319,7 +347,6 @@ Examples:
 	cmd.Flags().BoolVar(&noPush, "no-push", false, "Update catalog locally only (do not push)")
 	cmd.Flags().BoolVar(&force, "force", false, "Skip duplicate checks and overwrite existing assets")
 
-	_ = cmd.MarkFlagRequired("shelf")
 	return cmd
 }
 

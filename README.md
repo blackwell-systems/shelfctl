@@ -171,6 +171,10 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 
 ---
 
+<p align="center">
+  <img src="assets/logo3.png" alt="shelfctl" width="400">
+</p>
+
 ## Documentation
 
 - **[Tutorial](docs/TUTORIAL.md)** - Step-by-step walkthrough from installation to advanced workflows

@@ -115,7 +115,7 @@ func resolveGitHub(input, token, apiBase string) (*Source, error) {
 			}
 			if resp.StatusCode != http.StatusOK {
 				resp.Body.Close()
-				return nil, fmt.Errorf("GitHub contents %s: status %d", path, resp.StatusCode)
+				return nil, fmt.Errorf("github contents %s: status %d", path, resp.StatusCode)
 			}
 			return resp.Body, nil
 		},

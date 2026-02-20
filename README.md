@@ -22,6 +22,10 @@ Zero infrastructure. Zero cost for public repos, 2GB+ storage for private. Works
 
 ---
 
+<p align="center">
+  <img src="shelf.png" alt="shelfctl architecture" width="800">
+</p>
+
 ## Why
 
 **Better than Git LFS**: Tired of "exceeds GitHub's file size limit" errors? Git LFS costs money ($5/mo for 50GB) and makes clones slow. shelfctl uses GitHub Releases instead — free, no individual file limits, instant selective downloads. Your library can be 1TB+ across repos.

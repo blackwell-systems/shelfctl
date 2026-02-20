@@ -41,6 +41,12 @@ The hub currently provides access to:
 - Metadata form with smart defaults
 - Automatic upload and cataloging
 
+**Delete Shelf**
+- Interactive shelf picker
+- Shows what will be kept vs deleted
+- Safety confirmation (type shelf name to confirm)
+- Option to keep or delete GitHub repository
+
 **Quit**
 - Exit shelfctl cleanly
 
@@ -55,7 +61,6 @@ shelfctl move <id>       # Move books between shelves
 shelfctl split           # Split a large shelf
 shelfctl migrate         # Import from old repos
 shelfctl import          # Copy from another shelf
-shelfctl delete-shelf    # Remove a shelf
 ```
 
 Run `shelfctl --help` to see all available commands.
@@ -159,20 +164,21 @@ It will display the standard CLI help instead.
 ## Visual Design
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  shelfctl - Personal Library Manager                    │
-│  3 shelves · 42 books                                   │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  › Browse Library    View and search your books         │
-│                                                          │
-│    Add Book         Add a new book to your library      │
-│                                                          │
-│    Quit             Exit shelfctl                       │
-│                                                          │
-│                                                          │
-│  ↑/↓: navigate  enter: select  /: filter  q: quit       │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  shelfctl - Personal Library Manager                     │
+│  3 shelves · 42 books                                    │
+├──────────────────────────────────────────────────────────┤
+│                                                           │
+│  › Browse Library    View and search your books          │
+│                                                           │
+│    Add Book          Add a new book to your library      │
+│                                                           │
+│    Delete Shelf      Remove a shelf from configuration   │
+│                                                           │
+│    Quit              Exit shelfctl                       │
+│                                                           │
+│  ↑/↓: navigate  enter: select  /: filter  q: quit        │
+└──────────────────────────────────────────────────────────┘
 ```
 
 Clean, focused, and functional. Additional commands are available via `shelfctl <command>`.

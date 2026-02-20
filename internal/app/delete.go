@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -25,15 +26,42 @@ The GitHub repository and its contents remain untouched.
 Use --delete-repo to also delete the GitHub repository (DESTRUCTIVE).
 
 Examples:
-  # Remove shelf from config only
+  # Interactive shelf picker
+  shelfctl delete-shelf
+
+  # Remove specific shelf from config only
   shelfctl delete-shelf old-books
 
   # Remove shelf AND delete the GitHub repo
   shelfctl delete-shelf old-books --delete-repo --yes
 `,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			shelfName := args[0]
+			var shelfName string
+
+			// If no shelf name provided, show picker
+			if len(args) == 0 {
+				if len(cfg.Shelves) == 0 {
+					return fmt.Errorf("no shelves configured")
+				}
+
+				// Build shelf options
+				var options []tui.ShelfOption
+				for _, s := range cfg.Shelves {
+					options = append(options, tui.ShelfOption{
+						Name: s.Name,
+						Repo: s.Repo,
+					})
+				}
+
+				selected, err := tui.RunShelfPicker(options)
+				if err != nil {
+					return err
+				}
+				shelfName = selected
+			} else {
+				shelfName = args[0]
+			}
 
 			// Find the shelf in config
 			shelf := cfg.ShelfByName(shelfName)

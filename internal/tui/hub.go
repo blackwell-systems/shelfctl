@@ -33,6 +33,7 @@ type HubContext struct {
 var menuItems = []MenuItem{
 	{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
 	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
+	{Key: "delete-shelf", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
 	{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},
 }
 

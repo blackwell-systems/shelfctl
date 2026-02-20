@@ -428,6 +428,8 @@ func runHub() error {
 		return newBrowseCmd().Execute()
 	case "shelve":
 		return newShelveCmd().Execute()
+	case "delete-shelf":
+		return newDeleteShelfCmd().Execute()
 	case "quit":
 		return nil
 	default:

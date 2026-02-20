@@ -466,6 +466,20 @@ func runHub() error {
 		// Gather context for the hub (refresh each time)
 		ctx := buildHubContext()
 
+		// If all shelves were deleted, exit hub gracefully
+		if ctx.ShelfCount == 0 {
+			fmt.Println()
+			fmt.Println(color.YellowString("No shelves configured."))
+			fmt.Println()
+			fmt.Println("To use shelfctl, you need at least one shelf.")
+			fmt.Println()
+			fmt.Println("Run this to create your first shelf:")
+			fmt.Printf("  %s\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
+			fmt.Println()
+			fmt.Println("Or run 'shelfctl' to use the interactive setup wizard.")
+			return nil
+		}
+
 		action, err := tui.RunHub(ctx)
 		if err != nil {
 			return err

@@ -168,10 +168,16 @@ func (m hubModel) View() string {
 // RunHub launches the interactive hub menu
 // Returns the selected action key, or error if canceled
 func RunHub(ctx HubContext) (string, error) {
-	// Convert menu items to list items
-	items := make([]list.Item, len(menuItems))
-	for i, item := range menuItems {
-		items[i] = item
+	// Filter menu items based on context
+	var items []list.Item
+	for _, item := range menuItems {
+		// Hide shelf-related actions if no shelves configured
+		if ctx.ShelfCount == 0 {
+			if item.Key == "browse" || item.Key == "shelve" || item.Key == "delete-shelf" {
+				continue
+			}
+		}
+		items = append(items, item)
 	}
 
 	// Create list

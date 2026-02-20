@@ -555,6 +555,89 @@ MVP is done when, for private repos:
 
 ---
 
+## Enhancements (post-MVP)
+
+### `shelfctl serve` — local web frontend
+
+**Non-blocking:** the CLI core builds and ships independently. This is purely additive. All business logic stays in `internal/` packages; the HTTP layer just calls the same functions.
+
+#### Rationale
+
+The GitHub token must never reach a browser. A local server is the cleanest solution: the Go process holds the token, exposes a localhost API, and serves a SPA from the same binary. No extra infrastructure, no OAuth dance.
+
+#### Command
+
+```
+shelfctl serve [--port 8080] [--host 127.0.0.1]
+```
+
+Starts a local HTTP server. Browser opens automatically (or user navigates to `http://localhost:8080`).
+
+Config key:
+
+```yaml
+serve:
+  port: 8080
+  host: "127.0.0.1"   # never bind to 0.0.0.0 by default
+```
+
+#### API surface (REST, JSON)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/shelves` | list configured shelves with book count |
+| GET | `/api/books` | list books, same filter params as `shelfctl list` |
+| GET | `/api/books/:id` | single book metadata + cache status |
+| POST | `/api/books` | ingest (wraps `add` logic) |
+| GET | `/api/books/:id/open` | ensure cached + open with system viewer |
+| GET | `/api/books/:id/download` | stream asset to browser |
+| GET | `/api/migrate/status` | ledger summary |
+
+All handlers are thin wrappers over existing `internal/` packages — no business logic lives in `internal/api/`.
+
+#### SPA
+
+A minimal browser UI (shelf browser, book grid/list with covers, search, book detail, add form) embedded in the binary via `//go:embed`:
+
+```
+cmd/shelfctl/ui/dist/   ← compiled frontend assets (gitignored build output)
+```
+
+Source lives in `ui/` at repo root (e.g. Vite + vanilla TS or a small React app). The Go binary embeds the compiled `dist/` so `go install` produces a single self-contained binary.
+
+#### Repo layout additions
+
+```
+shelfctl/
+  ui/                   ← frontend source (Vite/TS, not compiled into git)
+    src/
+    index.html
+    vite.config.ts
+    package.json
+
+  cmd/
+    shelfctl/
+      ui/
+        dist/           ← built assets embedded by go:embed (gitignored)
+
+  internal/
+    api/
+      server.go         ← http.Server setup, embed.FS mount
+      handlers.go       ← REST handlers (call internal/* packages)
+      middleware.go     ← logging, CORS (localhost only)
+
+    app/
+      serve.go          ← cobra command: starts api.Server
+```
+
+#### Build notes
+
+* `make build` (or `go build`) skips the UI — CLI works without it
+* `make build-ui` runs `npm run build` in `ui/`, then `go build` embeds the result
+* CI produces two artifacts: `shelfctl` (CLI-only) and `shelfctl-ui` (with embedded frontend) — or a single binary with the UI always embedded, depending on preference
+
+---
+
 ## Open-source safety wording (README requirement)
 
 * “Manages user-provided files in user-owned GitHub repos/releases.”

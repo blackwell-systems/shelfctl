@@ -17,8 +17,9 @@ var (
 	gh       *ghclient.Client
 	cacheMgr *cache.Manager
 
-	flagNoColor bool
-	flagConfig  string
+	flagNoColor       bool
+	flagNoInteractive bool
+	flagConfig        string
 )
 
 var rootCmd = &cobra.Command{
@@ -42,6 +43,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false, "Disable colored output")
+	rootCmd.PersistentFlags().BoolVar(&flagNoInteractive, "no-interactive", false, "Disable interactive TUI mode")
 	rootCmd.PersistentFlags().StringVar(&flagConfig, "config", "", "Config file path (default: ~/.config/shelfctl/config.yml)")
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {

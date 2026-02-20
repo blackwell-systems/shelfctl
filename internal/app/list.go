@@ -6,6 +6,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +41,49 @@ func newListCmd() *cobra.Command {
 			}
 
 			f := catalog.Filter{Tag: tag, Search: search, Format: format}
+
+			// Check if we should use TUI mode
+			if tui.ShouldUseTUI(cmd) {
+				// Collect all book data for TUI
+				var allItems []tui.BookItem
+				for i := range shelves {
+					shelf := &shelves[i]
+					owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+					catalogPath := shelf.EffectiveCatalogPath()
+
+					data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+					if err != nil {
+						warn("Could not load catalog for shelf %q: %v", shelf.Name, err)
+						continue
+					}
+					books, err := catalog.Parse(data)
+					if err != nil {
+						warn("Could not parse catalog for shelf %q: %v", shelf.Name, err)
+						continue
+					}
+
+					matched := f.Apply(books)
+					for _, b := range matched {
+						cached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
+						allItems = append(allItems, tui.BookItem{
+							Book:      b,
+							ShelfName: shelf.Name,
+							Cached:    cached,
+							Owner:     owner,
+							Repo:      shelf.Repo,
+						})
+					}
+				}
+
+				if len(allItems) == 0 {
+					warn("No books found.")
+					return nil
+				}
+
+				return tui.RunListBrowser(allItems)
+			}
+
+			// CLI mode: use existing text output
 			total := 0
 
 			for i := range shelves {

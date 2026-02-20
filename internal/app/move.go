@@ -104,16 +104,15 @@ func newMoveCmd() *cobra.Command {
 			_ = tmp.Close()
 			_ = rc.Close()
 
-
-		fi, err := os.Stat(tmpPath)
-		if err != nil {
-			return err
-		}
-		uploadFile, err := os.Open(tmpPath)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = uploadFile.Close() }()
+			fi, err := os.Stat(tmpPath)
+			if err != nil {
+				return err
+			}
+			uploadFile, err := os.Open(tmpPath)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = uploadFile.Close() }()
 			_, err = gh.UploadAsset(dstOwner, dstRepo, dstRel.ID, b.Source.Asset,
 				uploadFile, fi.Size(), "application/octet-stream")
 			if err != nil {

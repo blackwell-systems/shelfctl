@@ -147,7 +147,6 @@ Skips duplicates by sha256.`,
 				_ = tmp.Close()
 				_ = rc.Close()
 
-
 				fi, err := os.Stat(tmpPath)
 				if err != nil {
 					_ = os.Remove(tmpPath)

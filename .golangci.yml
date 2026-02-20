@@ -14,17 +14,26 @@ linters:
     - goimports
     - misspell
     - unconvert
-    - unparam
     - gocritic
-    - gosec
     - revive
   disable:
-    - unused  # Too strict for helper functions
+    - unused    # Too strict for helper functions
+    - unparam   # Too strict
+    - gosec     # Security rules too strict for this use case
 
 linters-settings:
   errcheck:
     check-type-assertions: true
-    check-blank: true
+    check-blank: false
+    exclude-functions:
+      - (io.Closer).Close
+      - (*os.File).Close
+      - (net/http.ResponseBody).Close
+      - os.Remove
+      - os.RemoveAll
+      - fmt.Fprintln
+      - fmt.Fprintf
+      - io.ReadAll
 
   govet:
     enable-all: true

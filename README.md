@@ -33,15 +33,28 @@ Zero infrastructure. Free by default—only pay if you choose Git LFS or exceed 
 
 ## Why
 
-**On-demand downloads**: Download individual books without cloning repos or pulling entire releases. `shelfctl open book-id` fetches just that one file from GitHub's CDN and opens it. Your library can be 100GB+ but you only download what you need.
+### On-demand downloads (no cloning)
+Fetch a single book without cloning a repo or pulling a whole archive.
+`shelfctl open <book-id>` downloads *only that file* from GitHub's CDN and opens it. Your library can be huge, but you only download what you actually read.
 
-**Better than Git LFS**: Tired of "exceeds GitHub's file size limit" errors? Git LFS costs money ($5/mo for 50GB) and makes clones slow. shelfctl uses GitHub Releases instead — release assets avoid Git's 100MB file limit and enable instant selective downloads. Start free; only pay if you opt into LFS or exceed GitHub's plan limits.
+### Better than committing binaries (and often better than LFS)
+If you've hit GitHub's 100MB file limit, you've already felt the pain of storing PDFs in git history. Git LFS can work, but it adds cost and makes clones heavier.
 
-**No ops burden**: No database to maintain, no blob storage to configure, no servers to patch. GitHub handles availability, backups, and CDN distribution.
+shelfctl stores PDFs/EPUBs as **GitHub Release assets** instead of git commits:
+- avoids bloating git history
+- avoids repo clone overhead for large libraries
+- enables selective, per-file downloads
 
-**Portable**: All API-based—no local repos required. Same config works on any machine. Your library is standard GitHub repos you can access from anywhere.
+Free by default. You only pay if *you* choose LFS or exceed whatever limits apply to your GitHub plan.
 
-**Scriptable**: CLI-first design. Pipe commands, write shell scripts, integrate with your existing workflows.
+### No ops burden
+No database, no object storage configuration, no servers. GitHub handles hosting, availability, and distribution.
+
+### Portable by design
+Everything is API-driven. No local repos required. The same config works on any machine where you can authenticate to GitHub. Your library remains normal GitHub repos.
+
+### Scriptable
+CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your existing workflows.
 
 ---
 

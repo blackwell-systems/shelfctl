@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Interactive Hub (Phase 1 Complete)**
+  - Launch `shelfctl` with no arguments to get an interactive menu
+  - Visual dashboard showing all available operations
+  - Status bar displaying shelf count and total books
+  - Keyboard navigation with ↑/↓ or j/k
+  - Search/filter with `/`
+  - Graceful first-time setup guidance
+  - Currently wired: Browse Library, Add Book
+  - Coming soon indicators for unimplemented features
 - **Interactive TUI mode using Bubble Tea library**
   - `browse` command: Interactive browser with keyboard navigation, filtering, and search
   - `shelve` command: Fully guided workflow with no arguments required

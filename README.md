@@ -73,6 +73,24 @@ make build
 
 ## Quick start
 
+### Interactive Mode (Easiest)
+
+Run `shelfctl` with no arguments to launch an interactive menu:
+
+```bash
+shelfctl
+```
+
+This provides a visual interface with:
+- 🎯 **Guided workflows** - No need to remember commands or flags
+- 📚 **Browse Library** - Visual book browser with search
+- ➕ **Add Book** - File picker + metadata form
+- 📊 **Status dashboard** - See shelf and book counts at a glance
+
+See [docs/HUB.md](docs/HUB.md) for full details.
+
+### Command-Line Mode
+
 **Already have PDFs in GitHub repos?** Organize them:
 
 ```bash

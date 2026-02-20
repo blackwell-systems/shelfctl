@@ -260,6 +260,30 @@ func runInteractiveInit() error {
 			repoName = "shelf-books"
 			fmt.Printf("  Using default: %s\n", color.GreenString(repoName))
 		}
+
+		// Check if repo already exists
+		existingRepo, err := gh.GetRepo(cfg.GitHub.Owner, repoName)
+		if err == nil && existingRepo != nil {
+			// Repo exists - give user options
+			fmt.Println()
+			fmt.Println(color.YellowString("⚠ Repository %s/%s already exists", cfg.GitHub.Owner, repoName))
+			fmt.Println()
+			fmt.Println("Options:")
+			fmt.Println("  1. Use existing repository (just add to config)")
+			fmt.Println("  2. Enter a different repository name")
+			fmt.Println()
+			fmt.Print("Choose (1/2): ")
+			var choice string
+			_, _ = fmt.Scanln(&choice)
+
+			if choice == "2" {
+				fmt.Println()
+				continue // Go back to repo name prompt
+			}
+			// Choice 1 or Enter: use existing repo
+			fmt.Println()
+			fmt.Println(color.GreenString("Will use existing repository: %s", existingRepo.HTMLURL))
+		}
 		break
 	}
 

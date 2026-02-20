@@ -49,8 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Example commands showing how shelf name is used
     - Smart defaults calculated from repository name
     - Enhanced summary confirmation with visual formatting
-  - Currently wired: Browse Library, Add Book
-  - Coming soon indicators for unimplemented features
+  - Clean focused menu showing only available features
+  - Currently provides: Browse Library, Add Book, Quit
+  - Additional commands accessible via direct invocation
+  - No "coming soon" clutter - menu feels complete
 - **Interactive TUI mode using Bubble Tea library**
   - `browse` command: Interactive browser with keyboard navigation, filtering, and search
   - `shelve` command: Fully guided workflow with no arguments required

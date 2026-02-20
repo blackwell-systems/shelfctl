@@ -23,33 +23,42 @@ The hub displays:
 - **Search** - Press `/` to filter menu items
 - **Help** - Shows keybindings at the bottom
 
-### Current Operations (Available Now)
+### Available Operations
 
-✅ **Browse Library** - Launch the interactive book browser
+The hub currently provides access to:
+
+**Browse Library**
+- Launch the interactive book browser
 - View all books across shelves
-- Navigate with keyboard
-- Filter and search
+- Navigate with keyboard (↑/↓ or j/k)
+- Filter and search (press `/`)
 - See cache status
 
-✅ **Add Book** - Add a new book with guided workflow
+**Add Book**
+- Add a new book with guided workflow
 - Shelf picker (if multiple shelves)
 - File browser starting in ~/Downloads
-- Metadata form
+- Metadata form with smart defaults
 - Automatic upload and cataloging
 
-✅ **Quit** - Exit shelfctl
+**Quit**
+- Exit shelfctl cleanly
 
-### Coming Soon Operations
+### Additional Commands
 
-The following operations are planned and will show "coming soon" when selected:
+All other shelfctl commands remain available via direct invocation:
 
-- 🔜 **View Shelves** - Dashboard showing all configured shelves with status
-- 🔜 **Open Book** - Searchable book picker to open files
-- 🔜 **Book Info** - View detailed metadata for any book
-- 🔜 **Move Book** - Wizard to move books between shelves/releases
-- 🔜 **Import Shelf** - Copy books from another shelfctl repository
-- 🔜 **Migrate** - Import books from old non-shelfctl repos
-- 🔜 **Split Shelf** - Organize large shelves into sub-categories
+```bash
+shelfctl info <id>       # View book details
+shelfctl open <id>       # Open a book
+shelfctl move <id>       # Move books between shelves
+shelfctl split           # Split a large shelf
+shelfctl migrate         # Import from old repos
+shelfctl import          # Copy from another shelf
+shelfctl delete-shelf    # Remove a shelf
+```
+
+Run `shelfctl --help` to see all available commands.
 
 ## First Time Use
 
@@ -155,20 +164,18 @@ It will display the standard CLI help instead.
 │  3 shelves · 42 books                                   │
 ├─────────────────────────────────────────────────────────┤
 │                                                          │
-│  › Browse Library          View and search your books   │
-│    Add Book               Add a new book to library     │
-│    View Shelves           List all shelves (coming)     │
-│    Open Book              Search and open (coming)      │
-│    Book Info              View metadata (coming)        │
-│    Move Book              Reorganize books (coming)     │
-│    Import Shelf           Copy from shelf (coming)      │
-│    Migrate                Import from repo (coming)     │
-│    Split Shelf            Organize shelf (coming)       │
-│    Quit                   Exit shelfctl                 │
+│  › Browse Library    View and search your books         │
+│                                                          │
+│    Add Book         Add a new book to your library      │
+│                                                          │
+│    Quit             Exit shelfctl                       │
+│                                                          │
 │                                                          │
 │  ↑/↓: navigate  enter: select  /: filter  q: quit       │
 └─────────────────────────────────────────────────────────┘
 ```
+
+Clean, focused, and functional. Additional commands are available via `shelfctl <command>`.
 
 ## Advantages of the Hub
 
@@ -200,18 +207,25 @@ shelfctl  # launches interactive menu
 - ✅ Status bar showing shelf/book counts
 - ✅ Integration with browse command
 - ✅ Integration with shelve command
-- ✅ Welcome message for first-time users
+- ✅ Smart welcome with status checks
+- ✅ Interactive init workflow
+- ✅ Architecture help system
+- ✅ Clean, focused menu (no "coming soon" clutter)
+- ✅ Auto-generated shelf READMEs
+- ✅ Delete shelf command
 
-**Phase 2 (Planned):**
-- 🔜 Open book picker
-- 🔜 Info viewer
-- 🔜 Shelves dashboard
+**Future Enhancements:**
 
-**Phase 3 (Planned):**
-- 🔜 Move wizard
-- 🔜 Import wizard
-- 🔜 Split wizard
-- 🔜 Migrate wizard
+As we build out Phase 2, new operations will be added to the hub menu:
+- Open book picker (fuzzy search)
+- Info viewer (book details)
+- Shelves dashboard (status overview)
+- Move wizard (reorganize books)
+- Import wizard (copy from shelves)
+- Split wizard (organize large shelves)
+- Migrate wizard (import from old repos)
+
+For now, these operations remain available via direct command invocation.
 
 ## Feedback
 

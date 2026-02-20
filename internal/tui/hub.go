@@ -33,13 +33,6 @@ type HubContext struct {
 var menuItems = []MenuItem{
 	{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
 	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
-	{Key: "shelves", Label: "View Shelves", Description: "List all configured shelves", Available: false},
-	{Key: "open", Label: "Open Book", Description: "Search and open a book", Available: false},
-	{Key: "info", Label: "Book Info", Description: "View detailed book metadata", Available: false},
-	{Key: "move", Label: "Move Book", Description: "Move a book between shelves/releases", Available: false},
-	{Key: "import", Label: "Import Shelf", Description: "Copy books from another shelf", Available: false},
-	{Key: "migrate", Label: "Migrate", Description: "Import books from old repos", Available: false},
-	{Key: "split", Label: "Split Shelf", Description: "Organize a large shelf", Available: false},
 	{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},
 }
 
@@ -60,29 +53,16 @@ func (d menuDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 
 	isSelected := index == m.Index()
 
-	// Format label with availability indicator
+	// Format label and description
 	label := menuItem.Label
-	if !menuItem.Available {
-		label = StyleHelp.Render(label + " (coming soon)")
-	}
-
-	// Format description
 	desc := StyleHelp.Render(menuItem.Description)
 
-	display := fmt.Sprintf("%-25s %s", label, desc)
+	display := fmt.Sprintf("%-20s %s", label, desc)
 
 	if isSelected {
-		if menuItem.Available {
-			fmt.Fprint(w, StyleHighlight.Render("› "+display))
-		} else {
-			fmt.Fprint(w, lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("› "+display))
-		}
+		fmt.Fprint(w, StyleHighlight.Render("› "+display))
 	} else {
-		if menuItem.Available {
-			fmt.Fprint(w, "  "+StyleNormal.Render(display))
-		} else {
-			fmt.Fprint(w, "  "+lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(display))
-		}
+		fmt.Fprint(w, "  "+StyleNormal.Render(display))
 	}
 }
 
@@ -130,11 +110,6 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, hubKeyMap.select_):
 			if item, ok := m.list.SelectedItem().(MenuItem); ok {
-				if !item.Available {
-					// Feature not yet available - show message and stay
-					m.list.NewStatusMessage(StyleHelp.Render("This feature is coming soon!"))
-					return m, nil
-				}
 				m.action = item.Key
 				m.quitting = true
 				return m, tea.Quit

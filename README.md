@@ -64,12 +64,23 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
 
 ## How it works
 
-- Each topic gets a GitHub repo: `shelf-programming`, `shelf-history`, etc.
-- Files (PDFs, EPUBs) are stored as **Release assets** — not committed to git.
-- `catalog.yml` in each repo is the source of truth for metadata.
-- **Everything happens via GitHub API** — no local cloning required. Run commands from anywhere.
-- **Download individual books on demand** — `shelfctl open book-id` fetches just that file from GitHub's CDN.
-- `shelfctl` manages the whole lifecycle: add, get, open, migrate, split.
+- **One repo per topic shelf**
+  Create shelves like `shelf-programming`, `shelf-history`, etc.
+
+- **Books live in Releases, not git history**
+  PDFs/EPUBs are uploaded as **GitHub Release assets** (not committed to the repo).
+
+- **`catalog.yml` is the source of truth**
+  Each shelf repo contains a `catalog.yml` that stores searchable metadata and maps book IDs to release assets.
+
+- **API-driven, no cloning required**
+  shelfctl interacts with GitHub via the API (via `gh`), so you can run commands from any machine without cloning repos.
+
+- **On-demand, per-book downloads**
+  `shelfctl open <book-id>` downloads *only that one file* from GitHub's CDN and opens it.
+
+- **Full lifecycle management**
+  shelfctl supports the workflow end-to-end: **add**, **get**, **open**, **migrate**, **split**, and more.
 
 ---
 

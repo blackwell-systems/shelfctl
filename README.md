@@ -98,6 +98,26 @@ cd shelfctl
 make build
 ```
 
+### Optional: PDF Cover Thumbnails
+
+For automatic cover extraction from PDFs, install poppler:
+
+```bash
+# macOS
+brew install poppler
+
+# Ubuntu/Debian
+sudo apt-get install poppler-utils
+
+# Fedora/RHEL
+sudo dnf install poppler-utils
+
+# Arch Linux
+sudo pacman -S poppler
+```
+
+Not required - shelfctl works fine without it. Covers are extracted automatically when you download PDFs if poppler is installed.
+
 ---
 
 ## Quick start

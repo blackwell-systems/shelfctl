@@ -348,3 +348,118 @@ Do I need a new shelf?
 **Key Takeaway:** Start simple (one shelf + tags), organize as you go, split when needed.
 
 shelfctl makes reorganization easy, so don't stress about getting it perfect upfront. Your first shelf name matters less than you think - you can always split and restructure later.
+
+---
+
+## Reference: Catalog Schema
+
+The `catalog.yml` file in each shelf stores book metadata as a YAML list:
+
+```yaml
+- id: sicp
+  title: "Structure and Interpretation of Computer Programs"
+  author: "Abelson & Sussman"
+  year: 1996
+  tags: ["lisp", "cs", "textbook"]
+  format: "pdf"
+
+  checksum:
+    sha256: "a1b2c3d4..."
+  size_bytes: 6498234
+
+  source:
+    type: "github_release"
+    owner: "your-username"
+    repo: "shelf-programming"
+    release: "library"
+    asset: "sicp.pdf"
+
+  meta:
+    added_at: "2024-01-15T10:30:00Z"
+```
+
+### Required Fields
+
+- `id` - Unique identifier (URL/CLI friendly: `^[a-z0-9][a-z0-9-]{1,62}$`)
+- `title` - Book title
+- `format` - File format (pdf, epub, mobi, etc.)
+- `source.type` - Always `github_release`
+- `source.owner` - GitHub username/org
+- `source.repo` - Repository name
+- `source.release` - Release tag name
+- `source.asset` - Asset filename in release
+
+### Recommended Fields
+
+- `checksum.sha256` - File verification (strongly recommended)
+- `author` - Book author(s)
+- `tags` - List of tags for filtering
+- `year` - Publication year
+- `size_bytes` - File size in bytes
+
+### Optional Fields
+
+- `cover` - Path to cover image (stored in git)
+- `meta.added_at` - Timestamp when added
+- `meta.migrated_from` - Source if migrated
+
+---
+
+## Reference: Configuration Schema
+
+Config file location: `~/.config/shelfctl/config.yml`
+
+```yaml
+github:
+  owner: "your-username"           # Your GitHub username/org
+  token_env: "GITHUB_TOKEN"        # Environment variable name
+  api_base: "https://api.github.com"  # For GitHub Enterprise
+  backend: "api"                   # "api" or "gh" (shell out to gh CLI)
+
+defaults:
+  release: "library"               # Default release tag name
+  cache_dir: "~/.local/share/shelfctl/cache"
+  asset_naming: "id"               # "id" or "original"
+
+shelves:
+  - name: "programming"            # Shelf name for commands
+    repo: "shelf-programming"      # GitHub repository name
+    owner: "your-username"         # Override default owner (optional)
+    catalog_path: "catalog.yml"    # Path to catalog (optional, default shown)
+    default_release: "library"     # Override default release (optional)
+
+  - name: "history"
+    repo: "shelf-history"
+
+migration:
+  sources:
+    - owner: "your-username"
+      repo: "old-books-repo"       # Source repository
+      ref: "main"                  # Git ref to read from
+      mapping:                     # Path prefix → shelf mapping
+        programming/: "programming"
+        history/: "history"
+```
+
+### Environment Variables
+
+You can override config with environment variables:
+
+- `SHELFCTL_GITHUB_TOKEN` - GitHub token (recommended over token_env)
+- `SHELFCTL_CACHE_DIR` - Cache directory
+- `SHELFCTL_CONFIG` - Custom config file path
+
+### Cache Structure
+
+Downloaded books are stored locally:
+
+```
+~/.local/share/shelfctl/cache/
+  shelf-programming/
+    sicp.pdf
+    gopl.pdf
+  shelf-history/
+    rome.pdf
+```
+
+Layout: `<cache>/<shelf_repo>/<asset_filename>`

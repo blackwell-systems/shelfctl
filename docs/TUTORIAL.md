@@ -402,7 +402,7 @@ shelfctl works identically with private repos.
 ## Next steps
 
 - Read [COMMANDS.md](COMMANDS.md) for complete command reference
-- Read [SPEC.md](SPEC.md) for architecture details
+- Read [ARCHITECTURE.md](ARCHITECTURE.md) for schemas and configuration reference
 - Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if you hit issues
 - Contribute improvements via [CONTRIBUTING.md](CONTRIBUTING.md)
 

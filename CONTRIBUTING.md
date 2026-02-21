@@ -101,7 +101,7 @@ chore: update dependencies
 
 ### Features
 
-See [SPEC.md](SPEC.md) for planned features and architecture notes.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for schemas and package structure.
 
 ## Questions?
 

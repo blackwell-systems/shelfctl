@@ -213,11 +213,10 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 ## Documentation
 
 - **[Tutorial](docs/TUTORIAL.md)** - Step-by-step walkthrough from installation to advanced workflows
-- **[Architecture Guide](docs/ARCHITECTURE.md)** - How shelves work, organization strategies, and scaling
+- **[Architecture Guide](docs/ARCHITECTURE.md)** - How shelves work, organization strategies, schemas, and configuration
 - **[Interactive Hub](docs/HUB.md)** - Guide to the interactive TUI menu
 - **[Commands Reference](docs/COMMANDS.md)** - Complete documentation for all commands
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Technical Spec](docs/SPEC.md)** - Architecture and configuration schema
 - **[Contributing](CONTRIBUTING.md)** - Development guidelines
 
 ---

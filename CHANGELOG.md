@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Documentation Consolidation**
+  - Merged SPEC.md content into ARCHITECTURE.md
+  - Catalog and config schemas now in ARCHITECTURE.md reference sections
+  - Removed duplicated content (commands, workflows)
+  - All references updated across documentation
 - **Simplified Cache Structure**
   - Changed from 4-level to 2-level cache directory structure
   - Old: `~/.local/share/shelfctl/cache/<owner>/<repo>/<bookID>/<file>`
@@ -181,7 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `docs/COMMANDS.md`: Complete command reference with examples
   - `docs/TUTORIAL.md`: Step-by-step walkthrough from installation to workflows
   - `docs/TROUBLESHOOTING.md`: Common issues and solutions
-  - `docs/SPEC.md`: Architecture and configuration schema
+  - `docs/ARCHITECTURE.md`: Organization guide with schemas and configuration reference
   - `docs/index.md`: Documentation home page
 - Defensive measures for duplicate content detection
   - `shelve` checks for SHA256 duplicates before upload

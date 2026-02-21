@@ -8,7 +8,7 @@ nav:
       - Quick Start: ../README.md#quick-start
   - Reference:
       - Commands: COMMANDS.md
-      - Configuration: SPEC.md
+      - Architecture: ARCHITECTURE.md
       - Troubleshooting: TROUBLESHOOTING.md
   - Development:
       - Contributing: ../CONTRIBUTING.md

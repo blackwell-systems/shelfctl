@@ -8,8 +8,9 @@ This directory contains all documentation for shelfctl.
 docs/
 ├── index.md              # Documentation home page
 ├── TUTORIAL.md           # Step-by-step guide for new users
+├── ARCHITECTURE.md       # Architecture, organization, and schemas
 ├── COMMANDS.md           # Complete command reference
-├── SPEC.md              # Technical specification and architecture
+├── HUB.md                # Interactive TUI guide
 ├── TROUBLESHOOTING.md   # Common issues and solutions
 └── nav.yml              # Navigation structure for doc generators
 ```
@@ -23,7 +24,7 @@ Start with [index.md](index.md) or jump to:
 
 ## For Developers
 
-- [SPEC.md](SPEC.md) - Architecture and design decisions
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Schemas and configuration reference
 - [../CONTRIBUTING.md](../CONTRIBUTING.md) - Development setup
 
 ## Building Documentation Site

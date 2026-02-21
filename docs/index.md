@@ -12,7 +12,6 @@ Zero-infrastructure document library using GitHub repos and releases as storage.
 
 ## Reference
 
-- **[Technical Specification](SPEC.md)** - Architecture, design decisions, and configuration schema
 - **[Contributing Guide](../CONTRIBUTING.md)** - Development setup and contribution guidelines
 - **[Changelog](../CHANGELOG.md)** - Release history and version notes
 
@@ -42,7 +41,7 @@ shelfctl uses GitHub Releases as a storage backend:
 - **Files**: PDF/EPUB/etc. stored as Release assets (GitHub's CDN)
 - **Downloads**: Individual files on-demand (no need to clone or download entire releases)
 
-See [SPEC.md](SPEC.md) for detailed architecture documentation.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation and schemas.
 
 ## Support
 

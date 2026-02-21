@@ -260,51 +260,6 @@ shelfctl move book-id --to-shelf history
 shelfctl  # launches interactive menu
 ```
 
-## Implementation Status
-
-**Phase 1 (Complete - Feature Complete!):**
-- [DONE] Hub menu with navigation and keyboard controls
-- [DONE] Status bar showing shelf/book counts
-- [DONE] Integration with browse command (interactive browser)
-- [DONE] Integration with shelve command (guided workflow)
-- [DONE] Smart welcome with status checks
-- [DONE] Interactive init workflow with public/private choice
-- [DONE] Architecture help system
-- [DONE] Clean, focused menu with smart filtering
-- [DONE] Auto-generated shelf READMEs
-- [DONE] Delete shelf command with repository choice
-- [DONE] Delete book command with interactive picker
-- [DONE] Edit book command with metadata form
-- [DONE] Fully interactive book browser with actions:
-  - [DONE] Open books directly from browser
-  - [DONE] Download to cache for offline
-  - [DONE] Show detailed book information
-- [DONE] Hub loop - stays in menu after operations
-- [DONE] Config reload after changes
-- [DONE] Dynamic menu filtering based on state
-- [DONE] Graceful error handling
-- [DONE] Complete CRUD operations: Create (shelve), Read (browse), Update (edit-book), Delete (delete-book)
-
-**The interactive TUI is feature-complete!** All core library operations can be performed without leaving the hub.
-
-**Future Enhancements (Phase 2):**
-
-Additional operations that could be added to the hub menu:
-- Shelves dashboard (detailed status overview per shelf)
-- Move wizard (drag-and-drop reorganization)
-- Import wizard (copy books from other shelves)
-- Split wizard (reorganize large shelves)
-- Migrate wizard (import from old repos with progress bars)
-- Settings panel (configure cache, defaults)
-
-For now, these operations remain available via direct command invocation:
-```bash
-shelfctl move <id> --to-shelf history
-shelfctl split
-shelfctl migrate batch queue.txt
-shelfctl import --from other-shelf
-```
-
 ## Feedback
 
 As you use the hub, consider what would make it more useful:

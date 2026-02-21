@@ -1,3 +1,5 @@
+version: 2
+
 run:
   timeout: 5m
   tests: true
@@ -6,19 +8,15 @@ run:
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - gofmt
-    - goimports
     - misspell
     - unconvert
     - gocritic
     - revive
   disable:
     - unused    # Too strict for helper functions
-    - unparam   # Too strict
     - gosec     # Security rules too strict for this use case
 
 linters-settings:

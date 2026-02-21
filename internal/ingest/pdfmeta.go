@@ -23,7 +23,7 @@ func ExtractPDFMetadata(path string) (*PDFMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Read first 8KB looking for Info dictionary
 	// Most PDFs have metadata near the beginning or in the trailer
@@ -43,15 +43,16 @@ func ExtractPDFMetadata(path string) (*PDFMetadata, error) {
 	// Also read the trailer (last 8KB)
 	stat, err := f.Stat()
 	if err == nil && stat.Size() > 8192 {
-		f.Seek(-8192, 2) // Seek to last 8KB
-		trailerScanner := bufio.NewScanner(f)
-		trailerScanner.Buffer(make([]byte, 8192), 8192)
-		var trailer strings.Builder
-		for trailerScanner.Scan() {
-			trailer.WriteString(trailerScanner.Text())
-			trailer.WriteString("\n")
+		if _, err := f.Seek(-8192, 2); err == nil {
+			trailerScanner := bufio.NewScanner(f)
+			trailerScanner.Buffer(make([]byte, 8192), 8192)
+			var trailer strings.Builder
+			for trailerScanner.Scan() {
+				trailer.WriteString(trailerScanner.Text())
+				trailer.WriteString("\n")
+			}
+			text += trailer.String()
 		}
-		text += trailer.String()
 	}
 
 	return &PDFMetadata{

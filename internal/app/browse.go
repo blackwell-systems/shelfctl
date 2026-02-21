@@ -7,6 +7,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -87,7 +88,7 @@ func newBrowseCmd() *cobra.Command {
 
 				// Handle browser actions
 				if result.Action != tui.ActionNone && result.BookItem != nil {
-					return handleBrowserAction(result)
+					return handleBrowserAction(cmd, result)
 				}
 
 				return nil
@@ -152,7 +153,7 @@ func newBrowseCmd() *cobra.Command {
 }
 
 // handleBrowserAction executes the action requested from the book browser
-func handleBrowserAction(result *tui.BrowserResult) error {
+func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 	item := result.BookItem
 	b := &item.Book
 
@@ -219,19 +220,45 @@ func handleBrowserAction(result *tui.BrowserResult) error {
 			return fmt.Errorf("asset %q not found in release %q", b.Source.Asset, b.Source.Release)
 		}
 
-		fmt.Printf("Downloading %s  (%s) …\n",
-			color.WhiteString(b.ID),
-			color.CyanString(humanBytes(asset.Size)))
-
 		rc, err := gh.DownloadAsset(item.Owner, item.Repo, asset.ID)
 		if err != nil {
 			return fmt.Errorf("download: %w", err)
 		}
 		defer func() { _ = rc.Close() }()
 
-		path, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
-		if err != nil {
-			return fmt.Errorf("cache: %w", err)
+		// Use progress bar in TTY mode
+		var path string
+		if util.IsTTY() && tui.ShouldUseTUI(cmd) {
+			progressCh := make(chan int64, 10)
+			errCh := make(chan error, 1)
+
+			// Start download in goroutine
+			go func() {
+				pr := tui.NewProgressReader(rc, asset.Size, progressCh)
+				p, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, pr, b.Checksum.SHA256)
+				close(progressCh)
+				errCh <- err
+				if err == nil {
+					// Store path for later
+					path = p
+				}
+			}()
+
+			// Show progress UI
+			label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
+			_ = tui.ShowProgress(label, asset.Size, progressCh)
+
+			// Get result
+			if err := <-errCh; err != nil {
+				return fmt.Errorf("cache: %w", err)
+			}
+		} else {
+			// Non-interactive mode: just print and download
+			fmt.Printf("Downloading %s (%s) …\n", b.ID, humanBytes(asset.Size))
+			path, err = cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
+			if err != nil {
+				return fmt.Errorf("cache: %w", err)
+			}
 		}
 		ok("Cached: %s", path)
 		return nil
@@ -239,8 +266,6 @@ func handleBrowserAction(result *tui.BrowserResult) error {
 	case tui.ActionOpen:
 		// Download if needed, then open
 		if !item.Cached {
-			fmt.Printf("Not cached — downloading %s …\n", b.ID)
-
 			// Get release and asset
 			rel, err := gh.GetReleaseByTag(item.Owner, item.Repo, b.Source.Release)
 			if err != nil {
@@ -254,21 +279,42 @@ func handleBrowserAction(result *tui.BrowserResult) error {
 				return fmt.Errorf("asset %q not found in release %q", b.Source.Asset, b.Source.Release)
 			}
 
-			fmt.Printf("Downloading %s  (%s) …\n",
-				color.WhiteString(b.ID),
-				color.CyanString(humanBytes(asset.Size)))
-
 			rc, err := gh.DownloadAsset(item.Owner, item.Repo, asset.ID)
 			if err != nil {
 				return fmt.Errorf("download: %w", err)
 			}
 			defer func() { _ = rc.Close() }()
 
-			path, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
-			if err != nil {
-				return fmt.Errorf("cache: %w", err)
+			// Use progress bar in TTY mode
+			if util.IsTTY() && tui.ShouldUseTUI(cmd) {
+				progressCh := make(chan int64, 10)
+				errCh := make(chan error, 1)
+
+				// Start download in goroutine
+				go func() {
+					pr := tui.NewProgressReader(rc, asset.Size, progressCh)
+					_, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, pr, b.Checksum.SHA256)
+					close(progressCh)
+					errCh <- err
+				}()
+
+				// Show progress UI
+				label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
+				_ = tui.ShowProgress(label, asset.Size, progressCh)
+
+				// Get result
+				if err := <-errCh; err != nil {
+					return fmt.Errorf("cache: %w", err)
+				}
+			} else {
+				// Non-interactive mode: just print and download
+				fmt.Printf("Downloading %s (%s) …\n", b.ID, humanBytes(asset.Size))
+				_, err = cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
+				if err != nil {
+					return fmt.Errorf("cache: %w", err)
+				}
 			}
-			ok("Cached: %s", path)
+			ok("Cached")
 		}
 
 		// Open the file

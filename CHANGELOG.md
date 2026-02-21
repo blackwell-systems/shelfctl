@@ -19,14 +19,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Completes CRUD operations: Create (shelve), Read (browse), Update (move), Delete (delete-book)
 - **Fully Interactive Book Browser**
   - `browse` command now supports real-time actions:
-    - `enter` - Show detailed book information
+    - `tab` - Toggle split-panel details view
+    - `enter` - Show detailed book information (or perform action if details visible)
     - `o` - Open book (downloads if needed, opens with system viewer)
     - `g` - Download to cache only (for offline access)
     - `q` - Quit browser
+  - Split-panel layout shows book metadata in right pane
+    - ID, title, author, tags, shelf name, repository, cache status, format, asset name
+    - Uses lipgloss horizontal layout for clean visual separation
+    - Automatically adjusts list width when details panel is visible
   - Auto-downloads books when opening if not cached
   - Shows download progress with file size
   - Displays full metadata on demand
   - All actions work seamlessly from TUI
+- **Interactive Progress Bars**
+  - Visual progress tracking for downloads and uploads in TTY mode
+  - Shows real-time progress with bytes transferred and percentage
+  - Clean progress bar UI using Bubble Tea and bubbles/progress
+  - Displays file size and estimated completion
+  - Used in:
+    - `open` command when downloading books
+    - `browse` command when downloading (actions 'o' and 'g')
+    - `shelve` command when uploading assets
+  - Automatically disabled in non-interactive mode (pipes, redirects, scripts)
+  - Preserves existing text output for automation
 - **Hub Loop Implementation**
   - Hub menu now loops continuously until user quits
   - Returns to menu after command completion

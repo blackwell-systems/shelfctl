@@ -5,7 +5,8 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/fatih/color"
+	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -29,8 +30,6 @@ func newOpenCmd() *cobra.Command {
 
 			// Ensure cached.
 			if !cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
-				fmt.Printf("Not cached — downloading %s …\n", id)
-
 				// Find the release and asset.
 				rel, err := gh.GetReleaseByTag(owner, shelf.Repo, b.Source.Release)
 				if err != nil {
@@ -44,21 +43,42 @@ func newOpenCmd() *cobra.Command {
 					return fmt.Errorf("asset %q not found in release %q", b.Source.Asset, b.Source.Release)
 				}
 
-				fmt.Printf("Downloading %s  (%s) …\n",
-					color.WhiteString(b.ID),
-					color.CyanString(humanBytes(asset.Size)))
-
 				rc, err := gh.DownloadAsset(owner, shelf.Repo, asset.ID)
 				if err != nil {
 					return fmt.Errorf("download: %w", err)
 				}
 				defer func() { _ = rc.Close() }()
 
-				path, err := cacheMgr.Store(owner, shelf.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
-				if err != nil {
-					return fmt.Errorf("cache: %w", err)
+				// Use progress bar in TTY mode
+				if util.IsTTY() && tui.ShouldUseTUI(cmd) {
+					progressCh := make(chan int64, 10)
+					errCh := make(chan error, 1)
+
+					// Start download in goroutine
+					go func() {
+						pr := tui.NewProgressReader(rc, asset.Size, progressCh)
+						_, err := cacheMgr.Store(owner, shelf.Repo, b.ID, b.Source.Asset, pr, b.Checksum.SHA256)
+						close(progressCh)
+						errCh <- err
+					}()
+
+					// Show progress UI
+					label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
+					_ = tui.ShowProgress(label, asset.Size, progressCh)
+
+					// Get result
+					if err := <-errCh; err != nil {
+						return fmt.Errorf("cache: %w", err)
+					}
+				} else {
+					// Non-interactive mode: just print and download
+					fmt.Printf("Downloading %s (%s) …\n", b.ID, humanBytes(asset.Size))
+					_, err = cacheMgr.Store(owner, shelf.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
+					if err != nil {
+						return fmt.Errorf("cache: %w", err)
+					}
 				}
-				ok("Cached: %s", path)
+				ok("Cached")
 			}
 
 			path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)

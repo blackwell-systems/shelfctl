@@ -1,3 +1,4 @@
+// Package tui provides interactive terminal user interface components using Bubble Tea.
 package tui
 
 import "github.com/charmbracelet/lipgloss"

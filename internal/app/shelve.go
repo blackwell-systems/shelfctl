@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
+	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/ingest"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -144,7 +146,7 @@ func runShelve(cmd *cobra.Command, args []string, params *shelveParams) error {
 	}
 
 	// Step 7: Upload asset
-	if err := uploadAsset(owner, shelf.Repo, rel.ID, metadata.assetName, ingested.tmpPath, ingested.size, params.releaseTag); err != nil {
+	if err := uploadAsset(cmd, owner, shelf.Repo, rel.ID, metadata.assetName, ingested.tmpPath, ingested.size, params.releaseTag); err != nil {
 		return err
 	}
 
@@ -400,18 +402,43 @@ func handleAssetCollision(owner, repo string, releaseID int64, assetName, releas
 	return nil
 }
 
-func uploadAsset(owner, repo string, releaseID int64, assetName, tmpPath string, size int64, releaseTag string) error {
-	fmt.Printf("Uploading %s → %s/%s/%s …\n", assetName, owner, repo, releaseTag)
-
+func uploadAsset(cmd *cobra.Command, owner, repo string, releaseID int64, assetName, tmpPath string, size int64, releaseTag string) error {
 	uploadFile, err := os.Open(tmpPath)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = uploadFile.Close() }()
 
-	asset, err := gh.UploadAsset(owner, repo, releaseID, assetName, uploadFile, size, "application/octet-stream")
-	if err != nil {
-		return fmt.Errorf("uploading: %w", err)
+	// Use progress bar in TTY mode
+	var asset *github.Asset
+	if util.IsTTY() && tui.ShouldUseTUI(cmd) {
+		progressCh := make(chan int64, 10)
+		errCh := make(chan error, 1)
+
+		// Start upload in goroutine
+		go func() {
+			pr := tui.NewProgressReader(uploadFile, size, progressCh)
+			a, err := gh.UploadAsset(owner, repo, releaseID, assetName, pr, size, "application/octet-stream")
+			close(progressCh)
+			asset = a
+			errCh <- err
+		}()
+
+		// Show progress UI
+		label := fmt.Sprintf("Uploading %s → %s/%s/%s", assetName, owner, repo, releaseTag)
+		_ = tui.ShowProgress(label, size, progressCh)
+
+		// Get result
+		if err := <-errCh; err != nil {
+			return fmt.Errorf("uploading: %w", err)
+		}
+	} else {
+		// Non-interactive mode: just print and upload
+		fmt.Printf("Uploading %s → %s/%s/%s …\n", assetName, owner, repo, releaseTag)
+		asset, err = gh.UploadAsset(owner, repo, releaseID, assetName, uploadFile, size, "application/octet-stream")
+		if err != nil {
+			return fmt.Errorf("uploading: %w", err)
+		}
 	}
 
 	ok("Uploaded: %s", asset.BrowserDownloadURL)

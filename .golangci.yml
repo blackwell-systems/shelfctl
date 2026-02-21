@@ -1,5 +1,3 @@
-version: "2"
-
 run:
   timeout: 5m
   tests: true
@@ -19,7 +17,7 @@ linters:
     - unused    # Too strict for helper functions
     - gosec     # Security rules too strict for this use case
 
-settings:
+linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: false
@@ -75,9 +73,10 @@ settings:
       - G101  # False positive on token variable names
 
 issues:
+  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude:
+  exclude-rules:
     # Exclude some linters from running on tests files
     - path: _test\.go
       linters:

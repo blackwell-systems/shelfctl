@@ -257,6 +257,11 @@ func updateCatalogsForCrossShelfMove(id string, b *catalog.Book, srcShelf *confi
 	}
 
 	ok("Catalog updated")
+
+	// Update README files for both shelves
+	updateREADMEAfterRemove(srcOwner, srcShelf.Repo, books, b.ID)
+	updateREADMEAfterAdd(dst.owner, dst.repo, dstBooks, *b)
+
 	return nil
 }
 
@@ -290,4 +295,42 @@ func updateCatalogForSameShelfMove(id string, b *catalog.Book, srcShelf *config.
 
 	ok("Catalog updated")
 	return nil
+}
+
+// updateREADMEAfterRemove updates a shelf README after removing a book
+func updateREADMEAfterRemove(owner, repo string, remainingBooks []catalog.Book, removedBookID string) {
+	readmeData, _, err := gh.GetFileContent(owner, repo, "README.md", "")
+	if err != nil {
+		return // README doesn't exist or can't be read
+	}
+
+	readmeContent := string(readmeData)
+	readmeContent = updateShelfREADMEStats(readmeContent, len(remainingBooks))
+	readmeContent = removeFromShelfREADME(readmeContent, removedBookID)
+
+	readmeMsg := fmt.Sprintf("Update README: remove %s", removedBookID)
+	if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+		warn("Could not update source README.md: %v", err)
+	} else {
+		ok("Source README.md updated")
+	}
+}
+
+// updateREADMEAfterAdd updates a shelf README after adding a book
+func updateREADMEAfterAdd(owner, repo string, books []catalog.Book, book catalog.Book) {
+	readmeData, _, err := gh.GetFileContent(owner, repo, "README.md", "")
+	if err != nil {
+		return // README doesn't exist or can't be read
+	}
+
+	readmeContent := string(readmeData)
+	readmeContent = updateShelfREADMEStats(readmeContent, len(books))
+	readmeContent = appendToShelfREADME(readmeContent, book)
+
+	readmeMsg := fmt.Sprintf("Update README: add %s", book.ID)
+	if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+		warn("Could not update destination README.md: %v", err)
+	} else {
+		ok("Destination README.md updated")
+	}
 }

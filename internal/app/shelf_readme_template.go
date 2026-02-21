@@ -242,3 +242,55 @@ func appendToShelfREADME(existingREADME string, book catalog.Book) string {
 
 	return strings.Join(result, "\n")
 }
+
+// removeFromShelfREADME removes a book entry from the "Recently Added" section
+func removeFromShelfREADME(existingREADME string, bookID string) string {
+	lines := strings.Split(existingREADME, "\n")
+
+	// Find "## Recently Added" section
+	recentlyAddedIdx := -1
+	for i, line := range lines {
+		if strings.HasPrefix(line, "## Recently Added") {
+			recentlyAddedIdx = i
+			break
+		}
+	}
+
+	if recentlyAddedIdx < 0 {
+		return existingREADME // No section to remove from
+	}
+
+	var result []string
+	inRecentlyAdded := false
+	nextSectionIdx := len(lines)
+
+	// Find the end of Recently Added section
+	for i := recentlyAddedIdx + 1; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "##") {
+			nextSectionIdx = i
+			break
+		}
+	}
+
+	// Rebuild README, filtering out the book entry
+	for i, line := range lines {
+		if i == recentlyAddedIdx {
+			inRecentlyAdded = true
+			result = append(result, line)
+			continue
+		}
+
+		if inRecentlyAdded && i >= nextSectionIdx {
+			inRecentlyAdded = false
+		}
+
+		// Skip the book entry line
+		if inRecentlyAdded && strings.Contains(line, fmt.Sprintf("(`%s`)", bookID)) {
+			continue
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
+}

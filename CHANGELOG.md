@@ -65,6 +65,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tui.BrowserAction` - Action result types
   - `tui.BrowserResult` - Structured action results
   - Components can be reused across features
+- **PDF Metadata Extraction (Stdlib Only)**
+  - Automatically extracts Title, Author, and Subject from PDFs
+  - Pre-populates form fields when adding books
+  - Uses only Go stdlib (no external dependencies)
+  - Best-effort parsing - works for most PDFs with metadata
+  - Handles both parentheses format and UTF-16BE hex format
+  - Gracefully handles PDFs without metadata (falls back to filename)
+  - Supports standard PDF string escaping
+  - Zero binary size increase
+  - Significantly improves UX for academic papers and published books
+  - Tested with real-world PDFs
 
 ### Added
 - **Comprehensive Architecture Documentation**

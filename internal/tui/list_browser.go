@@ -308,7 +308,7 @@ func (m model) renderDetailsPane() string {
 
 	// Repository
 	s.WriteString(StyleHighlight.Render("Repository: "))
-	s.WriteString(fmt.Sprintf("%s/%s", bookItem.Owner, bookItem.Repo))
+	fmt.Fprintf(&s, "%s/%s", bookItem.Owner, bookItem.Repo)
 	s.WriteString("\n\n")
 
 	// Cache status

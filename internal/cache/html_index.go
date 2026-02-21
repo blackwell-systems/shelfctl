@@ -199,11 +199,11 @@ func generateHTML(books []IndexBook) string {
 
 	// Render each shelf section
 	for shelfName, shelfBookList := range shelfBooks {
-		s.WriteString(fmt.Sprintf(`
+		fmt.Fprintf(&s, `
         <div class="shelf-section" data-shelf="%s">
             <h2 class="shelf-title">%s (%d)</h2>
             <div class="book-grid">
-`, html.EscapeString(shelfName), html.EscapeString(shelfName), len(shelfBookList)))
+`, html.EscapeString(shelfName), html.EscapeString(shelfName), len(shelfBookList))
 
 		for _, book := range shelfBookList {
 			renderBookCard(&s, book)

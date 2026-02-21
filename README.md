@@ -181,6 +181,7 @@ shelfctl open sicp
 | `migrate batch` | Migrate a queue of files |
 | `migrate scan` | List files in a source repo |
 | `import` | Import all books from another shelf |
+| `completion` | Generate shell autocompletion scripts |
 
 ---
 

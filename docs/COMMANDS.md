@@ -25,15 +25,19 @@ shelfctl init --repo REPO --name NAME [flags]
 - `--repo` (required): Repository name (e.g., `shelf-programming`)
 - `--name` (required): Shelf name for config (e.g., `programming`)
 - `--create-repo`: Create the GitHub repository if it doesn't exist
-- `--create-release`: Create the initial release tag
+- `--create-release`: Create the initial release tag (default: true)
+- `--private`: Make the repository private (default: true, only applies with `--create-repo`)
 - `--release`: Release tag name (default: from config, usually `library`)
 - `--owner`: Repository owner (default: from config)
 
 ### Examples
 
 ```bash
-# Create new shelf with repo and release
+# Create new private shelf with repo and release (default)
 shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+
+# Create public shelf
+shelfctl init --repo shelf-public --name public --create-repo --create-release --private=false
 
 # Initialize existing repo as a shelf
 shelfctl init --repo existing-repo --name mybooks
@@ -119,6 +123,7 @@ Source can be:
 - `--release`: Target release tag (default: shelf's default)
 - `--asset-name`: Override asset filename
 - `--no-push`: Update catalog locally without pushing
+- `--force`: Skip duplicate checks and overwrite existing assets
 
 ### Examples
 
@@ -149,6 +154,13 @@ shelfctl shelve github:user/books@main:pdfs/algo.pdf \
 
 # Use SHA-based ID for uniqueness
 shelfctl shelve book.pdf --shelf fiction --id-sha12 --title "Novel"
+
+# Force overwrite existing asset
+shelfctl shelve ~/Downloads/sicp-v2.pdf \
+  --shelf programming \
+  --id sicp \
+  --title "SICP (Updated Edition)" \
+  --force
 ```
 
 ### What it does
@@ -156,11 +168,14 @@ shelfctl shelve book.pdf --shelf fiction --id-sha12 --title "Novel"
 1. Interactive mode: Launches shelf/file pickers and metadata form
 2. Downloads/reads the source file
 3. Computes SHA256 checksum and size
-4. Collects metadata (interactively or from flags)
-5. Checks for duplicates (SHA256 and asset name)
-6. Uploads file as GitHub release asset
-7. Updates `catalog.yml` with metadata
-8. Commits and pushes catalog changes
+4. Extracts PDF cover thumbnail automatically (if pdftoppm installed)
+5. Collects metadata (interactively or from flags)
+6. Checks for duplicates (SHA256 and asset name, skipped with `--force`)
+7. Uploads file as GitHub release asset
+8. Updates `catalog.yml` with metadata
+9. Commits and pushes catalog changes
+
+**Note:** The `--force` flag bypasses duplicate checks and will overwrite existing assets with the same name.
 
 ---
 
@@ -424,10 +439,18 @@ shelfctl info <id>
 
 - `id`: Book ID (searches across all shelves)
 
-### Example
+### Flags
+
+- `--shelf`: Specify shelf if book ID exists in multiple shelves
+
+### Examples
 
 ```bash
+# Find book across all shelves
 shelfctl info sicp
+
+# Specify shelf if ID is ambiguous
+shelfctl info paper-2024 --shelf research
 ```
 
 ### Output
@@ -457,26 +480,42 @@ Added:     2024-01-15T10:30:00Z
 Open a book (auto-downloads if needed).
 
 ```bash
-shelfctl open <id>
+shelfctl open <id> [flags]
 ```
 
 ### Arguments
 
 - `id`: Book ID (searches across all shelves)
 
-### Example
+### Flags
+
+- `--shelf`: Specify shelf if book ID exists in multiple shelves
+- `--app`: Application to open the file with (overrides system default)
+
+### Examples
 
 ```bash
+# Open with system default viewer
 shelfctl open sicp
+
+# Specify shelf if ID is ambiguous
+shelfctl open paper-2024 --shelf research
+
+# Open with specific application
+shelfctl open sicp --app "Preview"
+
+# Open with command-line viewer
+shelfctl open doc --app "less"
 ```
 
 ### What it does
 
-1. Downloads book if not in cache (same as `open`)
-2. Opens file with system default application
-   - macOS: uses `open`
-   - Linux: uses `xdg-open`
-   - Windows: uses `start`
+1. Downloads book if not in cache
+2. Verifies checksum
+3. Opens file with specified application or system default
+   - macOS: uses `open` (or specified app)
+   - Linux: uses `xdg-open` (or specified app)
+   - Windows: uses `start` (or specified app)
 
 ---
 
@@ -490,9 +529,11 @@ shelfctl move <id> [flags]
 
 ### Flags
 
+- `--shelf`: Source shelf (if book ID is ambiguous)
 - `--to-shelf`: Target shelf name
 - `--to-release`: Target release tag
-- `--keep-asset`: Keep the original asset (don't delete)
+- `--keep-old`: Keep the original asset (don't delete after copying)
+- `--dry-run`: Show what would happen without making changes
 
 ### Examples
 
@@ -507,7 +548,13 @@ shelfctl move book-id --to-shelf history
 shelfctl move book-id --to-shelf history --to-release archive
 
 # Keep original asset when moving
-shelfctl move book-id --to-shelf backup --keep-asset
+shelfctl move book-id --to-shelf backup --keep-old
+
+# Preview move operation without executing
+shelfctl move book-id --to-shelf history --dry-run
+
+# Specify source shelf if ID is ambiguous
+shelfctl move paper-2024 --shelf research --to-shelf archive
 ```
 
 ### What it does
@@ -516,8 +563,10 @@ shelfctl move book-id --to-shelf backup --keep-asset
 2. Uploads to target release
 3. Updates target catalog
 4. Removes from source catalog
-5. Optionally deletes source asset
+5. Optionally deletes source asset (use `--keep-old` to preserve)
 6. Commits both catalog changes
+
+**Note:** Use `--dry-run` to preview changes before executing. Use `--keep-old` to copy rather than move (keeps the original asset).
 
 ---
 
@@ -746,3 +795,83 @@ shelfctl import --from-shelf prog --to-shelf cs --dry-run
 4. Commits target catalog
 
 Note: Source catalog is not modified. This is a copy operation.
+
+---
+
+## completion
+
+Generate shell autocompletion scripts for shelfctl.
+
+```bash
+shelfctl completion [bash|zsh|fish|powershell]
+```
+
+### Supported Shells
+
+- `bash` - Bourne Again Shell
+- `zsh` - Z Shell
+- `fish` - Friendly Interactive Shell
+- `powershell` - PowerShell
+
+### Setup Instructions
+
+#### Bash
+
+```bash
+# Load completions in current session
+source <(shelfctl completion bash)
+
+# Install permanently (Linux)
+shelfctl completion bash > /etc/bash_completion.d/shelfctl
+
+# Install permanently (macOS with Homebrew)
+shelfctl completion bash > $(brew --prefix)/etc/bash_completion.d/shelfctl
+```
+
+Requires `bash-completion` package to be installed.
+
+#### Zsh
+
+```bash
+# Load completions in current session
+source <(shelfctl completion zsh)
+
+# Install permanently
+shelfctl completion zsh > "${fpath[1]}/_shelfctl"
+```
+
+Then restart your shell or run `compinit`.
+
+#### Fish
+
+```bash
+# Install permanently
+shelfctl completion fish > ~/.config/fish/completions/shelfctl.fish
+```
+
+#### PowerShell
+
+```powershell
+# Add to PowerShell profile
+shelfctl completion powershell | Out-String | Invoke-Expression
+
+# Save to profile permanently
+shelfctl completion powershell >> $PROFILE
+```
+
+### What it provides
+
+- Command name completion (`shelfctl bro<tab>` → `shelfctl browse`)
+- Flag completion (`shelfctl shelve --sh<tab>` → `shelfctl shelve --shelf`)
+- Shelf name completion (completes configured shelf names)
+- Book ID completion where applicable
+
+### Examples
+
+```bash
+# Generate bash completion script
+shelfctl completion bash
+
+# Generate zsh completion script
+shelfctl completion zsh > _shelfctl
+```

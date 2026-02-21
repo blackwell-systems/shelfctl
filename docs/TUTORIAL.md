@@ -376,7 +376,24 @@ The `--id` flag lets you control book IDs. Good practices:
 - For academic papers, use citation keys: `smith2024-neural-nets`
 - For ISBNs: `isbn-9780262033848`
 
-### Tip 2: Automate with shell aliases
+### Tip 2: Enable shell completion
+
+Set up autocompletion for faster command typing:
+
+```bash
+# Bash (add to ~/.bashrc)
+source <(shelfctl completion bash)
+
+# Zsh (add to ~/.zshrc)
+source <(shelfctl completion zsh)
+
+# Fish
+shelfctl completion fish > ~/.config/fish/completions/shelfctl.fish
+```
+
+This enables tab completion for commands, flags, and shelf names.
+
+### Tip 3: Automate with shell aliases
 
 Add to your shell profile:
 
@@ -386,7 +403,7 @@ alias shelflist='shelfctl browse'
 alias shelfopen='shelfctl open'
 ```
 
-### Tip 3: Keep catalogs readable
+### Tip 4: Keep catalogs readable
 
 Edit `catalog.yml` directly for bulk updates. It's just YAML:
 

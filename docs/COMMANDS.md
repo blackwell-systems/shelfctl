@@ -279,6 +279,82 @@ shelfctl delete-book sicp --yes
 
 ---
 
+## edit-book
+
+Edit metadata for a book in your library.
+
+```bash
+shelfctl edit-book [id] [flags]
+```
+
+### Interactive Mode (no arguments)
+
+When run in a terminal with no arguments, `edit-book` shows an interactive book picker followed by a form:
+
+```bash
+# Interactive mode - shows picker then form
+shelfctl edit-book
+```
+
+The form pre-populates with current metadata values for easy editing.
+
+### Flags
+
+- `--shelf`: Specify shelf if book ID is ambiguous
+- `--title`: New title
+- `--author`: New author
+- `--year`: Publication year
+- `--add-tag`: Add tags (comma-separated, can be used multiple times)
+- `--rm-tag`: Remove tags (comma-separated, can be used multiple times)
+
+### Examples
+
+```bash
+# Interactive mode - form with current values
+shelfctl edit-book design-patterns
+
+# Update title only
+shelfctl edit-book design-patterns --title "Design Patterns (Gang of Four)"
+
+# Update author and year
+shelfctl edit-book gopl --author "Donovan & Kernighan" --year 2015
+
+# Add tags incrementally
+shelfctl edit-book sicp --add-tag favorites --add-tag classics
+
+# Remove a tag
+shelfctl edit-book sicp --rm-tag draft
+
+# Combine multiple changes
+shelfctl edit-book gopl --title "The Go Programming Language" --add-tag reference
+```
+
+### What it does
+
+1. Finds the book in your library
+2. Shows interactive form (TUI) or applies flag changes (CLI)
+3. Updates catalog.yml with new metadata
+4. Commits changes to GitHub
+5. Asset file remains unchanged (only metadata updates)
+
+### What you can edit
+
+- Title
+- Author
+- Year
+- Tags (add/remove incrementally or replace all)
+
+### What you cannot edit
+
+- ID (used for commands and asset naming)
+- Format (tied to the file)
+- Checksum (tied to file content)
+- Asset filename (tied to the file)
+
+**Note:** This only updates catalog metadata. The actual PDF/EPUB file is not modified or re-uploaded.
+
+---
+
 ## delete-shelf
 
 Remove a shelf from your configuration.

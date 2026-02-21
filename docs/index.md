@@ -26,6 +26,7 @@ Zero-infrastructure document library using GitHub repos and releases as storage.
 ### Common Tasks
 - [Add a book](COMMANDS.md#shelve) - `shelfctl shelve ~/book.pdf --shelf programming`
 - [Browse your library](COMMANDS.md#browse) - `shelfctl browse --tag algorithms`
+- [Edit a book](COMMANDS.md#edit-book) - `shelfctl edit-book book-id`
 - [Open a book](COMMANDS.md#open) - `shelfctl open book-id`
 - [Migrate existing files](COMMANDS.md#migrate-batch) - Organize your monolithic repo
 

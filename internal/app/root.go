@@ -98,6 +98,7 @@ func init() {
 		newShelvesCmd(),
 		newDeleteShelfCmd(),
 		newDeleteBookCmd(),
+		newEditBookCmd(),
 		newBrowseCmd(),
 		newInfoCmd(),
 		newOpenCmd(),
@@ -519,6 +520,8 @@ func runHub() error {
 			cmdErr = newShelveCmd().Execute()
 		case "delete-book":
 			cmdErr = newDeleteBookCmd().Execute()
+		case "edit-book":
+			cmdErr = newEditBookCmd().Execute()
 		case "delete-shelf":
 			cmdErr = newDeleteShelfCmd().Execute()
 		case "quit":

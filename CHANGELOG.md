@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Simplified Cache Structure**
+  - Changed from 4-level to 2-level cache directory structure
+  - Old: `~/.local/share/shelfctl/cache/<owner>/<repo>/<bookID>/<file>`
+  - New: `~/.local/share/shelfctl/cache/<repo>/<file>`
+  - Makes browsing cached books easier in Finder/Explorer
+  - Reduces unnecessary nesting for personal library use
+  - **Migration**: If upgrading from an older version, you can safely delete your old cache directory and books will re-download with the new structure:
+    ```bash
+    rm -rf ~/.local/share/shelfctl/cache
+    ```
+
 ### Added
+- **Book Edit Command**
+  - New `edit-book` command for updating book metadata
+  - Interactive TUI form when no flags provided
+  - CLI flags for scripted updates: `--title`, `--author`, `--year`, `--add-tag`, `--rm-tag`
+  - Pre-populates form with current metadata values
+  - Updates catalog.yml in GitHub without touching the asset file
+  - Supports adding/removing tags incrementally (no need to re-enter all tags)
+  - Added to hub menu as "Edit Book" option
+  - Filtered from menu when no books exist
+  - Completes full CRUD: Create (shelve), Read (browse/info), Update (edit-book), Delete (delete-book)
+  - Editable fields: title, author, year, tags
+  - Non-editable fields: ID, format, checksum, asset (tied to the file)
 - **Book Deletion Command**
   - New `delete-book` command for removing books from library
   - Interactive book picker when no ID provided
@@ -201,6 +225,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `open` command inlines download logic (previously called `get`)
 
 ### Fixed
+- **Shelf README Duplicate Entries**
+  - Fixed bug where books appeared multiple times in "Recently Added" section
+  - Now checks for existing entries before adding to prevent duplicates
+  - Implements 10-entry limit as originally intended
+  - Updates book position when re-adding instead of creating duplicates
+- **CI golangci-lint Version**
+  - Updated GitHub Actions workflow to use golangci-lint v2
+  - Fixes CI failures due to v1/v2 configuration mismatch
 - **Config Reload After Hub Commands**
   - Fixed stale config bug where deleted shelves still appeared in menu
   - Config now reloads from disk after each successful command

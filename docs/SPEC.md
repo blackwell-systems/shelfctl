@@ -75,7 +75,7 @@ Default cache:
 Cache path:
 
 ```
-<cache>/<shelf_repo>/<book_id>/<asset_filename>
+<cache>/<shelf_repo>/<asset_filename>
 ```
 
 ---

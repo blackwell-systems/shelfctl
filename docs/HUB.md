@@ -50,6 +50,14 @@ The hub provides access to all core operations and loops continuously until you 
 - Automatic upload and cataloging
 - Returns to hub menu after completion
 
+**Edit Book**
+- Interactive book picker followed by metadata form
+- Pre-populates form with current values
+- Update title, author, year, and tags
+- Only updates catalog metadata (asset file unchanged)
+- Returns to hub menu after completion
+- Hidden when no books exist
+
 **Delete Book**
 - Interactive book picker showing all books
 - Shows book details before deletion
@@ -195,6 +203,8 @@ It will display the standard CLI help instead.
 │                                                           │
 │    Add Book          Add a new book to your library      │
 │                                                           │
+│    Edit Book         Update metadata for a book          │
+│                                                           │
 │    Delete Book       Remove a book from your library     │
 │                                                           │
 │    Delete Shelf      Remove a shelf from configuration   │
@@ -247,6 +257,7 @@ shelfctl  # launches interactive menu
 - [DONE] Auto-generated shelf READMEs
 - [DONE] Delete shelf command with repository choice
 - [DONE] Delete book command with interactive picker
+- [DONE] Edit book command with metadata form
 - [DONE] Fully interactive book browser with actions:
   - [DONE] Open books directly from browser
   - [DONE] Download to cache for offline
@@ -255,6 +266,7 @@ shelfctl  # launches interactive menu
 - [DONE] Config reload after changes
 - [DONE] Dynamic menu filtering based on state
 - [DONE] Graceful error handling
+- [DONE] Complete CRUD operations: Create (shelve), Read (browse), Update (edit-book), Delete (delete-book)
 
 **The interactive TUI is feature-complete!** All core library operations can be performed without leaving the hub.
 

@@ -172,6 +172,7 @@ shelfctl open sicp
 | `info <id>` | Show metadata and cache status |
 | `open <id>` | Open a book (auto-downloads if needed) |
 | `shelve <file\|url>` | Add a book to your library |
+| `edit-book <id>` | Update metadata for a book |
 | `delete-book <id>` | Remove a book from your library |
 | `move <id>` | Move between releases or shelves |
 | `split` | Interactive wizard to split a shelf |
@@ -221,9 +222,13 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 
 ---
 
-## Note
+## ⚖️ Disclaimer
 
-This tool manages user-provided files in user-owned GitHub repos and releases. It does not distribute content. Designed for personal document libraries (PDF/EPUB/etc.).
+shelfctl is a specialized management tool designed to help developers organize their personal document libraries using the GitHub API. By using this software, you agree to the following:
+
+**Platform Compliance**: You are solely responsible for ensuring that your use of GitHub as a storage backend complies with GitHub's Terms of Service and Acceptable Use Policies. The author(s) of shelfctl are not responsible for any account suspensions or data removal by GitHub.
+
+**Content Responsibility**: shelfctl does not provide, host, or distribute any content. Users are responsible for ensuring they have the legal right to store and distribute any files they upload to their own GitHub repositories and releases.
 
 ---
 

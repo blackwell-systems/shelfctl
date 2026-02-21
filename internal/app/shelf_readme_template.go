@@ -162,14 +162,52 @@ func appendToShelfREADME(existingREADME string, book catalog.Book) string {
 	var result []string
 
 	if recentlyAddedIdx >= 0 {
-		// Section exists, add to it (keep last 10 entries)
-		for i, line := range lines {
-			result = append(result, line)
-			if i == recentlyAddedIdx+1 {
-				// Insert new entry after the header
-				result = append(result, "")
-				result = append(result, bookEntry)
+		// Section exists, add to it and keep last 10 entries
+		// First, collect existing entries (excluding current book to avoid duplicates)
+		var existingEntries []string
+		nextSectionIdx := len(lines)
+
+		// Find the end of Recently Added section
+		for i := recentlyAddedIdx + 1; i < len(lines); i++ {
+			if strings.HasPrefix(lines[i], "##") {
+				nextSectionIdx = i
+				break
 			}
+			// Check if this is a book entry line (starts with "- ")
+			if strings.HasPrefix(lines[i], "- ") {
+				// Extract book ID from entry to check for duplicates
+				// Format: "- **Title** by Author (`book-id`)"
+				if !strings.Contains(lines[i], fmt.Sprintf("(`%s`)", book.ID)) {
+					existingEntries = append(existingEntries, lines[i])
+				}
+			}
+		}
+
+		// Keep only last 9 existing entries (so with new entry we have 10 total)
+		const maxEntries = 10
+		if len(existingEntries) > maxEntries-1 {
+			existingEntries = existingEntries[:maxEntries-1]
+		}
+
+		// Rebuild the README
+		// Copy lines before Recently Added section
+		for i := 0; i <= recentlyAddedIdx; i++ {
+			result = append(result, lines[i])
+		}
+
+		// Add new entry at the top
+		result = append(result, "")
+		result = append(result, bookEntry)
+
+		// Add existing entries
+		for _, entry := range existingEntries {
+			result = append(result, entry)
+		}
+
+		// Add lines after Recently Added section
+		if nextSectionIdx < len(lines) {
+			result = append(result, "")
+			result = append(result, lines[nextSectionIdx:]...)
 		}
 	} else if quickStatsIdx >= 0 {
 		// Create new section after Quick Stats

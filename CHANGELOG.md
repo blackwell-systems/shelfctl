@@ -26,8 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `q` - Quit browser
   - Split-panel layout shows book metadata in right pane
     - ID, title, author, tags, shelf name, repository, cache status, format, asset name
-    - Uses lipgloss horizontal layout for clean visual separation
-    - Automatically adjusts list width when details panel is visible
+    - Uses master wrapper pattern: compose panels first, then apply single outer border
+    - Cleaner visual separation with vertical divider between panels
+    - Responsive sizing based on terminal dimensions
+    - Single rounded border wraps entire layout (no double borders)
+    - Automatically adjusts list width (60%) and details width (40%) when panel visible
   - Auto-downloads books when opening if not cached
   - Shows download progress with file size
   - Displays full metadata on demand

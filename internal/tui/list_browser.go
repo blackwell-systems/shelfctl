@@ -213,15 +213,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) updateListSize() {
-	h, v := StyleBorder.GetFrameSize()
+	// Account for master wrapper border and padding
+	const masterBorder = 2
+	const dividerWidth = 3
 
 	if m.showDetails {
-		// Split view: list takes 50% width, details pane takes other 50%
-		listWidth := (m.width / 2) - h
-		m.list.SetSize(listWidth, m.height-v)
+		// Split view: list takes ~60% of available width
+		availableWidth := m.width - masterBorder
+		listWidth := (availableWidth * 6) / 10
+
+		// Set list size (accounting for divider)
+		m.list.SetSize(listWidth-1, m.height-masterBorder-2)
 	} else {
 		// Full width for list
-		m.list.SetSize(m.width-h, m.height-v)
+		m.list.SetSize(m.width-masterBorder, m.height-masterBorder-2)
 	}
 }
 
@@ -235,6 +240,17 @@ func (m model) renderDetailsPane() string {
 	if !ok {
 		return ""
 	}
+
+	// Calculate details pane width (40% of screen, accounting for divider and master border)
+	detailsWidth := ((m.width - 2) * 4) / 10
+	if detailsWidth < 30 {
+		detailsWidth = 30 // Minimum width for readability
+	}
+
+	// Style for the details content area
+	detailsStyle := lipgloss.NewStyle().
+		Width(detailsWidth).
+		Padding(0, 1)
 
 	var s strings.Builder
 
@@ -294,7 +310,8 @@ func (m model) renderDetailsPane() string {
 	s.WriteString(bookItem.Book.Source.Asset)
 	s.WriteString("\n")
 
-	return s.String()
+	// Apply details panel styling
+	return detailsStyle.Render(s.String())
 }
 
 func (m model) View() string {
@@ -302,21 +319,44 @@ func (m model) View() string {
 		return ""
 	}
 
+	// Master wrapper style - applied once to the entire layout
+	masterStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(ColorGray).
+		Padding(0)
+
+	// Apply responsive sizing based on terminal dimensions
+	if m.width > 0 && m.height > 0 {
+		masterStyle = masterStyle.
+			Width(m.width - 2).
+			Height(m.height - 2)
+	}
+
 	if m.showDetails {
-		// Split-panel layout
+		// Split-panel layout: compose panels then wrap
 		listView := m.list.View()
 		detailsView := m.renderDetailsPane()
 
-		// Use lipgloss to join horizontally
-		combined := lipgloss.JoinHorizontal(
+		// Create a vertical divider between panels
+		dividerStyle := lipgloss.NewStyle().
+			Foreground(ColorGray).
+			Padding(0, 1)
+		divider := dividerStyle.Render("│")
+
+		// Join horizontally: list + divider + details
+		content := lipgloss.JoinHorizontal(
 			lipgloss.Top,
-			StyleBorder.Render(listView),
-			StyleBorder.Render(detailsView),
+			listView,
+			divider,
+			detailsView,
 		)
-		return combined
+
+		// Apply master wrapper to the complete composed layout
+		return masterStyle.Render(content)
 	}
 
-	return StyleBorder.Render(m.list.View())
+	// Single panel: apply master wrapper to list only
+	return masterStyle.Render(m.list.View())
 }
 
 // RunListBrowser launches an interactive book browser.

@@ -43,6 +43,21 @@ The hub provides access to all core operations and loops continuously until you 
 - Shows download progress with file size
 - Extracts PDF cover thumbnails automatically during download
 
+**Generate HTML Index**
+- Creates a static HTML file for browsing your library in a web browser
+- Generated at `~/.local/share/shelfctl/cache/index.html`
+- Features:
+  - Visual book grid with covers and metadata
+  - Real-time search/filter by title, author, or tags (JavaScript)
+  - Organized by shelf sections
+  - Click books to open with system viewer (file:// links)
+  - Responsive layout for mobile/desktop
+  - Dark theme matching shelfctl aesthetic
+- Shows only cached books (download books first to include them)
+- Works without running shelfctl - just open in any browser
+- Perfect for offline browsing or sharing your library locally
+- Returns to hub menu after generation
+
 **Add Book**
 - Add a new book with guided workflow
 - Shelf picker (if multiple shelves)

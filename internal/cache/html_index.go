@@ -15,8 +15,8 @@ type IndexBook struct {
 	Book      catalog.Book
 	ShelfName string
 	Repo      string
-	FilePath  string  // Path to cached file
-	CoverPath string  // Path to cover (catalog or extracted)
+	FilePath  string // Path to cached file
+	CoverPath string // Path to cover (catalog or extracted)
 	HasCover  bool
 }
 

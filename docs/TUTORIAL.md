@@ -198,6 +198,39 @@ This will:
 
 The next time you open it, it will use the cached copy (no download).
 
+You can also browse from the interactive TUI:
+
+```bash
+shelfctl browse
+# Press 'o' on a book to open it
+```
+
+### Generate HTML index for web browsing
+
+Create a visual web page to browse your library in any browser:
+
+```bash
+shelfctl index
+```
+
+This generates `~/.local/share/shelfctl/cache/index.html` with:
+- Visual book grid with covers and metadata
+- Real-time search/filter (no server needed)
+- Click books to open them
+- Works offline, no shelfctl needed
+
+Open the index:
+
+```bash
+# macOS
+open ~/.local/share/shelfctl/cache/index.html
+
+# Linux
+xdg-open ~/.local/share/shelfctl/cache/index.html
+```
+
+The index shows only cached books, so download books first to include them.
+
 ## Step 10: Add more shelves
 
 Create shelves for different topics:

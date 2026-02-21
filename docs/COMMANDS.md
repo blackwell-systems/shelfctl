@@ -656,6 +656,52 @@ user/old-books@main:papers/algo.pdf
 
 ---
 
+## index
+
+Generate a local HTML index for browsing cached books in a web browser.
+
+```bash
+shelfctl index
+```
+
+### What it does
+
+1. Scans all configured shelves
+2. Collects books that are in your local cache
+3. Generates `index.html` in your cache directory (`~/.local/share/shelfctl/cache/index.html`)
+4. Includes cover images if available (catalog covers or auto-extracted thumbnails)
+
+### Features
+
+- **Visual book grid** with covers and metadata
+- **Real-time search/filter** by title, author, or tags (no server needed)
+- **Organized by shelf** sections
+- **Click books to open** with system viewer (file:// links)
+- **Responsive layout** for mobile/desktop
+- **Dark theme** matching shelfctl aesthetic
+
+### Usage
+
+```bash
+# Generate index
+shelfctl index
+
+# Open in browser (macOS)
+open ~/.local/share/shelfctl/cache/index.html
+
+# Open in browser (Linux)
+xdg-open ~/.local/share/shelfctl/cache/index.html
+```
+
+### Notes
+
+- Shows only cached books (download books first to include them)
+- Works without running shelfctl - just open in any browser
+- Updates automatically each time you run `shelfctl index`
+- Useful for offline browsing or sharing your library locally
+
+---
+
 ## import
 
 Import books from another shelfctl shelf.

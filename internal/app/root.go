@@ -107,6 +107,7 @@ func init() {
 		newSplitCmd(),
 		newMigrateCmd(),
 		newImportCmd(),
+		newIndexCmd(),
 	)
 }
 
@@ -516,6 +517,8 @@ func runHub() error {
 		switch action {
 		case "browse":
 			cmdErr = newBrowseCmd().Execute()
+		case "index":
+			cmdErr = newIndexCmd().Execute()
 		case "shelve":
 			cmdErr = newShelveCmd().Execute()
 		case "delete-book":

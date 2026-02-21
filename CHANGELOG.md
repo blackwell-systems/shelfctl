@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Local HTML Index for Web Browsing**
+  - New `shelfctl index` command generates browsable index.html
+  - Located at `~/.local/share/shelfctl/cache/index.html`
+  - Features:
+    - Visual book grid with covers and metadata
+    - Real-time search/filter by title, author, or tags
+    - Organized by shelf sections
+    - Click books to open with system viewer (file:// links)
+    - Responsive layout for mobile/desktop
+    - Dark theme matching shelfctl aesthetic
+  - Works without running shelfctl - just open in any browser
+  - Shows only cached books (download books first to include them)
+  - Added to hub menu as "Generate HTML Index"
 - **Cover Image Support (Two Types)**
   - **Auto-Extracted Thumbnails**: Automatically extracts cover from first page of PDFs during download
     - Stores in cache at `<repo>/.covers/<book-id>.jpg` (only 1 per book)

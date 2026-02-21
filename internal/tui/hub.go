@@ -32,6 +32,7 @@ type HubContext struct {
 
 var menuItems = []MenuItem{
 	{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
+	{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
 	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
 	{Key: "edit-book", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
 	{Key: "delete-book", Label: "Delete Book", Description: "Remove a book from your library", Available: true},

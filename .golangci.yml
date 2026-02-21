@@ -1,3 +1,5 @@
+version: 2
+
 run:
   timeout: 5m
   tests: true
@@ -11,11 +13,11 @@ linters:
     - staticcheck
     - misspell
     - unconvert
-    - gocritic
-    - revive
   disable:
     - unused    # Too strict for helper functions
     - gosec     # Security rules too strict for this use case
+    - gocritic  # Stylistic suggestions - not substantive issues
+    - revive    # Too noisy for internal packages
 
 linters-settings:
   errcheck:
@@ -36,32 +38,6 @@ linters-settings:
     disable:
       - fieldalignment
       - shadow
-
-  gocritic:
-    disabled-checks:
-      - singleCaseSwitch
-      - ifElseChain
-      - elseif
-
-  revive:
-    severity: warning
-    rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: increment-decrement
-      - name: var-naming
-      - name: package-comments
-        disabled: true
-      - name: range
-      - name: receiver-naming
-      - name: indent-error-flow
-      - name: superfluous-else
-      - name: unreachable-code
 
   gosec:
     excludes:

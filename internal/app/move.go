@@ -7,6 +7,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -29,11 +30,85 @@ func newMoveCmd() *cobra.Command {
 	params := &moveParams{}
 
 	cmd := &cobra.Command{
-		Use:   "move <id>",
+		Use:   "move [id]",
 		Short: "Move a book to a different release or shelf",
-		Args:  cobra.ExactArgs(1),
+		Long: `Move a book to a different release or shelf.
+
+Within the same shelf (different release):
+  shelfctl move book-id --to-release v2.0
+
+To a different shelf:
+  shelfctl move book-id --to-shelf other-shelf
+
+Interactive mode (no arguments):
+  shelfctl move`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMove(args[0], params)
+			var bookID string
+			var selectedItem *tui.BookItem
+
+			// Interactive mode: pick a book
+			if len(args) == 0 {
+				if !tui.ShouldUseTUI(cmd) {
+					return fmt.Errorf("book ID required in non-interactive mode")
+				}
+
+				// Collect all books for picker
+				var allItems []tui.BookItem
+				for i := range cfg.Shelves {
+					shelf := &cfg.Shelves[i]
+					owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+					catalogPath := shelf.EffectiveCatalogPath()
+
+					data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+					if err != nil {
+						warn("Could not load catalog for shelf %q: %v", shelf.Name, err)
+						continue
+					}
+					books, err := catalog.Parse(data)
+					if err != nil {
+						warn("Could not parse catalog for shelf %q: %v", shelf.Name, err)
+						continue
+					}
+
+					for _, b := range books {
+						cached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
+						allItems = append(allItems, tui.BookItem{
+							Book:      b,
+							ShelfName: shelf.Name,
+							Cached:    cached,
+							Owner:     owner,
+							Repo:      shelf.Repo,
+						})
+					}
+				}
+
+				if len(allItems) == 0 {
+					return fmt.Errorf("no books found in library")
+				}
+
+				// Show book picker
+				selected, err := tui.RunBookPicker(allItems, "Select book to move")
+				if err != nil {
+					return err
+				}
+
+				bookID = selected.Book.ID
+				params.shelfName = selected.ShelfName
+
+				// Store selected item for interactive flow
+				tmpItem := selected
+				selectedItem = &tmpItem
+			} else {
+				bookID = args[0]
+			}
+
+			// Interactive destination selection
+			if params.toRelease == "" && params.toShelfName == "" && tui.ShouldUseTUI(cmd) {
+				return runInteractiveMove(bookID, params, selectedItem)
+			}
+
+			return runMove(bookID, params)
 		},
 	}
 
@@ -43,6 +118,107 @@ func newMoveCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&params.dryRun, "dry-run", false, "Show what would happen without making changes")
 	cmd.Flags().BoolVar(&params.keepOld, "keep-old", false, "Do not delete the old asset after copy")
 	return cmd
+}
+
+func runInteractiveMove(bookID string, params *moveParams, _ *tui.BookItem) error {
+	// Get source book details
+	b, srcShelf, err := findBook(bookID, params.shelfName)
+	if err != nil {
+		return err
+	}
+	srcOwner := srcShelf.EffectiveOwner(cfg.GitHub.Owner)
+
+	fmt.Println()
+	header("Move Book: %s", b.Title)
+	fmt.Printf("  ID: %s\n", b.ID)
+	fmt.Printf("  Current location: %s/%s@%s\n", srcOwner, srcShelf.Repo, b.Source.Release)
+	fmt.Println()
+
+	// Ask move type
+	fmt.Println("Move to:")
+	fmt.Println("  1. Different shelf (different repository)")
+	fmt.Println("  2. Different release (same shelf)")
+	fmt.Println()
+	fmt.Print("Your choice (1/2): ")
+	var choice string
+	_, _ = fmt.Scanln(&choice)
+	fmt.Println()
+
+	switch choice {
+	case "1":
+		// Moving to different shelf
+		var shelfOptions []tui.ShelfOption
+		for _, shelf := range cfg.Shelves {
+			// Exclude current shelf
+			if shelf.Name != srcShelf.Name {
+				shelfOptions = append(shelfOptions, tui.ShelfOption{
+					Name: shelf.Name,
+					Repo: shelf.Repo,
+				})
+			}
+		}
+
+		if len(shelfOptions) == 0 {
+			return fmt.Errorf("no other shelves available - create another shelf first")
+		}
+
+		// Pick destination shelf
+		dstShelfName, err := tui.RunShelfPicker(shelfOptions)
+		if err != nil {
+			return err
+		}
+
+		params.toShelfName = dstShelfName
+
+		// Optionally specify release
+		fmt.Println()
+		fmt.Println("Destination release tag (press Enter for default):")
+		fmt.Print("Release tag: ")
+		var releaseTag string
+		_, _ = fmt.Scanln(&releaseTag)
+		if releaseTag != "" {
+			params.toRelease = releaseTag
+		}
+
+	case "2":
+		// Moving to different release in same shelf
+		fmt.Println("Enter destination release tag:")
+		fmt.Printf("Release tag (current: %s): ", b.Source.Release)
+		var releaseTag string
+		_, _ = fmt.Scanln(&releaseTag)
+		if releaseTag == "" {
+			return fmt.Errorf("release tag required")
+		}
+		params.toRelease = releaseTag
+
+	default:
+		return fmt.Errorf("invalid choice")
+	}
+
+	// Determine destination for confirmation
+	dst, err := determineDestination(srcShelf, srcOwner, params)
+	if err != nil {
+		return err
+	}
+
+	// Show confirmation
+	fmt.Println()
+	fmt.Println("Move summary:")
+	fmt.Printf("  Book:  %s (%s)\n", b.Title, b.ID)
+	fmt.Printf("  From:  %s/%s@%s\n", srcOwner, srcShelf.Repo, b.Source.Release)
+	fmt.Printf("  To:    %s/%s@%s\n", dst.owner, dst.repo, dst.release)
+	fmt.Println()
+	fmt.Print("Proceed with move? (y/n): ")
+	var confirm string
+	_, _ = fmt.Scanln(&confirm)
+
+	if confirm != "y" && confirm != "Y" && confirm != "yes" {
+		fmt.Println("Move canceled")
+		return nil
+	}
+
+	fmt.Println()
+	return runMove(bookID, params)
 }
 
 func runMove(id string, params *moveParams) error {
@@ -61,6 +237,11 @@ func runMove(id string, params *moveParams) error {
 	dst, err := determineDestination(srcShelf, srcOwner, params)
 	if err != nil {
 		return err
+	}
+
+	// Check if destination is the same as source
+	if srcOwner == dst.owner && srcShelf.Repo == dst.repo && b.Source.Release == dst.release {
+		return fmt.Errorf("book is already at %s/%s@%s - nothing to move", dst.owner, dst.repo, dst.release)
 	}
 
 	fmt.Printf("Moving %s: %s/%s@%s → %s/%s@%s\n",
@@ -139,7 +320,7 @@ func transferAsset(b *catalog.Book, srcShelf *config.ShelfConfig, srcOwner strin
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmpPath)
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	// Upload to destination
 	uploadFile, err := os.Open(tmpPath)
@@ -189,7 +370,7 @@ func downloadAndBuffer(owner, repo string, assetID int64) (string, int64, error)
 	return tmpPath, fi.Size(), nil
 }
 
-func deleteOldAsset(srcOwner, srcRepo string, b *catalog.Book, srcShelf *config.ShelfConfig) {
+func deleteOldAsset(srcOwner, srcRepo string, b *catalog.Book, _ *config.ShelfConfig) {
 	srcRel, err := gh.GetReleaseByTag(srcOwner, srcRepo, b.Source.Release)
 	if err != nil {
 		warn("Could not get source release: %v", err)
@@ -226,6 +407,29 @@ func updateCatalogsForCrossShelfMove(id string, b *catalog.Book, srcShelf *confi
 		return err
 	}
 
+	// Load destination catalog to check for conflicts
+	dstCatalogPath := dst.shelf.EffectiveCatalogPath()
+	dstData, _, _ := gh.GetFileContent(dst.owner, dst.repo, dstCatalogPath, "")
+	dstBooks, _ := catalog.Parse(dstData)
+
+	// Check for ID conflict in destination
+	for _, existing := range dstBooks {
+		if existing.ID == id {
+			warn("Book with ID %q already exists in destination shelf %q", id, dst.shelf.Name)
+			warn("Existing book will be replaced")
+			break
+		}
+	}
+
+	// Clear local cache for this book (path will be invalid after move)
+	if cacheMgr.Exists(srcOwner, srcShelf.Repo, b.ID, b.Source.Asset) {
+		if err := cacheMgr.Remove(srcOwner, srcShelf.Repo, b.ID, b.Source.Asset); err != nil {
+			warn("Could not clear cache: %v", err)
+		} else {
+			ok("Cleared from local cache (path will change after move)")
+		}
+	}
+
 	// Remove from source
 	books, _ = catalog.Remove(books, id)
 	srcData, err := catalog.Marshal(books)
@@ -242,10 +446,7 @@ func updateCatalogsForCrossShelfMove(id string, b *catalog.Book, srcShelf *confi
 	b.Source.Owner = dst.owner
 	b.Source.Repo = dst.repo
 
-	// Add to destination catalog
-	dstCatalogPath := dst.shelf.EffectiveCatalogPath()
-	dstData, _, _ := gh.GetFileContent(dst.owner, dst.repo, dstCatalogPath, "")
-	dstBooks, _ := catalog.Parse(dstData)
+	// Add to destination catalog (Append replaces if ID exists)
 	dstBooks = catalog.Append(dstBooks, *b)
 	dstCatalogData, err := catalog.Marshal(dstBooks)
 	if err != nil {
@@ -262,10 +463,15 @@ func updateCatalogsForCrossShelfMove(id string, b *catalog.Book, srcShelf *confi
 	updateREADMEAfterRemove(srcOwner, srcShelf.Repo, books, b.ID)
 	updateREADMEAfterAdd(dst.owner, dst.repo, dstBooks, *b)
 
+	// Handle catalog cover if it exists
+	if b.Cover != "" {
+		handleCatalogCoverMove(b, srcOwner, srcShelf.Repo, dst.owner, dst.repo)
+	}
+
 	return nil
 }
 
-func updateCatalogForSameShelfMove(id string, b *catalog.Book, srcShelf *config.ShelfConfig, srcOwner string, dst *moveDestination) error {
+func updateCatalogForSameShelfMove(id string, _ *catalog.Book, srcShelf *config.ShelfConfig, srcOwner string, dst *moveDestination) error {
 	srcCatalogPath := srcShelf.EffectiveCatalogPath()
 	data, _, err := gh.GetFileContent(srcOwner, srcShelf.Repo, srcCatalogPath, "")
 	if err != nil {
@@ -295,6 +501,25 @@ func updateCatalogForSameShelfMove(id string, b *catalog.Book, srcShelf *config.
 
 	ok("Catalog updated")
 	return nil
+}
+
+// handleCatalogCoverMove migrates catalog cover when moving between repos
+func handleCatalogCoverMove(b *catalog.Book, srcOwner, srcRepo, dstOwner, dstRepo string) {
+	// Download cover from source repo
+	coverData, _, err := gh.GetFileContent(srcOwner, srcRepo, b.Cover, "")
+	if err != nil {
+		warn("Could not download catalog cover from source: %v", err)
+		return
+	}
+
+	// Upload to destination repo (same relative path)
+	commitMsg := fmt.Sprintf("move: copy cover for %s", b.ID)
+	if err := gh.CommitFile(dstOwner, dstRepo, b.Cover, coverData, commitMsg); err != nil {
+		warn("Could not upload catalog cover to destination: %v", err)
+		return
+	}
+
+	ok("Catalog cover migrated")
 }
 
 // updateREADMEAfterRemove updates a shelf README after removing a book

@@ -26,7 +26,7 @@ func TestSHA256File(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(f.Name())
+	defer func() { _ = os.Remove(f.Name()) }()
 	_, _ = f.WriteString("")
 	_ = f.Close()
 

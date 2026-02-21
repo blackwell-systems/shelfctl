@@ -71,7 +71,7 @@ func (c *Client) doJSON(method, url string, body, out interface{}) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := checkStatus(resp); err != nil {
 		return err
 	}

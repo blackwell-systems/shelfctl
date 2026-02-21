@@ -57,26 +57,43 @@ shelfctl init --repo existing-repo --name mybooks
 Validate all configured shelves and show their status.
 
 ```bash
-shelfctl shelves
+shelfctl shelves [--fix]
 ```
+
+### Flags
+
+- `--fix`: Automatically create missing catalog.yml files or releases
 
 ### Output
 
 For each shelf:
-- Shelf name and repo
-- Whether repo exists on GitHub
-- Whether catalog.yml exists
-- Number of books in catalog
-- Validation errors (if any)
+- Shelf name and repository
+- Repository status (exists on GitHub?)
+- Catalog.yml status (exists? book count)
+- Release status (exists?)
+
+### Examples
+
+```bash
+# View all shelves with validation
+shelfctl shelves
+
+# Validate and auto-repair issues
+shelfctl shelves --fix
+```
 
 ### Example output
 
 ```
-[OK] programming (shelf-programming)
-  catalog: catalog.yml (15 books)
+Shelf: programming  (user/shelf-programming)
+  repo:        ok
+  catalog.yml: ok (15 books)
+  release(library): ok  id=123456789
 
-[X] history (shelf-history)
-  error: repository not found
+Shelf: history  (user/shelf-history)
+  repo:        ok
+  catalog.yml: ok (empty)
+  release(library): ok  id=987654321
 ```
 
 ---
@@ -523,6 +540,15 @@ shelfctl open doc --app "less"
 
 Move a book between releases or shelves.
 
+**Interactive mode:** Run `shelfctl move` with no arguments to use the guided workflow:
+- Pick which book to move
+- Choose between different shelf or different release
+- Select destination shelf (if moving to different shelf)
+- Optionally specify release tag
+- Confirm before executing
+
+**Command line mode:**
+
 ```bash
 shelfctl move <id> [flags]
 ```
@@ -538,6 +564,9 @@ shelfctl move <id> [flags]
 ### Examples
 
 ```bash
+# Interactive mode (pick book, choose destination)
+shelfctl move
+
 # Move to different release in same shelf
 shelfctl move book-id --to-release 2024
 

@@ -97,7 +97,7 @@ func (c *Client) UploadAsset(owner, repo string, releaseID int64, name string, r
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := checkStatus(resp); err != nil {
 		return nil, fmt.Errorf("upload asset %q: %w", name, err)
 	}

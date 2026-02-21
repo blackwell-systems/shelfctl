@@ -16,7 +16,7 @@ func (c *Client) CommitFile(owner, repo, filePath string, content []byte, messag
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	cloneURL := fmt.Sprintf("https://x-access-token:%s@github.com/%s/%s.git",
 		c.token, owner, repo)
@@ -58,7 +58,7 @@ func (c *Client) ReadFile(owner, repo, filePath string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	cloneURL := fmt.Sprintf("https://x-access-token:%s@github.com/%s/%s.git",
 		c.token, owner, repo)

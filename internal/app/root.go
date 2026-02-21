@@ -517,14 +517,18 @@ func runHub() error {
 		switch action {
 		case "browse":
 			cmdErr = newBrowseCmd().Execute()
+		case "shelves":
+			cmdErr = newShelvesCmd().Execute()
 		case "index":
 			cmdErr = newIndexCmd().Execute()
 		case "shelve":
 			cmdErr = newShelveCmd().Execute()
-		case "delete-book":
-			cmdErr = newDeleteBookCmd().Execute()
 		case "edit-book":
 			cmdErr = newEditBookCmd().Execute()
+		case "move":
+			cmdErr = newMoveCmd().Execute()
+		case "delete-book":
+			cmdErr = newDeleteBookCmd().Execute()
 		case "delete-shelf":
 			cmdErr = newDeleteShelfCmd().Execute()
 		case "quit":

@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -14,7 +15,7 @@ func newShelvesCmd() *cobra.Command {
 		Use:   "shelves",
 		Short: "Validate all configured shelves",
 		Long:  "Checks that each shelf repo exists, has a catalog.yml, and has the required release.",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if len(cfg.Shelves) == 0 {
 				warn("No shelves configured. Run: shelfctl init --repo shelf-<topic> --name <topic>")
 				return nil
@@ -43,7 +44,8 @@ func newShelvesCmd() *cobra.Command {
 				fmt.Printf("  %-12s %s\n", "repo:", color.GreenString("ok"))
 
 				// 2. catalog.yml exists?
-				_, _, catalogErr := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+				catalogData, _, catalogErr := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+				bookCount := 0
 				if catalogErr != nil {
 					fmt.Printf("  %-12s %s", "catalog.yml:", color.YellowString("missing"))
 					if fix {
@@ -58,7 +60,15 @@ func newShelvesCmd() *cobra.Command {
 						anyFailed = true
 					}
 				} else {
-					fmt.Printf("  %-12s %s\n", "catalog.yml:", color.GreenString("ok"))
+					// Count books in catalog
+					if books, err := catalog.Parse(catalogData); err == nil {
+						bookCount = len(books)
+					}
+					if bookCount > 0 {
+						fmt.Printf("  %-12s %s (%d books)\n", "catalog.yml:", color.GreenString("ok"), bookCount)
+					} else {
+						fmt.Printf("  %-12s %s (empty)\n", "catalog.yml:", color.GreenString("ok"))
+					}
 				}
 
 				// 3. Release exists?

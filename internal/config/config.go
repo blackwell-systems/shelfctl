@@ -81,7 +81,7 @@ func Save(cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	enc := yaml.NewEncoder(f)
 	enc.SetIndent(2)
 	return enc.Encode(cfg)

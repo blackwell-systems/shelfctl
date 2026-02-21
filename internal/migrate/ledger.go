@@ -42,7 +42,7 @@ func (l *Ledger) Append(e LedgerEntry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	e.Timestamp = time.Now().UTC()
 	data, err := json.Marshal(e)
 	if err != nil {
@@ -61,7 +61,7 @@ func (l *Ledger) Contains(source string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
@@ -85,7 +85,7 @@ func (l *Ledger) Entries() ([]LedgerEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var entries []LedgerEntry
 	sc := bufio.NewScanner(f)

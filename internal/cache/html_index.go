@@ -269,7 +269,7 @@ func renderBookCard(s *strings.Builder, book IndexBook) {
 	// Convert tags to lowercase for search
 	tags := strings.Join(book.Book.Tags, ", ")
 
-	s.WriteString(fmt.Sprintf(`
+	fmt.Fprintf(s, `
                 <a href="file://%s" class="book-card" data-id="%s" data-tags="%s">
                     <div class="book-cover%s">
 `,
@@ -282,13 +282,13 @@ func renderBookCard(s *strings.Builder, book IndexBook) {
 			}
 			return ""
 		}(),
-	))
+	)
 
 	if book.HasCover {
 		// Make cover path relative to index.html location
 		relCoverPath, _ := filepath.Rel(filepath.Dir(filepath.Join(book.FilePath, "..")), book.CoverPath)
-		s.WriteString(fmt.Sprintf(`<img src="%s" alt="Cover">`,
-			html.EscapeString(relCoverPath)))
+		fmt.Fprintf(s, `<img src="%s" alt="Cover">`,
+			html.EscapeString(relCoverPath))
 	} else {
 		s.WriteString("📚")
 	}
@@ -308,8 +308,8 @@ func renderBookCard(s *strings.Builder, book IndexBook) {
 		s.WriteString(`                    <div class="book-tags">
 `)
 		for _, tag := range book.Book.Tags {
-			s.WriteString(fmt.Sprintf(`                        <span class="tag">%s</span>
-`, html.EscapeString(tag)))
+			fmt.Fprintf(s, `                        <span class="tag">%s</span>
+`, html.EscapeString(tag))
 		}
 		s.WriteString(`                    </div>
 `)

@@ -116,7 +116,7 @@ func runShelve(cmd *cobra.Command, args []string, params *shelveParams) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(ingested.tmpPath)
+	defer func() { _ = os.Remove(ingested.tmpPath) }()
 
 	// Step 4: Collect metadata
 	metadata, err := collectMetadata(cmd, params, src.Name, ingested, useTUIWorkflow)

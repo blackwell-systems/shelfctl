@@ -171,7 +171,9 @@ func TestLedger_EmptyEntries(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.jsonl")
 	// File exists but is empty.
-	os.WriteFile(path, []byte{}, 0600)
+	if err := os.WriteFile(path, []byte{}, 0600); err != nil {
+		t.Fatal(err)
+	}
 	l, _ := migrate.OpenLedger(path)
 	entries, err := l.Entries()
 	if err != nil {

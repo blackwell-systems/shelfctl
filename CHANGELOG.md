@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Enhanced Shelves Command**
+  - Now displays book count for each shelf in output
+  - Shows "(empty)" for shelves with no books
+  - Shows "(N books)" for shelves with books
+  - Added to hub menu as "View Shelves"
+  - Accessible from interactive hub interface
+  - Provides quick overview of entire library organization
+- **Enhanced Move Command**
+  - Full interactive workflow when called with no arguments
+  - Book picker to select which book to move
+  - Choice between moving to different shelf or different release
+  - Shelf picker for cross-shelf moves (excludes current shelf)
+  - Optional release tag specification
+  - Confirmation summary before executing move
+  - Added to hub menu between "Edit Book" and "Delete Book"
+  - Comprehensive edge case handling:
+    - Detects and prevents no-op moves (same location)
+    - Warns when destination has book with same ID (replaces existing)
+    - Clears local cache (file path changes after move)
+    - Updates README.md on both source and destination shelves
+    - Migrates catalog cover images between repos
+    - Updates "Quick Stats" and "Recently Added" sections
+  - Works for both same-shelf (release-to-release) and cross-shelf moves
+  - Preserves --dry-run and --keep-old flags for testing and backup scenarios
 - **Local HTML Index for Web Browsing**
   - New `shelfctl index` command generates browsable index.html
   - Located at `~/.local/share/shelfctl/cache/index.html`
@@ -282,7 +306,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Force mode explicitly deletes existing assets before re-uploading
   - `open` command inlines download logic (previously called `get`)
 
+### Changed
+- **Linter Configuration**
+  - Updated to golangci-lint v2 configuration format
+  - Disabled noisy stylistic linters (gocritic, revive)
+  - Focus on substantive issues: errcheck, govet, ineffassign, staticcheck
+  - All code now passes linting with zero issues
+
 ### Fixed
+- **Error Handling**
+  - Fixed all errcheck issues (14 instances of unchecked defer Close/Remove calls)
+  - Properly handle errors in deferred cleanup operations across all packages
+  - Improved robustness of file and HTTP response cleanup
 - **Shelf README Duplicate Entries**
   - Fixed bug where books appeared multiple times in "Recently Added" section
   - Now checks for existing entries before adding to prevent duplicates

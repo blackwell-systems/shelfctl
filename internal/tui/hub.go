@@ -32,9 +32,11 @@ type HubContext struct {
 
 var menuItems = []MenuItem{
 	{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
+	{Key: "shelves", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
 	{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
 	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
 	{Key: "edit-book", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
+	{Key: "move", Label: "Move Book", Description: "Transfer a book to another shelf or release", Available: true},
 	{Key: "delete-book", Label: "Delete Book", Description: "Remove a book from your library", Available: true},
 	{Key: "delete-shelf", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
 	{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},
@@ -176,12 +178,12 @@ func RunHub(ctx HubContext) (string, error) {
 	for _, item := range menuItems {
 		// Hide shelf-related actions if no shelves configured
 		if ctx.ShelfCount == 0 {
-			if item.Key == "browse" || item.Key == "shelve" || item.Key == "edit-book" || item.Key == "delete-book" || item.Key == "delete-shelf" {
+			if item.Key == "browse" || item.Key == "shelves" || item.Key == "shelve" || item.Key == "edit-book" || item.Key == "delete-book" || item.Key == "delete-shelf" {
 				continue
 			}
 		}
-		// Hide browse, edit-book, and delete-book if there are no books
-		if ctx.BookCount == 0 && (item.Key == "browse" || item.Key == "edit-book" || item.Key == "delete-book") {
+		// Hide browse, edit-book, move, and delete-book if there are no books
+		if ctx.BookCount == 0 && (item.Key == "browse" || item.Key == "edit-book" || item.Key == "move" || item.Key == "delete-book") {
 			continue
 		}
 		items = append(items, item)

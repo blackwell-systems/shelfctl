@@ -37,7 +37,7 @@ func (c *Client) GetFileContent(owner, repo, path, ref string) ([]byte, string, 
 	if err != nil {
 		return nil, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := checkStatus(resp); err != nil {
 		return nil, "", err
@@ -76,7 +76,7 @@ func (c *Client) getRawBlob(owner, repo, sha string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := checkStatus(resp); err != nil {
 		return nil, err
 	}

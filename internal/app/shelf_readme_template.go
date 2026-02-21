@@ -200,9 +200,7 @@ func appendToShelfREADME(existingREADME string, book catalog.Book) string {
 		result = append(result, bookEntry)
 
 		// Add existing entries
-		for _, entry := range existingEntries {
-			result = append(result, entry)
-		}
+		result = append(result, existingEntries...)
 
 		// Add lines after Recently Added section
 		if nextSectionIdx < len(lines) {

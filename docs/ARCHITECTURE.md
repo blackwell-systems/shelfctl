@@ -399,9 +399,28 @@ The `catalog.yml` file in each shelf stores book metadata as a YAML list:
 
 ### Optional Fields
 
-- `cover` - Path to cover image (stored in git)
+- `cover` - Path to cover image stored in git repo (e.g., `covers/book.jpg`)
 - `meta.added_at` - Timestamp when added
 - `meta.migrated_from` - Source if migrated
+
+### Cover Images
+
+shelfctl supports two types of cover images:
+
+**1. Catalog Covers (user-curated):**
+- Specified in catalog.yml `cover` field
+- Stored in git repo (e.g., `covers/sicp.jpg`)
+- Downloaded to cache when browsing: `.covers/<book-id>-catalog.jpg`
+- Portable across machines via git
+- Higher display priority
+
+**2. Auto-Extracted Thumbnails (automatic):**
+- Extracted from first page of PDF during download
+- Stored in cache: `.covers/<book-id>.jpg`
+- Local only (not in catalog or git)
+- Requires `pdftoppm` from poppler-utils
+
+Display priority: catalog cover > extracted thumbnail > none
 
 ---
 

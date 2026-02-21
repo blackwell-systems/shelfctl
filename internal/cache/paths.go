@@ -33,7 +33,7 @@ func (m *Manager) EnsureDir(owner, repo, bookID string) error {
 	return os.MkdirAll(dir, 0750)
 }
 
-// Remove deletes the cached file and its cover if they exist.
+// Remove deletes the cached file and its covers if they exist.
 func (m *Manager) Remove(owner, repo, bookID, assetFilename string) error {
 	path := m.Path(owner, repo, bookID, assetFilename)
 	err := os.Remove(path)
@@ -41,8 +41,9 @@ func (m *Manager) Remove(owner, repo, bookID, assetFilename string) error {
 		return err
 	}
 
-	// Also remove cover thumbnail if it exists
+	// Remove both cover types if they exist
 	_ = m.RemoveCover(repo, bookID)
+	_ = m.RemoveCatalogCover(repo, bookID)
 
 	return nil
 }

@@ -8,15 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **PDF Cover Extraction**
-  - Automatically extracts cover thumbnails from PDFs during download
-  - Stores in cache at `<repo>/.covers/<book-id>.jpg` (only 1 per book)
-  - Shows 📷 camera emoji in browser when cover exists
-  - Displays inline cover in details pane on Kitty/iTerm2 terminals
-  - Uses `pdftoppm` from poppler-utils (silently skips if not installed)
-  - Thumbnails ~200x300px, under 200KB
-  - Cover removed automatically when book deleted from cache
-  - Overwrites existing cover on re-download
+- **Cover Image Support (Two Types)**
+  - **Auto-Extracted Thumbnails**: Automatically extracts cover from first page of PDFs during download
+    - Stores in cache at `<repo>/.covers/<book-id>.jpg` (only 1 per book)
+    - Uses `pdftoppm` from poppler-utils (silently skips if not installed)
+    - Thumbnails ~200x300px, under 200KB
+    - Local only (not in catalog or git)
+  - **Catalog Covers**: Displays user-curated covers from catalog.yml
+    - Downloads from git repo when browsing (cached at `<book-id>-catalog.jpg`)
+    - Higher priority than extracted thumbnails
+    - Portable across machines via git
+  - **Display in TUI**:
+    - Shows 📷 camera emoji in browser list when any cover exists
+    - Displays inline cover in details pane on Kitty/iTerm2 terminals
+    - Prioritizes catalog cover > extracted thumbnail > none
+  - Both cover types removed automatically when book deleted from cache
+  - Overwrites existing covers on re-download
 
 ### Changed
 - **Documentation Consolidation**

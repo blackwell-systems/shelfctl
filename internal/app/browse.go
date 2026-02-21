@@ -66,8 +66,18 @@ func newBrowseCmd() *cobra.Command {
 					matched := f.Apply(books)
 					for _, b := range matched {
 						cached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
-						hasCover := cacheMgr.HasCover(shelf.Repo, b.ID)
-						coverPath := cacheMgr.CoverPath(shelf.Repo, b.ID)
+
+						// Download catalog cover if specified and not already cached
+						if b.Cover != "" && !cacheMgr.HasCatalogCover(shelf.Repo, b.ID) {
+							if coverData, _, err := gh.GetFileContent(owner, shelf.Repo, b.Cover, ""); err == nil {
+								_ = cacheMgr.StoreCatalogCover(shelf.Repo, b.ID, strings.NewReader(string(coverData)))
+							}
+						}
+
+						// Get best available cover (catalog > extracted > none)
+						coverPath := cacheMgr.GetCoverPath(shelf.Repo, b.ID)
+						hasCover := coverPath != ""
+
 						allItems = append(allItems, tui.BookItem{
 							Book:      b,
 							ShelfName: shelf.Name,

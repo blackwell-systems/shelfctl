@@ -437,6 +437,48 @@ After installing, covers will be extracted automatically next time you download 
 
 ---
 
+## HTML index: clicking books doesn't open files
+
+**Symptom**: Clicking books in the HTML index (`shelfctl index`) doesn't open them.
+
+**Cause**: Browser security restrictions on `file://` protocol links. Modern browsers limit file:// navigation to prevent malicious pages from accessing your filesystem.
+
+**Browser Compatibility**:
+
+- ✅ **Safari** (macOS): Works - allows file:// navigation from file:// pages
+- ⚠️ **Firefox**: May work by default, or may require security setting change
+  - Navigate to `about:config`
+  - Search for `security.fileuri.strict_origin_policy`
+  - Set to `false` (warning: reduces security slightly)
+  - Restart Firefox
+- ❌ **Chrome/Edge**: Blocked - these browsers prevent file:// links for security
+
+**Solutions**:
+
+1. **Use Safari** (recommended on macOS) - no configuration needed
+
+2. **Copy and open manually**:
+   - Right-click any book card
+   - Select "Copy Link Address"
+   - Open in terminal:
+   ```bash
+   # macOS
+   open <paste-file-path>
+
+   # Linux
+   xdg-open <paste-file-path>
+   ```
+
+3. **Use TUI browser instead** (no restrictions):
+   ```bash
+   shelfctl browse
+   # Press 'o' on any book to open it
+   ```
+
+The TUI browser always works because it uses direct file system operations rather than browser security policies.
+
+---
+
 ## Still stuck?
 
 1. Check if issue already exists: https://github.com/blackwell-systems/shelfctl/issues

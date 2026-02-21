@@ -749,6 +749,19 @@ xdg-open ~/.local/share/shelfctl/cache/index.html
 - Updates automatically each time you run `shelfctl index`
 - Useful for offline browsing or sharing your library locally
 
+### Browser Compatibility
+
+The index uses `file://` protocol links to open books directly from your filesystem. Browser support varies due to security restrictions:
+
+- **Safari** (macOS): ✅ Generally works - allows file:// navigation from file:// pages
+- **Firefox**: ⚠️ May work by default, or may require `security.fileuri.strict_origin_policy=false` in about:config
+- **Chrome/Edge**: ❌ Most restrictive - blocks file:// navigation for security reasons
+
+**If clicking doesn't open books:**
+1. Use Safari for best compatibility
+2. Right-click book card → "Copy Link Address" → open in terminal: `open <paste-path>`
+3. Use the TUI browser instead: `shelfctl browse` (always works, no restrictions)
+
 ---
 
 ## import

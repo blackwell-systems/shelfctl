@@ -33,13 +33,15 @@ The hub provides access to all core operations and loops continuously until you 
 - Navigate with keyboard (↑/↓ or j/k)
 - Filter and search in real-time (press `/`)
 - See cache status (green ✓ for cached books)
+- See cover thumbnails (📷 camera emoji when cover exists)
 - **Interactive Actions:**
-  - `enter` - Show detailed book information
+  - `enter` - Show detailed book information with cover preview (Kitty/iTerm2)
   - `o` - Open book (downloads if needed, opens with system viewer)
   - `g` - Download to cache only (for offline access)
   - `q` - Return to hub menu
 - Auto-downloads books when opening if not cached
 - Shows download progress with file size
+- Extracts PDF cover thumbnails automatically during download
 
 **Add Book**
 - Add a new book with guided workflow

@@ -17,6 +17,8 @@ type BookItem struct {
 	Book      catalog.Book
 	ShelfName string
 	Cached    bool
+	HasCover  bool
+	CoverPath string
 	Owner     string
 	Repo      string
 }
@@ -46,6 +48,12 @@ func (d bookDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	// Build the display string
 	var s strings.Builder
 
+	// Cover indicator (camera emoji if cover exists)
+	coverMark := ""
+	if bookItem.HasCover {
+		coverMark = "📷 "
+	}
+
 	// Book ID (fixed width for alignment)
 	idStr := fmt.Sprintf("%-22s", bookItem.Book.ID)
 
@@ -69,10 +77,10 @@ func (d bookDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 
 	if isSelected {
 		// Highlight selected item
-		s.WriteString(StyleHighlight.Render("› " + idStr + " " + title + tagStr + cachedMark))
+		s.WriteString(StyleHighlight.Render("› " + coverMark + idStr + " " + title + tagStr + cachedMark))
 	} else {
 		// Normal rendering
-		s.WriteString("  " + StyleNormal.Render(idStr) + " " + title + tagStr + cachedMark)
+		s.WriteString("  " + coverMark + StyleNormal.Render(idStr) + " " + title + tagStr + cachedMark)
 	}
 
 	_, _ = fmt.Fprint(w, s.String())
@@ -253,6 +261,17 @@ func (m model) renderDetailsPane() string {
 		Padding(0, 1)
 
 	var s strings.Builder
+
+	// Show cover image if available and terminal supports it
+	if bookItem.HasCover {
+		protocol := DetectImageProtocol()
+		if protocol != ProtocolNone {
+			if img := RenderInlineImage(bookItem.CoverPath, protocol); img != "" {
+				s.WriteString(img)
+				s.WriteString("\n\n")
+			}
+		}
+	}
 
 	// Title
 	s.WriteString(StyleHeader.Render("Book Details"))

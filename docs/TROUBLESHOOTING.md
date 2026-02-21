@@ -397,6 +397,46 @@ shelfctl open book-id
 - System Preferences → Security & Privacy → Files and Folders
 - Grant terminal/shelfctl permission to access files
 
+## Cover thumbnails not appearing
+
+**Symptom**: No 📷 camera emoji showing in browser, or covers not displaying in details pane.
+
+**Cause**: `pdftoppm` command not installed (required for PDF cover extraction).
+
+**Solution**:
+
+Install poppler-utils which provides pdftoppm:
+
+**macOS:**
+```bash
+brew install poppler
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install poppler-utils
+```
+
+**Fedora/RHEL:**
+```bash
+sudo dnf install poppler-utils
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S poppler
+```
+
+After installing, covers will be extracted automatically next time you download or open a PDF.
+
+**Notes:**
+- Cover extraction is optional - books work fine without it
+- Only PDFs are supported (EPUB covers not yet implemented)
+- Covers are stored in `~/.local/share/shelfctl/cache/<repo>/.covers/`
+- Inline images only work in Kitty or iTerm2 terminals (other terminals show 📷 emoji)
+
+---
+
 ## Still stuck?
 
 1. Check if issue already exists: https://github.com/blackwell-systems/shelfctl/issues

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **PDF Cover Extraction**
+  - Automatically extracts cover thumbnails from PDFs during download
+  - Stores in cache at `<repo>/.covers/<book-id>.jpg` (only 1 per book)
+  - Shows 📷 camera emoji in browser when cover exists
+  - Displays inline cover in details pane on Kitty/iTerm2 terminals
+  - Uses `pdftoppm` from poppler-utils (silently skips if not installed)
+  - Thumbnails ~200x300px, under 200KB
+  - Cover removed automatically when book deleted from cache
+  - Overwrites existing cover on re-download
+
 ### Changed
 - **Documentation Consolidation**
   - Merged SPEC.md content into ARCHITECTURE.md

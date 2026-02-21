@@ -66,10 +66,14 @@ func newBrowseCmd() *cobra.Command {
 					matched := f.Apply(books)
 					for _, b := range matched {
 						cached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
+						hasCover := cacheMgr.HasCover(shelf.Repo, b.ID)
+						coverPath := cacheMgr.CoverPath(shelf.Repo, b.ID)
 						allItems = append(allItems, tui.BookItem{
 							Book:      b,
 							ShelfName: shelf.Name,
 							Cached:    cached,
+							HasCover:  hasCover,
+							CoverPath: coverPath,
 							Owner:     owner,
 							Repo:      shelf.Repo,
 						})

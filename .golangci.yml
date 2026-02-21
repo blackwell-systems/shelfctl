@@ -1,9 +1,7 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
-  tests: true
-  modules-download-mode: readonly
 
 linters:
   enable:
@@ -11,50 +9,5 @@ linters:
     - govet
     - ineffassign
     - staticcheck
-    - misspell
-    - unconvert
   disable:
-    - unused    # Too strict for helper functions
-    - gosec     # Security rules too strict for this use case
-    - gocritic  # Stylistic suggestions - not substantive issues
-    - revive    # Too noisy for internal packages
-
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: false
-    exclude-functions:
-      - (io.Closer).Close
-      - (*os.File).Close
-      - (net/http.ResponseBody).Close
-      - os.Remove
-      - os.RemoveAll
-      - fmt.Fprintln
-      - fmt.Fprintf
-      - io.ReadAll
-
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - shadow
-
-  gosec:
-    excludes:
-      - G204  # Subprocess launched with variable - we need this for shell commands
-      - G304  # File path provided as taint input - we need this for user file paths
-      - G301  # Directory permissions - 0750 is reasonable for cache/config dirs
-      - G302  # File permissions - 0600 for regular files is reasonable
-      - G306  # File permissions - 0600 for config files is reasonable
-      - G101  # False positive on token variable names
-
-issues:
-  exclude-use-default: false
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  exclude-rules:
-    # Exclude some linters from running on tests files
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
+    - unused

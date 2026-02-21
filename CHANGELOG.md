@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works without running shelfctl - just open in any browser
   - Shows only cached books (download books first to include them)
   - Added to hub menu as "Generate HTML Index"
+  - Browser compatibility notes: Safari works best, Chrome/Edge block file:// links
 - **Cover Image Support (Two Types)**
   - **Auto-Extracted Thumbnails**: Automatically extracts cover from first page of PDFs during download
     - Stores in cache at `<repo>/.covers/<book-id>.jpg` (only 1 per book)
@@ -35,10 +36,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Shows 📷 camera emoji in browser list when any cover exists
     - Displays inline cover in details pane on Kitty/Ghostty/iTerm2 terminals
     - Prioritizes catalog cover > extracted thumbnail > none
+    - Note: Inline images don't work through tmux - run directly in terminal
   - Both cover types removed automatically when book deleted from cache
   - Overwrites existing covers on re-download
+  - **Display in HTML Index**:
+    - Cover thumbnails shown in book grid
+    - Click anywhere on book card (including cover) to open with system viewer
+- **Shell Completion**
+  - Cobra-generated completion scripts for bash, zsh, fish, and powershell
+  - `shelfctl completion [shell]` command
+  - Completes commands, flags, and configured shelf names
+  - Installation instructions in docs
 
 ### Changed
+- **Documentation Improvements**
+  - Added missing flag documentation: `--force`, `--private`, `--app`, `--dry-run`, `--keep-old`
+  - Added completion command to all guides
+  - Added browser compatibility notes for HTML index file:// links
+  - Added troubleshooting section for HTML index clicking issues
+  - Removed implementation status tracking from HUB.md (user-focused docs)
+  - Added shell completion setup to TUTORIAL.md
 - **Documentation Consolidation**
   - Merged SPEC.md content into ARCHITECTURE.md
   - Catalog and config schemas now in ARCHITECTURE.md reference sections

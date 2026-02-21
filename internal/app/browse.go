@@ -273,6 +273,9 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 			if err != nil {
 				return fmt.Errorf("cache: %w", err)
 			}
+
+			// Show poppler hint if needed (one-time, PDF only)
+			showPopplerHintIfNeeded(b.Source.Asset)
 		}
 		ok("Cached: %s", path)
 		return nil
@@ -329,6 +332,9 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 				}
 			}
 			ok("Cached")
+
+			// Show poppler hint if needed (one-time, PDF only)
+			showPopplerHintIfNeeded(b.Source.Asset)
 		}
 
 		// Open the file

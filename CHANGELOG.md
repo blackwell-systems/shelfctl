@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Displays inline cover in details pane on Kitty/Ghostty/iTerm2 terminals
     - Prioritizes catalog cover > extracted thumbnail > none
     - Note: Inline images don't work through tmux - run directly in terminal
+  - **User-Friendly Discovery**:
+    - One-time hint shown after first PDF download if poppler not installed
+    - Platform-specific guidance (macOS: brew install, Linux: package manager)
+    - Hint never repeats (marker file: `~/.config/shelfctl/.poppler-hint-shown`)
+    - Silent if already installed - zero friction
   - Both cover types removed automatically when book deleted from cache
   - Overwrites existing covers on re-download
   - **Display in HTML Index**:

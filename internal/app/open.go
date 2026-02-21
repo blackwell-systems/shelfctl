@@ -2,9 +2,13 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 
+	"github.com/blackwell-systems/shelfctl/internal/cache"
+	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/spf13/cobra"
@@ -79,6 +83,9 @@ func newOpenCmd() *cobra.Command {
 					}
 				}
 				ok("Cached")
+
+				// Show poppler hint if needed (one-time, PDF only)
+				showPopplerHintIfNeeded(b.Source.Asset)
 			}
 
 			path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
@@ -117,4 +124,37 @@ func openFile(path, app string) error {
 		return fmt.Errorf("opening file with %q: %w", cmdName, err)
 	}
 	return nil
+}
+
+// showPopplerHintIfNeeded shows a one-time hint about installing poppler for PDF cover extraction.
+func showPopplerHintIfNeeded(assetFilename string) {
+	// Only for PDFs
+	if !isPDF(assetFilename) {
+		return
+	}
+
+	// Skip if poppler is already installed
+	if cache.IsPopplerInstalled() {
+		return
+	}
+
+	// Skip if we've shown the hint before
+	configDir := filepath.Dir(config.DefaultPath())
+	markerPath := filepath.Join(configDir, ".poppler-hint-shown")
+	if _, err := os.Stat(markerPath); err == nil {
+		return // Already shown
+	}
+
+	// Show hint
+	fmt.Println()
+	fmt.Println(cache.GetPopplerInstallHint())
+	fmt.Println()
+
+	// Mark as shown
+	_ = os.WriteFile(markerPath, []byte("1"), 0644)
+}
+
+// isPDF checks if the filename indicates a PDF file
+func isPDF(filename string) bool {
+	return filepath.Ext(filename) == ".pdf"
 }

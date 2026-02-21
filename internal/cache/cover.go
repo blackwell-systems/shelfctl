@@ -4,15 +4,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 )
+
+// IsPopplerInstalled checks if pdftoppm is available on the system.
+func IsPopplerInstalled() bool {
+	_, err := exec.LookPath("pdftoppm")
+	return err == nil
+}
 
 // ExtractCover extracts the first page of a PDF as a JPEG thumbnail.
 // Returns the path to the generated cover image, or empty string on failure.
 // Only one cover exists per book - overwrites if already present.
 func (m *Manager) ExtractCover(repo, bookID, pdfPath string) string {
 	// Check if pdftoppm is available
-	if _, err := exec.LookPath("pdftoppm"); err != nil {
-		return "" // Silently skip if not installed
+	if !IsPopplerInstalled() {
+		return "" // Not installed
 	}
 
 	// Ensure .covers directory exists
@@ -58,6 +65,18 @@ func (m *Manager) ExtractCover(repo, bookID, pdfPath string) string {
 	}
 
 	return coverPath
+}
+
+// GetPopplerInstallHint returns a platform-specific hint for installing poppler.
+func GetPopplerInstallHint() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "Install poppler for PDF cover thumbnails:\n  brew install poppler"
+	case "linux":
+		return "Install poppler for PDF cover thumbnails:\n  See: https://github.com/blackwell-systems/shelfctl#install"
+	default:
+		return "Install poppler-utils to enable PDF cover thumbnails"
+	}
 }
 
 // CoverPath returns the path where a cover image would be stored.

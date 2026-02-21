@@ -22,13 +22,21 @@ const (
 
 // DetectImageProtocol detects which terminal image protocol is supported.
 func DetectImageProtocol() TerminalImageProtocol {
+	termProgram := os.Getenv("TERM_PROGRAM")
+	term := os.Getenv("TERM")
+
 	// Check for Kitty terminal
-	if strings.Contains(os.Getenv("TERM"), "kitty") {
+	if strings.Contains(term, "kitty") {
+		return ProtocolKitty
+	}
+
+	// Check for Ghostty (supports Kitty protocol)
+	if termProgram == "ghostty" {
 		return ProtocolKitty
 	}
 
 	// Check for iTerm2
-	if os.Getenv("TERM_PROGRAM") == "iTerm.app" {
+	if termProgram == "iTerm.app" {
 		return ProtocolITerm2
 	}
 

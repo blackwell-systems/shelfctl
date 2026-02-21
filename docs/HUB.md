@@ -35,7 +35,7 @@ The hub provides access to all core operations and loops continuously until you 
 - See cache status (green ✓ for cached books)
 - See cover thumbnails (📷 camera emoji when cover exists)
 - **Interactive Actions:**
-  - `enter` - Show detailed book information with cover preview (Kitty/iTerm2)
+  - `enter` - Show detailed book information with cover preview (Kitty/Ghostty/iTerm2)
   - `o` - Open book (downloads if needed, opens with system viewer)
   - `g` - Download to cache only (for offline access)
   - `q` - Return to hub menu

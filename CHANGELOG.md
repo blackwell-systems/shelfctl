@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Portable across machines via git
   - **Display in TUI**:
     - Shows 📷 camera emoji in browser list when any cover exists
-    - Displays inline cover in details pane on Kitty/iTerm2 terminals
+    - Displays inline cover in details pane on Kitty/Ghostty/iTerm2 terminals
     - Prioritizes catalog cover > extracted thumbnail > none
   - Both cover types removed automatically when book deleted from cache
   - Overwrites existing covers on re-download

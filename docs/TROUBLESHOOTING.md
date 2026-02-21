@@ -429,11 +429,28 @@ sudo pacman -S poppler
 
 After installing, covers will be extracted automatically next time you download or open a PDF.
 
+**Verify covers are being extracted:**
+
+```bash
+# Check if pdftoppm is installed
+which pdftoppm
+
+# If not installed, install poppler (see above)
+
+# Download a PDF to trigger extraction
+shelfctl open <book-id>
+
+# Check if cover was created
+ls ~/.local/share/shelfctl/cache/<repo>/.covers/
+```
+
 **Notes:**
 - Cover extraction is optional - books work fine without it
 - Only PDFs are supported (EPUB covers not yet implemented)
 - Covers are stored in `~/.local/share/shelfctl/cache/<repo>/.covers/`
-- Inline images only work in Kitty or iTerm2 terminals (other terminals show 📷 emoji)
+- Inline images work in Kitty, Ghostty, or iTerm2 terminals (other terminals show 📷 emoji)
+- **tmux limitation**: Image protocols don't work through tmux multiplexers - run shelfctl directly in Ghostty/Kitty/iTerm2 for inline image display
+- Even without inline images, the 📷 emoji indicates a cover exists
 
 ---
 

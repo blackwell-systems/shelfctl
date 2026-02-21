@@ -10,9 +10,13 @@ import (
 // TerminalImageProtocol represents the image protocol supported by the terminal
 type TerminalImageProtocol int
 
+// Terminal image protocol types
 const (
+	// ProtocolNone indicates no image protocol support
 	ProtocolNone TerminalImageProtocol = iota
+	// ProtocolKitty indicates Kitty terminal graphics protocol
 	ProtocolKitty
+	// ProtocolITerm2 indicates iTerm2 inline images protocol
 	ProtocolITerm2
 )
 

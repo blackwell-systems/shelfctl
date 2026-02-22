@@ -323,7 +323,7 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 ---
 
 <p align="center">
-  <img src="assets/shelby3.png" alt="Shelby removing a book from a shelf" width="700">
+  <img src="assets/shelby3.png" alt="Shelby removing a book from a shelf" width="600">
 </p>
 
 ## Documentation

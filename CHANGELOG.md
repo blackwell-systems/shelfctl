@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-02-21
+
 ### Added
 - **Styled Table Output for Shelves Command**
   - Beautiful table format with box-drawing characters
@@ -434,20 +436,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `split.go`: 27 → ~12 (5 helpers)
   - `init.go`: 22 → ~8 (6 helpers)
   - `migrate.go`: 22 & 19 → ~10 & ~8 (9 helpers)
-
-## [0.1.0] - 2024-02-20
-
-### Added
-- Initial implementation of shelfctl
-- GitHub releases as storage backend for document libraries
-- Core commands: init, add, list, info, get, open, move, split, migrate, import
-- Catalog-based metadata management with YAML
-- Local cache for downloaded files with SHA256 verification
-- Support for multiple shelf repos per user
-- Flexible asset naming strategies (id-based or original filename)
-- Migration tools for importing from existing repos
-- Import command with SHA256-based duplicate detection
-- Test suite with coverage: cache 72.7%, catalog 74.2%, util 71.9%, ingest 40.3%, migrate 49.4%, app 12.4%
 
 [Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.0

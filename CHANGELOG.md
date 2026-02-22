@@ -8,10 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Homebrew Installation Support**
+  - Added official Homebrew tap: `brew install blackwell-systems/tap/shelfctl`
+  - Pre-built binaries for macOS (Intel/ARM) and Linux (x86_64/ARM64)
+  - Formula available at [homebrew-tap](https://github.com/blackwell-systems/homebrew-tap)
 
 ### Changed
+- **Cleaner Browse TUI**
+  - Removed ID column from browse list view (increased title width from 50 to 70 chars)
+  - Removed ID field from details panel (not needed in visual browser)
+  - Removed Asset filename from details panel (implementation detail clutter)
+  - More focus on book content, less on technical identifiers
+- **Simplified Shelf README Template**
+  - Removed placeholder Organization sections (By Topic, Reading Lists, Favorites)
+  - Cleaner default template, less intrusive on personal repos
+  - Still includes Quick Stats, Recently Added, and maintenance sections
 
 ### Fixed
+- **ID Generation and Validation**
+  - Fixed slugify to trim trailing hyphens after truncating to 63 characters
+  - Fixed shelve form to return original default values instead of truncated placeholders with "…"
+  - Prevents validation errors for long filenames like "how-linux-works-what-every-superuser-should-know-3rd-edition.pdf"
+- **Concurrent README Edits**
+  - Added `git pull --rebase` before push in CommitFile to handle remote edits
+  - Automatically merges README changes made via GitHub UI with local shelfctl updates
+  - Prevents push failures when editing README remotely during operations
 
 ## [0.1.2] - 2026-02-22
 

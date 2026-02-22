@@ -346,11 +346,6 @@ func (m model) renderDetailsPane() string {
 	s.WriteString(StyleHeader.Render("Book Details"))
 	s.WriteString("\n\n")
 
-	// ID
-	s.WriteString(StyleHighlight.Render("ID: "))
-	s.WriteString(truncateText(bookItem.Book.ID, maxTextWidth))
-	s.WriteString("\n\n")
-
 	// Title
 	s.WriteString(StyleHighlight.Render("Title: "))
 	s.WriteString(truncateText(bookItem.Book.Title, maxTextWidth))
@@ -405,13 +400,9 @@ func (m model) renderDetailsPane() string {
 		s.WriteString("\n\n")
 	}
 
-	// Asset info
+	// Format
 	s.WriteString(StyleHighlight.Render("Format: "))
 	s.WriteString(truncateText(bookItem.Book.Format, maxTextWidth))
-	s.WriteString("\n")
-
-	s.WriteString(StyleHighlight.Render("Asset: "))
-	s.WriteString(truncateText(bookItem.Book.Source.Asset, maxTextWidth))
 	s.WriteString("\n")
 
 	// Apply details panel styling

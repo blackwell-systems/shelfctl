@@ -97,8 +97,11 @@ func (d menuDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	if header, ok := item.(GroupHeader); ok {
 		headerStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("86")).
-			Bold(true).
-			MarginTop(1)
+			Bold(true)
+		// Add top margin for non-first headers
+		if index > 0 {
+			headerStyle = headerStyle.MarginTop(1)
+		}
 		_, _ = fmt.Fprint(w, headerStyle.Render(header.Title))
 		return
 	}
@@ -275,7 +278,7 @@ func (m hubModel) View() string {
 	if statusBar != "" {
 		parts = append(parts, statusBar)
 	}
-	parts = append(parts, "", m.list.View())
+	parts = append(parts, m.list.View())
 
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 

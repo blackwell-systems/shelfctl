@@ -66,6 +66,7 @@ func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 	m.inputs[fieldTitle].Focus()
 	m.inputs[fieldTitle].CharLimit = 200
 	m.inputs[fieldTitle].Width = inputWidth
+	m.inputs[fieldTitle].Prompt = ""
 
 	// Author field
 	m.inputs[fieldAuthor] = textinput.New()
@@ -76,18 +77,21 @@ func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 	}
 	m.inputs[fieldAuthor].CharLimit = 100
 	m.inputs[fieldAuthor].Width = inputWidth
+	m.inputs[fieldAuthor].Prompt = ""
 
 	// Tags field
 	m.inputs[fieldTags] = textinput.New()
 	m.inputs[fieldTags].Placeholder = "comma,separated,tags"
 	m.inputs[fieldTags].CharLimit = 200
 	m.inputs[fieldTags].Width = inputWidth
+	m.inputs[fieldTags].Prompt = ""
 
 	// ID field
 	m.inputs[fieldID] = textinput.New()
 	m.inputs[fieldID].Placeholder = truncate(defaults.ID, maxPlaceholderWidth)
 	m.inputs[fieldID].CharLimit = 63
 	m.inputs[fieldID].Width = inputWidth
+	m.inputs[fieldID].Prompt = ""
 
 	return m
 }
@@ -172,7 +176,7 @@ func (m shelveFormModel) View() string {
 	fields := []string{"Title", "Author", "Tags", "ID"}
 	for i, label := range fields {
 		if i == m.focused {
-			b.WriteString(StyleHighlight.Render("› " + label + ":"))
+			b.WriteString(StyleHighlight.Render("> " + label + ":"))
 		} else {
 			b.WriteString(StyleNormal.Render("  " + label + ":"))
 		}

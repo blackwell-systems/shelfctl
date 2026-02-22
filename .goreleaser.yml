@@ -41,6 +41,17 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 
+# Note: Brew publishing disabled - requires PAT with cross-repo permissions
+# Formula will be manually maintained in homebrew-tap repo
+# brews:
+#   - repository:
+#       owner: blackwell-systems
+#       name: homebrew-tap
+#     directory: Formula
+#     homepage: https://github.com/blackwell-systems/shelfctl
+#     description: "Personal library manager for PDFs using GitHub Release assets"
+#     license: MIT
+
 changelog:
   sort: asc
   filters:

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.1.2] - 2026-02-22
+
+### Added
 - **Verify Command for Catalog/Release Sync**
   - New `verify` command detects catalog vs release mismatches
   - Finds orphaned catalog entries (book in catalog but asset missing from release)
@@ -636,5 +644,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `init.go`: 22 → ~8 (6 helpers)
   - `migrate.go`: 22 & 19 → ~10 & ~8 (9 helpers)
 
-[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.2
+[0.1.1]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.1
 [0.1.0]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.0

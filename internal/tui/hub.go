@@ -129,9 +129,9 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 		// Account for outer padding, border, and header content
-		const outerPaddingH = 4 * 2  // left/right padding
-		const outerPaddingV = 2 * 2  // top/bottom padding
-		const headerLines = 4        // header + status + spacing
+		const outerPaddingH = 4 * 2 // left/right padding
+		const outerPaddingV = 2 * 2 // top/bottom padding
+		const headerLines = 4       // header + status + spacing
 		h, v := StyleBorder.GetFrameSize()
 
 		listWidth := msg.Width - outerPaddingH - h

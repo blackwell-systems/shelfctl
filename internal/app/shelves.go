@@ -7,7 +7,6 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
-	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )

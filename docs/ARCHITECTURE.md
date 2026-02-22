@@ -50,12 +50,6 @@ The README is created during `shelfctl init` and automatically updated when you 
 2. **Use tags for organization** - Add tags like `programming`, `fiction`, `textbook`
 3. **Split when needed** - When you hit 200-300 books, use `shelfctl split`
 
-This approach:
-- [OK] Gets you started quickly
-- [OK] Avoids premature optimization
-- [OK] Lets usage patterns emerge naturally
-- [OK] Easy to reorganize later
-
 ### When to Create Multiple Shelves
 
 Create separate shelves when you have:

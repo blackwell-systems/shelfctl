@@ -54,16 +54,30 @@ func (d bookDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		coverMark = "📷 "
 	}
 
-	// Book ID (fixed width for alignment)
-	idStr := fmt.Sprintf("%-22s", bookItem.Book.ID)
+	// Book ID (truncate if too long)
+	id := bookItem.Book.ID
+	const maxIDWidth = 20
+	if len(id) > maxIDWidth {
+		id = id[:maxIDWidth-1] + "…"
+	}
+	idStr := fmt.Sprintf("%-20s", id)
 
-	// Title
+	// Title (truncate based on available width)
 	title := bookItem.Book.Title
+	const maxTitleWidth = 50
+	if len(title) > maxTitleWidth {
+		title = title[:maxTitleWidth-1] + "…"
+	}
 
-	// Tags
+	// Tags (truncate if too long)
 	tagStr := ""
 	if len(bookItem.Book.Tags) > 0 {
-		tagStr = " " + StyleTag.Render("["+strings.Join(bookItem.Book.Tags, ",")+"]")
+		tagsJoined := strings.Join(bookItem.Book.Tags, ",")
+		const maxTagWidth = 30
+		if len(tagsJoined) > maxTagWidth {
+			tagsJoined = tagsJoined[:maxTagWidth-1] + "…"
+		}
+		tagStr = " " + StyleTag.Render("["+tagsJoined+"]")
 	}
 
 	// Cached indicator

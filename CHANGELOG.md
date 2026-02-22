@@ -12,17 +12,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added official Homebrew tap: `brew install blackwell-systems/tap/shelfctl`
   - Pre-built binaries for macOS (Intel/ARM) and Linux (x86_64/ARM64)
   - Formula available at [homebrew-tap](https://github.com/blackwell-systems/homebrew-tap)
+- **Multi-Select Download in Browse**
+  - Spacebar to toggle selection (checkboxes appear in list)
+  - 'g' downloads all selected books to cache (or current if none selected)
+  - 'c' to clear all selections
+  - Progress tracking: `[2/5] book-id`
+  - Error isolation: failed downloads don't abort batch
+  - Summary output: "Successfully downloaded 5 books, 1 failed"
+  - Useful for pre-caching books for offline reading
 
 ### Changed
 - **Cleaner Browse TUI**
-  - Removed ID column from browse list view (increased title width from 50 to 70 chars)
+  - Removed ID column from browse list view (increased title width from 50 to 66 chars)
   - Removed ID field from details panel (not needed in visual browser)
   - Removed Asset filename from details panel (implementation detail clutter)
   - More focus on book content, less on technical identifiers
+  - Checkboxes now appear when books are selected for batch operations
 - **Simplified Shelf README Template**
   - Removed placeholder Organization sections (By Topic, Reading Lists, Favorites)
   - Cleaner default template, less intrusive on personal repos
   - Still includes Quick Stats, Recently Added, and maintenance sections
+- **Improved File Picker Filtering**
+  - Fuzzy search now prioritizes filename matching over full path
+  - Type part of filename to quickly find files (e.g., "sicp" finds "structure-and-interpretation.pdf")
+  - Press '/' to activate filter, results update as you type
 
 ### Fixed
 - **ID Generation and Validation**

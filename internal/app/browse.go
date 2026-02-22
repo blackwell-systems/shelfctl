@@ -101,7 +101,7 @@ func newBrowseCmd() *cobra.Command {
 				}
 
 				// Handle browser actions
-				if result.Action != tui.ActionNone && result.BookItem != nil {
+				if result.Action != tui.ActionNone && (result.BookItem != nil || len(result.BookItems) > 0) {
 					return handleBrowserAction(cmd, result)
 				}
 
@@ -168,6 +168,21 @@ func newBrowseCmd() *cobra.Command {
 
 // handleBrowserAction executes the action requested from the book browser
 func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
+	switch result.Action {
+	case tui.ActionDownload:
+		// Check for multi-select download
+		if len(result.BookItems) > 0 {
+			return handleMultiDownload(cmd, result.BookItems)
+		}
+		// Fall through to single book handling
+
+	}
+
+	// Single book actions require BookItem to be set
+	if result.BookItem == nil {
+		return fmt.Errorf("no book selected")
+	}
+
 	item := result.BookItem
 	b := &item.Book
 
@@ -439,4 +454,69 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 	default:
 		return nil
 	}
+}
+
+// handleMultiDownload downloads multiple books to cache
+func handleMultiDownload(cmd *cobra.Command, items []tui.BookItem) error {
+	fmt.Printf("Downloading %d books...\n\n", len(items))
+
+	successCount := 0
+	failCount := 0
+
+	for i, item := range items {
+		b := &item.Book
+		fmt.Printf("[%d/%d] %s\n", i+1, len(items), b.ID)
+
+		// Skip if already cached
+		if item.Cached {
+			fmt.Println(color.GreenString("  ✓ Already cached"))
+			successCount++
+			continue
+		}
+
+		// Get release and asset
+		rel, err := gh.GetReleaseByTag(item.Owner, item.Repo, b.Source.Release)
+		if err != nil {
+			warn("  Failed to get release: %v", err)
+			failCount++
+			continue
+		}
+
+		asset, err := gh.FindAsset(item.Owner, item.Repo, rel.ID, b.Source.Asset)
+		if err != nil || asset == nil {
+			warn("  Failed to find asset: %v", err)
+			failCount++
+			continue
+		}
+
+		rc, err := gh.DownloadAsset(item.Owner, item.Repo, asset.ID)
+		if err != nil {
+			warn("  Failed to download: %v", err)
+			failCount++
+			continue
+		}
+
+		// Store in cache
+		path, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
+		_ = rc.Close()
+		if err != nil {
+			warn("  Failed to cache: %v", err)
+			failCount++
+			continue
+		}
+
+		fmt.Println(color.GreenString("  ✓ Cached: ") + path)
+		successCount++
+	}
+
+	// Summary
+	fmt.Println()
+	if successCount > 0 {
+		ok("Successfully downloaded %d books", successCount)
+	}
+	if failCount > 0 {
+		warn("%d books failed to download", failCount)
+	}
+
+	return nil
 }

@@ -83,6 +83,12 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 	// Build the display string
 	var s strings.Builder
 
+	// Selection checkbox (for multi-select download)
+	checkbox := "  "
+	if bookItem.selected {
+		checkbox = "[✓] "
+	}
+
 	// Cover indicator (camera emoji if cover exists)
 	coverMark := ""
 	if bookItem.HasCover {
@@ -91,7 +97,7 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 
 	// Title (truncate based on available width)
 	title := bookItem.Book.Title
-	const maxTitleWidth = 70 // Increased from 50 (removed 20-char ID field)
+	const maxTitleWidth = 66 // Reduced from 70 to account for checkbox
 	if len(title) > maxTitleWidth {
 		title = title[:maxTitleWidth-1] + "…"
 	}
@@ -113,15 +119,15 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 		cachedMark = " " + StyleCached.Render("[local]")
 	}
 
-	// Check if this item is selected
-	isSelected := index == m.Index()
+	// Check if this item is cursor-selected
+	isCursorSelected := index == m.Index()
 
-	if isSelected {
-		// Highlight selected item
-		s.WriteString(StyleHighlight.Render("› " + coverMark + title + tagStr + cachedMark))
+	if isCursorSelected {
+		// Highlight cursor position
+		s.WriteString(StyleHighlight.Render("› " + checkbox + coverMark + title + tagStr + cachedMark))
 	} else {
 		// Normal rendering
-		s.WriteString("  " + coverMark + title + tagStr + cachedMark)
+		s.WriteString("  " + checkbox + coverMark + title + tagStr + cachedMark)
 	}
 
 	_, _ = fmt.Fprint(w, s.String())
@@ -136,6 +142,8 @@ type keyMap struct {
 	edit        key.Binding
 	filter      key.Binding
 	togglePanel key.Binding
+	toggleSelect key.Binding
+	clearSelect  key.Binding
 }
 
 var keys = keyMap{
@@ -167,6 +175,14 @@ var keys = keyMap{
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "toggle details"),
 	),
+	toggleSelect: key.NewBinding(
+		key.WithKeys(" "),
+		key.WithHelp("space", "select"),
+	),
+	clearSelect: key.NewBinding(
+		key.WithKeys("c"),
+		key.WithHelp("c", "clear selection"),
+	),
 }
 
 // BrowserAction represents an action requested from the browser
@@ -184,19 +200,21 @@ const (
 
 // BrowserResult holds the result of a browser session
 type BrowserResult struct {
-	Action   BrowserAction
-	BookItem *BookItem
+	Action    BrowserAction
+	BookItem  *BookItem   // Single book (for open, edit, details)
+	BookItems []BookItem  // Multiple books (for download)
 }
 
 // model holds the state for the list browser
 type model struct {
-	list        list.Model
-	quitting    bool
-	action      BrowserAction
-	selected    *BookItem
-	showDetails bool
-	width       int
-	height      int
+	list          list.Model
+	quitting      bool
+	action        BrowserAction
+	selected      *BookItem
+	selectedBooks []BookItem
+	showDetails   bool
+	width         int
+	height        int
 }
 
 func (m model) Init() tea.Cmd {
@@ -246,13 +264,68 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
+		case key.Matches(msg, keys.toggleSelect):
+			// Toggle selection on current item (spacebar)
+			idx := m.list.Index()
+			items := m.list.Items()
+			if idx >= 0 && idx < len(items) {
+				if bookItem, ok := items[idx].(BookItem); ok {
+					bookItem.selected = !bookItem.selected
+					items[idx] = bookItem
+					m.list.SetItems(items)
+				}
+			}
+			return m, nil
+
+		case key.Matches(msg, keys.clearSelect):
+			// Clear all selections
+			items := m.list.Items()
+			for i, item := range items {
+				if bookItem, ok := item.(BookItem); ok {
+					bookItem.selected = false
+					items[i] = bookItem
+				}
+			}
+			m.list.SetItems(items)
+			return m, nil
+
 		case key.Matches(msg, keys.get):
-			// Download book
-			if item, ok := m.list.SelectedItem().(BookItem); ok {
-				m.action = ActionDownload
-				m.selected = &item
-				m.quitting = true
-				return m, tea.Quit
+			// Download book(s)
+			// Check if any books are selected for batch download
+			items := m.list.Items()
+			for _, item := range items {
+				if bookItem, ok := item.(BookItem); ok && bookItem.selected {
+					m.selectedBooks = append(m.selectedBooks, bookItem)
+				}
+			}
+
+			// If selections exist, check if any need downloading
+			if len(m.selectedBooks) > 0 {
+				// Check if any selected books are not cached
+				needsDownload := false
+				for _, bookItem := range m.selectedBooks {
+					if !bookItem.Cached {
+						needsDownload = true
+						break
+					}
+				}
+				if needsDownload {
+					m.action = ActionDownload
+					m.quitting = true
+					return m, tea.Quit
+				}
+				// All selected books are already cached - do nothing
+				return m, nil
+			} else if item, ok := m.list.SelectedItem().(BookItem); ok {
+				// Single book - only download if not cached
+				if !item.Cached {
+					m.action = ActionDownload
+					m.selected = &item
+					m.quitting = true
+					return m, tea.Quit
+				}
+				// Already cached - do nothing
+				return m, nil
 			}
 
 		case key.Matches(msg, keys.edit):
@@ -494,10 +567,10 @@ func RunListBrowser(books []BookItem) (*BrowserResult, error) {
 
 	// Set help keybindings
 	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.open, keys.get, keys.edit, keys.togglePanel}
+		return []key.Binding{keys.open, keys.get, keys.edit, keys.toggleSelect, keys.togglePanel}
 	}
 	l.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.open, keys.get, keys.edit, keys.enter, keys.togglePanel}
+		return []key.Binding{keys.open, keys.get, keys.edit, keys.enter, keys.toggleSelect, keys.clearSelect, keys.togglePanel}
 	}
 
 	m := model{
@@ -515,8 +588,9 @@ func RunListBrowser(books []BookItem) (*BrowserResult, error) {
 	// Return the action result
 	if fm, ok := finalModel.(model); ok {
 		return &BrowserResult{
-			Action:   fm.action,
-			BookItem: fm.selected,
+			Action:    fm.action,
+			BookItem:  fm.selected,
+			BookItems: fm.selectedBooks,
 		}, nil
 	}
 

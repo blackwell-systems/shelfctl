@@ -28,7 +28,8 @@ type FileItem struct {
 
 // FilterValue implements list.Item
 func (f *FileItem) FilterValue() string {
-	return f.Path // Use path as unique key for multi-select
+	// Use name for filtering (easier to search), but include path for uniqueness
+	return f.Name + " " + f.Path
 }
 
 // IsSelected implements multiselect.SelectableItem

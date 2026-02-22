@@ -28,6 +28,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Error isolation: one failed file doesn't abort the entire batch
   - Summary output: "Successfully added 3 books, 1 failed"
   - Backward compatible: CLI mode unchanged, single file selection still works
+- **Batch Delete with Multi-Select (TUI Mode)**
+  - Select multiple books to delete using checkboxes in the book picker
+  - Spacebar to toggle selection, enter to confirm
+  - If no checkboxes selected, deletes the currently highlighted book
+  - Batch confirmation: "Type 'DELETE N BOOKS' to confirm" for multiple books
+  - Progress indicators show `[2/5] Deleting book-id …` during processing
+  - Error isolation: failed deletions don't abort the batch
+  - Summary output: "Successfully deleted 4 books, 1 failed"
+  - Backward compatible: CLI mode (`shelfctl delete-book book-id`) unchanged
+- **Batch Move with Multi-Select (TUI Mode)**
+  - Select multiple books to move using checkboxes in the book picker
+  - Spacebar to toggle selection, enter to confirm
+  - Single destination selection applies to all selected books
+  - Validation: prevents moving books from different shelves to different release (must use different shelf option)
+  - Progress indicators show `[3/8] Moving book-id …` during processing
+  - Error isolation: failed moves don't abort the batch
+  - Summary output: "Successfully moved 5 books, 2 failed"
+  - Backward compatible: CLI mode (`shelfctl move book-id --to-shelf foo`) unchanged
 - **Reusable TUI Components** (All Ready for Extraction)
   - New `millercolumns` package: Generic Miller columns layout component
     - Pure layout/rendering component for hierarchical views

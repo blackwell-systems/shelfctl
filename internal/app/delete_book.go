@@ -18,31 +18,38 @@ func newDeleteBookCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete-book <id>",
-		Short: "Remove a book from your library",
-		Long: `Remove a book from your library by deleting its metadata and file.
+		Use:   "delete-book [id]",
+		Short: "Remove book(s) from your library",
+		Long: `Remove one or more books from your library by deleting metadata and files.
 
 This command:
-  • Removes the book entry from catalog.yml
-  • Deletes the PDF/EPUB file from GitHub Release assets
+  • Removes book entries from catalog.yml
+  • Deletes PDF/EPUB files from GitHub Release assets
   • Pushes the updated catalog
 
 This action is DESTRUCTIVE and cannot be easily undone.
 
+In TUI mode (no ID provided), you can select multiple books using checkboxes:
+  • Spacebar to toggle selection
+  • Enter to confirm
+  • If no checkboxes selected, deletes the current book
+
 Examples:
-  # Interactive book picker
+  # Interactive multi-select picker
   shelfctl delete-book
 
-  # Delete specific book
+  # Delete specific book (CLI mode)
   shelfctl delete-book sicp --shelf programming
 
   # Skip confirmation prompt
   shelfctl delete-book sicp --shelf programming --yes`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var bookID string
+			var booksToDelete []tui.BookItem
+			successCount := 0
+			failCount := 0
 
-			// If no book ID provided, show interactive picker
+			// If no book ID provided, show interactive multi-select picker
 			if len(args) == 0 {
 				if !util.IsTTY() {
 					return fmt.Errorf("book ID required in non-interactive mode")
@@ -82,167 +89,153 @@ Examples:
 					return fmt.Errorf("no books found in library")
 				}
 
-				// Show book picker
-				selected, err := tui.RunBookPicker(allItems, "Select book to delete")
+				// Show multi-select book picker
+				selected, err := tui.RunBookPickerMulti(allItems, "Select books to delete")
 				if err != nil {
 					return err
 				}
 
-				bookID = selected.Book.ID
-				shelfName = selected.ShelfName
+				booksToDelete = selected
 			} else {
-				bookID = args[0]
-			}
+				// CLI mode: single book ID provided
+				bookID := args[0]
 
-			// Find the book
-			var shelf *config.ShelfConfig
-			var book *catalog.Book
+				// Find the book
+				var foundShelf *config.ShelfConfig
+				var foundBook *catalog.Book
 
-			if shelfName != "" {
-				shelf = cfg.ShelfByName(shelfName)
-				if shelf == nil {
-					return fmt.Errorf("shelf %q not found in config", shelfName)
-				}
-			}
-
-			// Search for the book
-			for i := range cfg.Shelves {
-				s := &cfg.Shelves[i]
-				if shelfName != "" && s.Name != shelfName {
-					continue
+				if shelfName != "" {
+					foundShelf = cfg.ShelfByName(shelfName)
+					if foundShelf == nil {
+						return fmt.Errorf("shelf %q not found in config", shelfName)
+					}
 				}
 
-				owner := s.EffectiveOwner(cfg.GitHub.Owner)
-				catalogPath := s.EffectiveCatalogPath()
+				// Search for the book
+				for i := range cfg.Shelves {
+					s := &cfg.Shelves[i]
+					if shelfName != "" && s.Name != shelfName {
+						continue
+					}
 
-				data, _, err := gh.GetFileContent(owner, s.Repo, catalogPath, "")
-				if err != nil {
-					continue
-				}
-				books, err := catalog.Parse(data)
-				if err != nil {
-					continue
-				}
+					owner := s.EffectiveOwner(cfg.GitHub.Owner)
+					catalogPath := s.EffectiveCatalogPath()
 
-				for j := range books {
-					if books[j].ID == bookID {
-						book = &books[j]
-						shelf = s
+					data, _, err := gh.GetFileContent(owner, s.Repo, catalogPath, "")
+					if err != nil {
+						continue
+					}
+					books, err := catalog.Parse(data)
+					if err != nil {
+						continue
+					}
+
+					for j := range books {
+						if books[j].ID == bookID {
+							foundBook = &books[j]
+							foundShelf = s
+							break
+						}
+					}
+					if foundBook != nil {
 						break
 					}
 				}
-				if book != nil {
-					break
+
+				if foundBook == nil {
+					if shelfName != "" {
+						return fmt.Errorf("book %q not found in shelf %q", bookID, shelfName)
+					}
+					return fmt.Errorf("book %q not found in any shelf", bookID)
 				}
+
+				// Add to delete list
+				owner := foundShelf.EffectiveOwner(cfg.GitHub.Owner)
+				cached := cacheMgr.Exists(owner, foundShelf.Repo, foundBook.ID, foundBook.Source.Asset)
+				booksToDelete = []tui.BookItem{{
+					Book:      *foundBook,
+					ShelfName: foundShelf.Name,
+					Cached:    cached,
+					Owner:     owner,
+					Repo:      foundShelf.Repo,
+				}}
 			}
 
-			if book == nil {
-				if shelfName != "" {
-					return fmt.Errorf("book %q not found in shelf %q", bookID, shelfName)
-				}
-				return fmt.Errorf("book %q not found in any shelf", bookID)
-			}
-
-			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
-
-			// Show warning and get confirmation
+			// Show warning and get confirmation for batch
 			fmt.Println()
-			fmt.Println(color.YellowString("⚠ Warning: You are about to delete a book"))
-			fmt.Println()
-			fmt.Printf("Book ID:    %s\n", color.WhiteString(book.ID))
-			fmt.Printf("Title:      %s\n", color.WhiteString(book.Title))
-			if book.Author != "" {
-				fmt.Printf("Author:     %s\n", book.Author)
+			if len(booksToDelete) == 1 {
+				fmt.Println(color.YellowString("⚠ Warning: You are about to delete a book"))
+			} else {
+				fmt.Println(color.YellowString("⚠ Warning: You are about to delete %d books", len(booksToDelete)))
 			}
-			fmt.Printf("Shelf:      %s\n", color.CyanString(shelf.Name))
-			fmt.Printf("Format:     %s\n", book.Format)
+			fmt.Println()
+
+			for _, item := range booksToDelete {
+				fmt.Printf("  • %s - %s [%s]\n",
+					color.WhiteString(item.Book.ID),
+					item.Book.Title,
+					color.CyanString(item.ShelfName))
+			}
+
 			fmt.Println()
 			fmt.Println(color.RedString("This will:"))
-			fmt.Println("  • Remove book from catalog.yml")
-			fmt.Println("  • " + color.RedString("DELETE") + " the file from GitHub Release assets")
+			fmt.Println("  • Remove books from catalog.yml")
+			fmt.Println("  • " + color.RedString("DELETE") + " the files from GitHub Release assets")
 			fmt.Println()
 			fmt.Println(color.RedString("THIS CANNOT BE UNDONE"))
 			fmt.Println()
 
 			// Confirm
 			if !skipConfirm {
-				fmt.Print("Type the book ID to confirm deletion: ")
-				var confirmation string
-				_, _ = fmt.Scanln(&confirmation)
+				if len(booksToDelete) == 1 {
+					fmt.Print("Type the book ID to confirm deletion: ")
+					var confirmation string
+					_, _ = fmt.Scanln(&confirmation)
 
-				if confirmation != bookID {
-					return fmt.Errorf("confirmation did not match - aborted")
-				}
-			}
-
-			// Get release info
-			releaseTag := book.Source.Release
-			if releaseTag == "" {
-				releaseTag = shelf.EffectiveRelease(cfg.Defaults.Release)
-			}
-
-			rel, err := gh.GetReleaseByTag(owner, shelf.Repo, releaseTag)
-			if err != nil {
-				return fmt.Errorf("getting release %q: %w", releaseTag, err)
-			}
-
-			// Find and delete the asset
-			asset, err := gh.FindAsset(owner, shelf.Repo, rel.ID, book.Source.Asset)
-			if err != nil {
-				return fmt.Errorf("finding asset: %w", err)
-			}
-
-			if asset != nil {
-				header("Deleting file from GitHub Release …")
-				if err := gh.DeleteAsset(owner, shelf.Repo, asset.ID); err != nil {
-					return fmt.Errorf("deleting asset: %w", err)
-				}
-				ok("Deleted asset: %s", book.Source.Asset)
-			} else {
-				warn("Asset %q not found in release (may have been manually deleted)", book.Source.Asset)
-			}
-
-			// Remove from catalog
-			header("Updating catalog …")
-			catalogPath := shelf.EffectiveCatalogPath()
-			data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
-			if err != nil {
-				return fmt.Errorf("loading catalog: %w", err)
-			}
-
-			books, err := catalog.Parse(data)
-			if err != nil {
-				return fmt.Errorf("parsing catalog: %w", err)
-			}
-
-			books, removed := catalog.Remove(books, bookID)
-			if !removed {
-				return fmt.Errorf("book not found in catalog")
-			}
-
-			updatedData, err := catalog.Marshal(books)
-			if err != nil {
-				return fmt.Errorf("marshaling catalog: %w", err)
-			}
-
-			commitMsg := fmt.Sprintf("delete: remove %s", bookID)
-			if err := gh.CommitFile(owner, shelf.Repo, catalogPath, updatedData, commitMsg); err != nil {
-				return fmt.Errorf("committing catalog: %w", err)
-			}
-
-			ok("Updated catalog")
-
-			// Clear from cache if present
-			if cacheMgr.Exists(owner, shelf.Repo, bookID, book.Source.Asset) {
-				if err := cacheMgr.Remove(owner, shelf.Repo, bookID, book.Source.Asset); err != nil {
-					warn("Could not remove from cache: %v", err)
+					if confirmation != booksToDelete[0].Book.ID {
+						return fmt.Errorf("confirmation did not match - aborted")
+					}
 				} else {
-					ok("Removed from local cache")
+					fmt.Printf("Type 'DELETE %d BOOKS' to confirm: ", len(booksToDelete))
+					var confirmation string
+					_, _ = fmt.Scanln(&confirmation)
+
+					expected := fmt.Sprintf("DELETE %d BOOKS", len(booksToDelete))
+					if confirmation != expected {
+						return fmt.Errorf("confirmation did not match - aborted")
+					}
 				}
 			}
 
+			// Process each book deletion
+			for i, item := range booksToDelete {
+				if len(booksToDelete) > 1 {
+					fmt.Printf("\n[%d/%d] Deleting %s …\n", i+1, len(booksToDelete), item.Book.ID)
+				}
+
+				if err := deleteSingleBook(item); err != nil {
+					warn("Failed to delete %s: %v", item.Book.ID, err)
+					failCount++
+					continue
+				}
+
+				successCount++
+			}
+
+			// Summary
 			fmt.Println()
-			fmt.Println(color.GreenString("✓ Book deleted: %s", bookID))
+			if len(booksToDelete) == 1 {
+				if successCount == 1 {
+					ok("Book successfully deleted: %s", booksToDelete[0].Book.ID)
+				}
+			} else {
+				if successCount > 0 {
+					ok("Successfully deleted %d books", successCount)
+				}
+				if failCount > 0 {
+					warn("%d books failed to delete", failCount)
+				}
+			}
 
 			return nil
 		},
@@ -252,4 +245,73 @@ Examples:
 	cmd.Flags().BoolVar(&skipConfirm, "yes", false, "Skip confirmation prompt")
 
 	return cmd
+}
+
+// deleteSingleBook deletes a single book: removes asset, updates catalog, clears cache
+func deleteSingleBook(item tui.BookItem) error {
+	shelf := cfg.ShelfByName(item.ShelfName)
+	if shelf == nil {
+		return fmt.Errorf("shelf %q not found", item.ShelfName)
+	}
+
+	catalogPath := shelf.EffectiveCatalogPath()
+	releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
+
+	// Get the release
+	rel, err := gh.GetReleaseByTag(item.Owner, item.Repo, releaseTag)
+	if err != nil {
+		return fmt.Errorf("could not get release: %w", err)
+	}
+
+	// Find the asset
+	asset, err := gh.FindAsset(item.Owner, item.Repo, rel.ID, item.Book.Source.Asset)
+	if err != nil {
+		return fmt.Errorf("could not find asset: %w", err)
+	}
+	if asset == nil {
+		return fmt.Errorf("asset %q not found in release", item.Book.Source.Asset)
+	}
+
+	// Delete the asset from GitHub
+	if err := gh.DeleteAsset(item.Owner, item.Repo, asset.ID); err != nil {
+		return fmt.Errorf("could not delete asset: %w", err)
+	}
+
+	// Load catalog
+	data, _, err := gh.GetFileContent(item.Owner, item.Repo, catalogPath, "")
+	if err != nil {
+		return fmt.Errorf("could not load catalog: %w", err)
+	}
+	books, err := catalog.Parse(data)
+	if err != nil {
+		return fmt.Errorf("could not parse catalog: %w", err)
+	}
+
+	// Remove from catalog
+	books, removed := catalog.Remove(books, item.Book.ID)
+	if !removed {
+		return fmt.Errorf("book %q not found in catalog", item.Book.ID)
+	}
+
+	// Marshal and commit updated catalog
+	updatedData, err := catalog.Marshal(books)
+	if err != nil {
+		return fmt.Errorf("could not marshal catalog: %w", err)
+	}
+	commitMsg := fmt.Sprintf("delete: %s", item.Book.ID)
+	if err := gh.CommitFile(item.Owner, item.Repo, catalogPath, updatedData, commitMsg); err != nil {
+		return fmt.Errorf("could not commit catalog: %w", err)
+	}
+
+	// Clear from cache
+	if cacheMgr.Exists(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset) {
+		if err := cacheMgr.Remove(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset); err != nil {
+			warn("Could not clear cache: %v", err)
+		}
+	}
+
+	// Update README
+	updateREADMEAfterRemove(item.Owner, item.Repo, books, item.Book.ID)
+
+	return nil
 }

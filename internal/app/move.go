@@ -31,8 +31,8 @@ func newMoveCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "move [id]",
-		Short: "Move a book to a different release or shelf",
-		Long: `Move a book to a different release or shelf.
+		Short: "Move book(s) to a different release or shelf",
+		Long: `Move one or more books to a different release or shelf.
 
 Within the same shelf (different release):
   shelfctl move book-id --to-release v2.0
@@ -40,14 +40,16 @@ Within the same shelf (different release):
 To a different shelf:
   shelfctl move book-id --to-shelf other-shelf
 
-Interactive mode (no arguments):
-  shelfctl move`,
+Interactive mode (no arguments) with multi-select:
+  shelfctl move
+  • Spacebar to toggle selection
+  • Enter to confirm
+  • If no checkboxes selected, moves the current book`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var bookID string
-			var selectedItem *tui.BookItem
+			var booksToMove []tui.BookItem
 
-			// Interactive mode: pick a book
+			// Interactive mode: pick book(s)
 			if len(args) == 0 {
 				if !tui.ShouldUseTUI(cmd) {
 					return fmt.Errorf("book ID required in non-interactive mode")
@@ -87,28 +89,84 @@ Interactive mode (no arguments):
 					return fmt.Errorf("no books found in library")
 				}
 
-				// Show book picker
-				selected, err := tui.RunBookPicker(allItems, "Select book to move")
+				// Show multi-select book picker
+				selected, err := tui.RunBookPickerMulti(allItems, "Select books to move")
 				if err != nil {
 					return err
 				}
 
-				bookID = selected.Book.ID
-				params.shelfName = selected.ShelfName
-
-				// Store selected item for interactive flow
-				tmpItem := selected
-				selectedItem = &tmpItem
+				booksToMove = selected
 			} else {
-				bookID = args[0]
+				// CLI mode: single book ID provided
+				bookID := args[0]
+
+				// Find the book
+				var foundShelf *config.ShelfConfig
+				var foundBook *catalog.Book
+
+				if params.shelfName != "" {
+					foundShelf = cfg.ShelfByName(params.shelfName)
+					if foundShelf == nil {
+						return fmt.Errorf("shelf %q not found in config", params.shelfName)
+					}
+				}
+
+				// Search for the book
+				for i := range cfg.Shelves {
+					s := &cfg.Shelves[i]
+					if params.shelfName != "" && s.Name != params.shelfName {
+						continue
+					}
+
+					owner := s.EffectiveOwner(cfg.GitHub.Owner)
+					catalogPath := s.EffectiveCatalogPath()
+
+					data, _, err := gh.GetFileContent(owner, s.Repo, catalogPath, "")
+					if err != nil {
+						continue
+					}
+					books, err := catalog.Parse(data)
+					if err != nil {
+						continue
+					}
+
+					for j := range books {
+						if books[j].ID == bookID {
+							foundBook = &books[j]
+							foundShelf = s
+							break
+						}
+					}
+					if foundBook != nil {
+						break
+					}
+				}
+
+				if foundBook == nil {
+					if params.shelfName != "" {
+						return fmt.Errorf("book %q not found in shelf %q", bookID, params.shelfName)
+					}
+					return fmt.Errorf("book %q not found in any shelf", bookID)
+				}
+
+				// Add to move list
+				owner := foundShelf.EffectiveOwner(cfg.GitHub.Owner)
+				cached := cacheMgr.Exists(owner, foundShelf.Repo, foundBook.ID, foundBook.Source.Asset)
+				booksToMove = []tui.BookItem{{
+					Book:      *foundBook,
+					ShelfName: foundShelf.Name,
+					Cached:    cached,
+					Owner:     owner,
+					Repo:      foundShelf.Repo,
+				}}
 			}
 
 			// Interactive destination selection
 			if params.toRelease == "" && params.toShelfName == "" && tui.ShouldUseTUI(cmd) {
-				return runInteractiveMove(bookID, params, selectedItem)
+				return runInteractiveBatchMove(booksToMove, params)
 			}
 
-			return runMove(bookID, params)
+			return runBatchMove(booksToMove, params)
 		},
 	}
 
@@ -219,6 +277,183 @@ func runInteractiveMove(bookID string, params *moveParams, _ *tui.BookItem) erro
 
 	fmt.Println()
 	return runMove(bookID, params)
+}
+
+func runInteractiveBatchMove(booksToMove []tui.BookItem, params *moveParams) error {
+	if len(booksToMove) == 0 {
+		return fmt.Errorf("no books selected")
+	}
+
+	// Show selected books
+	fmt.Println()
+	if len(booksToMove) == 1 {
+		fmt.Println("Moving 1 book:")
+	} else {
+		fmt.Printf("Moving %d books:\n", len(booksToMove))
+	}
+	for _, item := range booksToMove {
+		fmt.Printf("  • %s - %s [%s]\n", item.Book.ID, item.Book.Title, item.ShelfName)
+	}
+	fmt.Println()
+
+	// Ask move type
+	fmt.Println("Move to:")
+	fmt.Println("  1. Different shelf (different repository)")
+	fmt.Println("  2. Different release (same shelf)")
+	fmt.Println()
+	fmt.Print("Your choice (1/2): ")
+	var choice string
+	_, _ = fmt.Scanln(&choice)
+	fmt.Println()
+
+	switch choice {
+	case "1":
+		// Moving to different shelf
+		var shelfOptions []tui.ShelfOption
+		// Get unique shelves from selected books to exclude
+		excludedShelves := make(map[string]bool)
+		for _, item := range booksToMove {
+			excludedShelves[item.ShelfName] = true
+		}
+
+		for _, shelf := range cfg.Shelves {
+			// Only show shelves not in the excluded set
+			if !excludedShelves[shelf.Name] {
+				shelfOptions = append(shelfOptions, tui.ShelfOption{
+					Name: shelf.Name,
+					Repo: shelf.Repo,
+				})
+			}
+		}
+
+		if len(shelfOptions) == 0 {
+			return fmt.Errorf("no other shelves available - create another shelf first")
+		}
+
+		// Pick destination shelf
+		dstShelfName, err := tui.RunShelfPicker(shelfOptions)
+		if err != nil {
+			return err
+		}
+
+		params.toShelfName = dstShelfName
+
+		// Optionally specify release
+		fmt.Println()
+		fmt.Println("Destination release tag (press Enter for default):")
+		fmt.Print("Release tag: ")
+		var releaseTag string
+		_, _ = fmt.Scanln(&releaseTag)
+		if releaseTag != "" {
+			params.toRelease = releaseTag
+		}
+
+	case "2":
+		// Moving to different release in same shelf
+		// Check if all books are from the same shelf
+		firstShelfName := booksToMove[0].ShelfName
+		allSameShelf := true
+		for _, item := range booksToMove {
+			if item.ShelfName != firstShelfName {
+				allSameShelf = false
+				break
+			}
+		}
+
+		if !allSameShelf {
+			return fmt.Errorf("cannot move books from different shelves to a different release - use different shelf option instead")
+		}
+
+		fmt.Println("Enter destination release tag:")
+		fmt.Printf("Release tag (current: %s): ", booksToMove[0].Book.Source.Release)
+		var releaseTag string
+		_, _ = fmt.Scanln(&releaseTag)
+		if releaseTag == "" {
+			return fmt.Errorf("release tag required")
+		}
+		params.toRelease = releaseTag
+
+	default:
+		return fmt.Errorf("invalid choice")
+	}
+
+	// Show destination summary and confirm
+	fmt.Println()
+	fmt.Println("Move summary:")
+	if len(booksToMove) == 1 {
+		fmt.Printf("  Book:  %s (%s)\n", booksToMove[0].Book.Title, booksToMove[0].Book.ID)
+		fmt.Printf("  From:  %s/%s@%s\n", booksToMove[0].Owner, booksToMove[0].Repo, booksToMove[0].Book.Source.Release)
+	} else {
+		fmt.Printf("  Books: %d selected\n", len(booksToMove))
+	}
+
+	// Show destination info
+	if params.toShelfName != "" {
+		dstShelf := cfg.ShelfByName(params.toShelfName)
+		if dstShelf != nil {
+			owner := dstShelf.EffectiveOwner(cfg.GitHub.Owner)
+			release := params.toRelease
+			if release == "" {
+				release = dstShelf.EffectiveRelease(cfg.Defaults.Release)
+			}
+			fmt.Printf("  To:    %s/%s@%s\n", owner, dstShelf.Repo, release)
+		}
+	} else {
+		fmt.Printf("  To:    %s/%s@%s\n", booksToMove[0].Owner, booksToMove[0].Repo, params.toRelease)
+	}
+
+	fmt.Println()
+	fmt.Print("Proceed with move? (y/n): ")
+	var confirm string
+	_, _ = fmt.Scanln(&confirm)
+
+	if confirm != "y" && confirm != "Y" && confirm != "yes" {
+		fmt.Println("Move canceled")
+		return nil
+	}
+
+	fmt.Println()
+	return runBatchMove(booksToMove, params)
+}
+
+func runBatchMove(booksToMove []tui.BookItem, params *moveParams) error {
+	successCount := 0
+	failCount := 0
+
+	for i, item := range booksToMove {
+		if len(booksToMove) > 1 {
+			fmt.Printf("\n[%d/%d] Moving %s …\n", i+1, len(booksToMove), item.Book.ID)
+		}
+
+		// Create a copy of params for this book to avoid mutation issues
+		bookParams := *params
+		bookParams.shelfName = item.ShelfName
+
+		if err := runMove(item.Book.ID, &bookParams); err != nil {
+			warn("Failed to move %s: %v", item.Book.ID, err)
+			failCount++
+			continue
+		}
+
+		successCount++
+	}
+
+	// Summary
+	fmt.Println()
+	if len(booksToMove) == 1 {
+		if successCount == 1 {
+			ok("Book successfully moved: %s", booksToMove[0].Book.ID)
+		}
+	} else {
+		if successCount > 0 {
+			ok("Successfully moved %d books", successCount)
+		}
+		if failCount > 0 {
+			warn("%d books failed to move", failCount)
+		}
+	}
+
+	return nil
 }
 
 func runMove(id string, params *moveParams) error {

@@ -209,12 +209,6 @@ func (m *Model) resizeColumns() {
 		return
 	}
 
-	// Calculate visible columns
-	numVisible := len(m.columns)
-	if numVisible > m.maxVisibleColumns {
-		numVisible = m.maxVisibleColumns
-	}
-
 	// Note: Actual resizing of column models is handled by the parent
 	// via GetColumn() to access and resize each model's inner list.
 	// This is necessary because we store models as `any` and can't

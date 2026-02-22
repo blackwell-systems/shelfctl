@@ -409,7 +409,10 @@ func RunListBrowser(books []BookItem) (*BrowserResult, error) {
 		return []key.Binding{keys.open, keys.get, keys.enter, keys.togglePanel}
 	}
 
-	m := model{list: l}
+	m := model{
+		list:        l,
+		showDetails: true, // Show details pane by default
+	}
 
 	// Run the program with alt screen
 	p := tea.NewProgram(m, tea.WithAltScreen())

@@ -40,6 +40,10 @@ type HubContext struct {
 	BookCount    int
 	HasCache     bool
 	ShelfDetails []ShelfStatus // for inline display
+	// Cache stats
+	CachedCount int
+	CacheSize   int64
+	CacheDir    string
 }
 
 // menuItems defines the menu in logical order
@@ -97,6 +101,7 @@ type hubModel struct {
 	height      int
 	shelfData   string // rendered shelves table for details panel
 	showDetails bool   // whether to show the details panel
+	detailsType string // "shelves" or "cache-info"
 }
 
 type hubKeys struct {
@@ -150,9 +155,15 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 
-	// Check if "View Shelves" is highlighted
+	// Check if we should show details panel
 	if item, ok := m.list.SelectedItem().(MenuItem); ok {
-		m.showDetails = (item.Key == "shelves")
+		if item.Key == "shelves" || item.Key == "cache-info" {
+			m.showDetails = true
+			m.detailsType = item.Key
+		} else {
+			m.showDetails = false
+			m.detailsType = ""
+		}
 		m.updateListSize()
 	}
 
@@ -193,6 +204,18 @@ func (m *hubModel) updateListSize() {
 }
 
 func (m hubModel) renderDetailsPane() string {
+	// Route to appropriate details panel based on type
+	switch m.detailsType {
+	case "shelves":
+		return m.renderShelvesDetails()
+	case "cache-info":
+		return m.renderCacheDetails()
+	default:
+		return ""
+	}
+}
+
+func (m hubModel) renderShelvesDetails() string {
 	if len(m.context.ShelfDetails) == 0 {
 		return ""
 	}
@@ -215,6 +238,55 @@ func (m hubModel) renderDetailsPane() string {
 		fmt.Fprintf(&s, "  Repo: %s/%s\n", shelf.Owner, shelf.Repo)
 		fmt.Fprintf(&s, "  Books: %d\n", shelf.BookCount)
 		fmt.Fprintf(&s, "  Status: %s\n", shelf.Status)
+		s.WriteString("\n")
+	}
+
+	return detailsStyle.Render(s.String())
+}
+
+func (m hubModel) renderCacheDetails() string {
+	// Fixed width for details panel
+	const detailsWidth = 45
+
+	detailsStyle := lipgloss.NewStyle().
+		Width(detailsWidth).
+		Padding(1, 1)
+
+	var s strings.Builder
+	s.WriteString(StyleHeader.Render("Cache Statistics"))
+	s.WriteString("\n\n")
+
+	// Total books
+	s.WriteString(StyleHighlight.Render("Total Books: "))
+	fmt.Fprintf(&s, "%d\n", m.context.BookCount)
+
+	// Cached count
+	s.WriteString(StyleHighlight.Render("Cached: "))
+	if m.context.CachedCount > 0 {
+		fmt.Fprintf(&s, "%s (%d books)\n", StyleCached.Render(fmt.Sprintf("✓ %d", m.context.CachedCount)), m.context.CachedCount)
+	} else {
+		s.WriteString("0\n")
+	}
+
+	// Uncached count
+	uncached := m.context.BookCount - m.context.CachedCount
+	if uncached > 0 {
+		s.WriteString(StyleHighlight.Render("Not Cached: "))
+		fmt.Fprintf(&s, "%d\n", uncached)
+	}
+
+	// Cache size
+	if m.context.CacheSize > 0 {
+		s.WriteString("\n")
+		s.WriteString(StyleHighlight.Render("Disk Usage: "))
+		fmt.Fprintf(&s, "%s\n", formatBytes(m.context.CacheSize))
+	}
+
+	// Cache directory
+	if m.context.CacheDir != "" {
+		s.WriteString("\n")
+		s.WriteString(StyleHighlight.Render("Location: "))
+		s.WriteString(StyleHelp.Render(m.context.CacheDir))
 		s.WriteString("\n")
 	}
 

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
@@ -783,5 +784,45 @@ func buildHubContext() tui.HubContext {
 	}
 
 	ctx.ShelfDetails = shelfDetails
+
+	// Calculate cache stats
+	cachedCount := 0
+	var cacheSize int64
+
+	for _, shelf := range cfg.Shelves {
+		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+		catalogPath := shelf.EffectiveCatalogPath()
+
+		data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+		if err != nil {
+			continue
+		}
+		books, err := catalog.Parse(data)
+		if err != nil {
+			continue
+		}
+
+		for i := range books {
+			b := &books[i]
+			if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
+				cachedCount++
+				path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
+				if info, err := os.Stat(path); err == nil {
+					cacheSize += info.Size()
+				}
+			}
+		}
+	}
+
+	ctx.CachedCount = cachedCount
+	ctx.CacheSize = cacheSize
+	if ctx.BookCount > 0 {
+		// Get cache dir from any path
+		ctx.CacheDir = cacheMgr.Path("", "", "", "")
+		if ctx.CacheDir != "" {
+			ctx.CacheDir = filepath.Dir(ctx.CacheDir)
+		}
+	}
+
 	return ctx
 }

@@ -84,21 +84,15 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 	// Build the display string
 	var s strings.Builder
 
-	// Selection checkbox (for multi-select download)
-	checkbox := "  "
+	// Selection checkbox (only show when selected)
+	checkbox := ""
 	if bookItem.selected {
 		checkbox = "[✓] "
 	}
 
-	// Cover indicator (camera emoji if cover exists)
-	coverMark := ""
-	if bookItem.HasCover {
-		coverMark = "📷 "
-	}
-
 	// Title (truncate based on available width)
 	title := bookItem.Book.Title
-	const maxTitleWidth = 66 // Reduced from 70 to account for checkbox
+	const maxTitleWidth = 66
 	if len(title) > maxTitleWidth {
 		title = title[:maxTitleWidth-1] + "…"
 	}
@@ -125,10 +119,10 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 
 	if isCursorSelected {
 		// Highlight cursor position
-		s.WriteString(StyleHighlight.Render("› " + checkbox + coverMark + title + tagStr + cachedMark))
+		s.WriteString(StyleHighlight.Render("› " + checkbox + title + tagStr + cachedMark))
 	} else {
 		// Normal rendering
-		s.WriteString("  " + checkbox + coverMark + title + tagStr + cachedMark)
+		s.WriteString("  " + checkbox + title + tagStr + cachedMark)
 	}
 
 	_, _ = fmt.Fprint(w, s.String())
@@ -480,15 +474,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) updateListSize() {
-	// Account for outer container padding, master wrapper border, and inner padding
+	// Account for outer container padding, master wrapper border, and footer
 	const outerPaddingH = 4 * 2 // left/right padding from outer container
 	const outerPaddingV = 2 * 2 // top/bottom padding from outer container
 	const masterBorder = 2
-	const borderWidth = 1 // right border on list when details shown
+	const borderWidth = 1  // right border on list when details shown
+	const footerHeight = 2 // divider + footer line
 
-	// Calculate available space after outer padding and border
+	// Calculate available space after outer padding, border, and footer
 	availableWidth := m.width - outerPaddingH - masterBorder
-	availableHeight := m.height - outerPaddingV - masterBorder
+	availableHeight := m.height - outerPaddingV - masterBorder - footerHeight
 
 	if m.showDetails {
 		// Split view: list takes ~60% of available width
@@ -612,6 +607,29 @@ func (m model) renderDetailsPane() string {
 	return detailsStyle.Render(s.String())
 }
 
+// renderFooter creates a footer with all available keyboard shortcuts
+func (m model) renderFooter() string {
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Padding(0, 1)
+
+	shortcuts := []string{
+		"↑/↓ navigate",
+		"/ filter",
+		"enter action",
+		"o open",
+		"g download",
+		"x uncache",
+		"e edit",
+		"space select",
+		"c clear",
+		"tab toggle",
+		"q quit",
+	}
+
+	return helpStyle.Render(strings.Join(shortcuts, " • "))
+}
+
 func (m model) View() string {
 	if m.quitting {
 		return ""
@@ -646,7 +664,7 @@ func (m model) View() string {
 			Height(innerHeight)
 	}
 
-	var content string
+	var mainContent string
 	if m.showDetails {
 		// Split-panel layout: compose panels then wrap
 		// Add border on right side of list to create solid divider
@@ -658,15 +676,30 @@ func (m model) View() string {
 		detailsView := m.renderDetailsPane()
 
 		// Join horizontally: list (with border) + details
-		content = lipgloss.JoinHorizontal(
+		mainContent = lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			listView,
 			detailsView,
 		)
 	} else {
 		// Single panel: list only
-		content = m.list.View()
+		mainContent = m.list.View()
 	}
+
+	// Create footer with divider
+	// Calculate divider width based on content width
+	dividerWidth := m.width - (4 * 2) - 2 // outer padding + border
+	if dividerWidth < 40 {
+		dividerWidth = 40
+	}
+	divider := lipgloss.NewStyle().
+		Foreground(ColorGray).
+		Width(dividerWidth).
+		Render(strings.Repeat("─", dividerWidth))
+	footer := m.renderFooter()
+
+	// Compose: main content + divider + footer
+	content := lipgloss.JoinVertical(lipgloss.Left, mainContent, divider, footer)
 
 	// Apply inner box border
 	boxed := masterStyle.Render(content)
@@ -784,17 +817,10 @@ func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, er
 	l.Title = "Books"
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
+	l.SetShowHelp(false) // Disable built-in help, we'll render custom footer
 	l.Styles.Title = StyleHeader
 	l.Styles.PaginationStyle = StyleHelp
 	l.Styles.HelpStyle = StyleHelp
-
-	// Set help keybindings
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.open, keys.get, keys.uncache, keys.edit, keys.toggleSelect, keys.togglePanel}
-	}
-	l.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.open, keys.get, keys.uncache, keys.edit, keys.enter, keys.toggleSelect, keys.clearSelect, keys.togglePanel}
-	}
 
 	prog := progress.New(progress.WithDefaultGradient())
 	prog.Width = 60

@@ -432,7 +432,7 @@ shelfctl open book-id
 
 ## Cover thumbnails not appearing
 
-**Symptom**: No 📷 camera emoji showing in browser, or covers not displaying in details pane.
+**Symptom**: Covers not displaying in details pane or HTML index.
 
 **Cause**: `pdftoppm` command not installed (required for PDF cover extraction).
 
@@ -481,9 +481,9 @@ ls ~/.local/share/shelfctl/cache/<repo>/.covers/
 - Cover extraction is optional - books work fine without it
 - Only PDFs are supported (EPUB covers not yet implemented)
 - Covers are stored in `~/.local/share/shelfctl/cache/<repo>/.covers/`
-- Inline images work in Kitty, Ghostty, or iTerm2 terminals (other terminals show 📷 emoji)
+- Cover images display in the details panel (press `enter` or `tab` in browse)
+- Inline images work in Kitty, Ghostty, or iTerm2 terminals
 - **tmux limitation**: Image protocols don't work through tmux multiplexers - run shelfctl directly in Ghostty/Kitty/iTerm2 for inline image display
-- Even without inline images, the 📷 emoji indicates a cover exists
 
 ---
 

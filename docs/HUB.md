@@ -33,9 +33,8 @@ The hub provides access to all core operations and loops continuously until you 
 - Navigate with keyboard (↑/↓ or j/k)
 - Filter and search in real-time (press `/`)
 - See cache status (green ✓ for cached books)
-- See cover thumbnails (📷 camera emoji when cover exists)
 - **Interactive Actions:**
-  - `enter` - Show detailed book information with cover preview (Kitty/Ghostty/iTerm2)
+  - `enter` - Show detailed book information with cover image (Kitty/Ghostty/iTerm2)
   - `o` - Open book (downloads if needed, opens with system viewer)
   - `space` - Toggle selection (checkboxes appear for multi-select)
   - `g` - Download selected books to cache (or current if none selected)

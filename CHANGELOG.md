@@ -20,8 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CLI: `shelfctl cache clear` for interactive picker (multi-select)
   - CLI: `shelfctl cache info` shows cache statistics (total books, cached count, disk usage)
   - TUI: 'x' key removes selected books from cache (supports multi-select)
+  - Hub menu: Added "Cache Info" and "Clear Cache" options
+  - Cache Info shows details panel with stats when highlighted (like View Shelves)
   - Books remain in catalog/release, only local cache cleared
   - Useful for reclaiming disk space without affecting library
+- **HTML Index Enhancements**
+  - Added clickable tag filter boxes (word cloud style) above book grid
+  - Click tags to filter books (multiple tags combine with AND logic)
+  - Each tag shows book count (e.g., "programming 12")
+  - Active tags highlight in blue
+  - "Clear filters" button appears when tags are active
+  - Live count shows filtered results (e.g., "15 books")
+  - Works seamlessly with text search
 - **Multi-Select Download in Browse**
   - Spacebar to toggle selection (checkboxes appear in list)
   - 'g' downloads all selected books to cache (or current if none selected)

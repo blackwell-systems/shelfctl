@@ -36,6 +36,14 @@ func (m *Manager) GenerateHTMLIndex(books []IndexBook) error {
 func generateHTML(books []IndexBook) string {
 	var s strings.Builder
 
+	// Collect all unique tags
+	tagSet := make(map[string]int)
+	for _, book := range books {
+		for _, tag := range book.Book.Tags {
+			tagSet[tag]++
+		}
+	}
+
 	s.WriteString(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -70,7 +78,7 @@ func generateHTML(books []IndexBook) string {
         }
         .search-box {
             max-width: 1200px;
-            margin: 0 auto 30px;
+            margin: 0 auto 20px;
         }
         #search {
             width: 100%;
@@ -84,6 +92,73 @@ func generateHTML(books []IndexBook) string {
         #search:focus {
             outline: none;
             border-color: #4a9eff;
+        }
+        .tag-filters {
+            max-width: 1200px;
+            margin: 0 auto 30px;
+        }
+        .tag-filters-title {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        .tag-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .tag-filter {
+            background: #2a2a2a;
+            border: 2px solid #444;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .tag-filter:hover {
+            border-color: #4a9eff;
+            background: #333;
+        }
+        .tag-filter.active {
+            background: #4a9eff;
+            border-color: #4a9eff;
+            color: #fff;
+            font-weight: 600;
+        }
+        .tag-count {
+            color: #888;
+            font-size: 0.85rem;
+            margin-left: 6px;
+        }
+        .tag-filter.active .tag-count {
+            color: rgba(255,255,255,0.8);
+        }
+        .clear-filters {
+            background: #d32f2f;
+            border: 2px solid #d32f2f;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            user-select: none;
+            display: none;
+        }
+        .clear-filters:hover {
+            background: #b71c1c;
+            border-color: #b71c1c;
+        }
+        .clear-filters.visible {
+            display: inline-block;
+        }
+        .filter-count {
+            color: #4a9eff;
+            font-size: 0.85rem;
+            margin-left: 10px;
         }
         .shelf-section {
             max-width: 1200px;
@@ -187,7 +262,47 @@ func generateHTML(books []IndexBook) string {
     <div class="search-box">
         <input type="text" id="search" placeholder="Search books by title, author, or tags...">
     </div>
+`)
 
+	// Only show tag filters if we have tags
+	if len(tagSet) > 0 {
+		s.WriteString(`
+    <div class="tag-filters">
+        <div class="tag-filters-title">
+            Filter by tag:
+            <button class="clear-filters" id="clear-filters">Clear filters</button>
+            <span class="filter-count" id="filter-count"></span>
+        </div>
+        <div class="tag-cloud" id="tag-cloud">
+`)
+
+		// Render tag filter buttons (sorted alphabetically)
+		var allTags []string
+		for tag := range tagSet {
+			allTags = append(allTags, tag)
+		}
+		// Sort tags
+		sortedTags := allTags
+		for i := 0; i < len(sortedTags)-1; i++ {
+			for j := i + 1; j < len(sortedTags); j++ {
+				if sortedTags[i] > sortedTags[j] {
+					sortedTags[i], sortedTags[j] = sortedTags[j], sortedTags[i]
+				}
+			}
+		}
+
+		for _, tag := range sortedTags {
+			count := tagSet[tag]
+			fmt.Fprintf(&s, `            <button class="tag-filter" data-tag="%s">%s <span class="tag-count">%d</span></button>
+`, html.EscapeString(tag), html.EscapeString(tag), count)
+		}
+
+		s.WriteString(`        </div>
+    </div>
+`)
+	}
+
+	s.WriteString(`
     <div id="library">
 `)
 
@@ -226,15 +341,59 @@ func generateHTML(books []IndexBook) string {
         const search = document.getElementById('search');
         const library = document.getElementById('library');
         const noResults = document.getElementById('no-results');
+        const tagFilters = document.querySelectorAll('.tag-filter');
+        const clearFiltersBtn = document.getElementById('clear-filters');
+        const filterCount = document.getElementById('filter-count');
+        let activeTags = new Set();
 
-        search.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
+        // Tag filter click handler
+        tagFilters.forEach(filter => {
+            filter.addEventListener('click', () => {
+                const tag = filter.dataset.tag;
+                if (activeTags.has(tag)) {
+                    activeTags.delete(tag);
+                    filter.classList.remove('active');
+                } else {
+                    activeTags.add(tag);
+                    filter.classList.add('active');
+                }
+                applyFilters();
+            });
+        });
+
+        // Clear filters button
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                activeTags.clear();
+                tagFilters.forEach(filter => filter.classList.remove('active'));
+                applyFilters();
+            });
+        }
+
+        // Search input handler
+        search.addEventListener('input', applyFilters);
+
+        function applyFilters() {
+            const query = search.value.toLowerCase();
             const cards = document.querySelectorAll('.book-card');
             let visibleCount = 0;
 
             cards.forEach(card => {
                 const text = card.textContent.toLowerCase();
-                if (text.includes(query)) {
+                const cardTags = card.dataset.tags.toLowerCase().split(', ').filter(t => t);
+
+                // Check text search
+                const matchesSearch = query === '' || text.includes(query);
+
+                // Check tag filters (must have ALL active tags)
+                let matchesTags = true;
+                if (activeTags.size > 0) {
+                    matchesTags = Array.from(activeTags).every(tag =>
+                        cardTags.includes(tag.toLowerCase())
+                    );
+                }
+
+                if (matchesSearch && matchesTags) {
                     card.style.display = 'block';
                     visibleCount++;
                 } else {
@@ -248,15 +407,33 @@ func generateHTML(books []IndexBook) string {
                 section.style.display = visibleCards.length > 0 ? 'block' : 'none';
             });
 
+            // Show/hide clear button
+            if (clearFiltersBtn) {
+                if (activeTags.size > 0) {
+                    clearFiltersBtn.classList.add('visible');
+                } else {
+                    clearFiltersBtn.classList.remove('visible');
+                }
+            }
+
+            // Update filter count
+            if (filterCount) {
+                if (activeTags.size > 0 || query !== '') {
+                    filterCount.textContent = visibleCount + ' books';
+                } else {
+                    filterCount.textContent = '';
+                }
+            }
+
             // Show "no results" message
-            if (visibleCount === 0 && query !== '') {
+            if (visibleCount === 0 && (query !== '' || activeTags.size > 0)) {
                 library.style.display = 'none';
                 noResults.style.display = 'block';
             } else {
                 library.style.display = 'block';
                 noResults.style.display = 'none';
             }
-        });
+        }
     </script>
 </body>
 </html>

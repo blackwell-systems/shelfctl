@@ -110,6 +110,7 @@ func init() {
 		newMigrateCmd(),
 		newImportCmd(),
 		newIndexCmd(),
+		newVerifyCmd(),
 	)
 
 	// Set up colored help template after commands are added

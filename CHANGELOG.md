@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Verify Command for Catalog/Release Sync**
+  - New `verify` command detects catalog vs release mismatches
+  - Finds orphaned catalog entries (book in catalog but asset missing from release)
+  - Finds orphaned assets (asset in release but not referenced in catalog)
+  - Read-only by default - shows detailed issue report
+  - Auto-fix mode with `--fix` flag:
+    - Removes orphaned catalog entries and commits updated catalog
+    - Deletes orphaned assets from release to reclaim storage
+    - Clears local cache for removed books
+    - Updates README.md with new book counts
+  - Supports `--shelf` flag to verify specific shelf only
+  - Processes all shelves by default
+  - Use case: Recover from manual asset deletions or interrupted operations
+  - Similar to `git fsck` or `npm audit` for library integrity checks
+- **Batch Metadata Edit with Multi-Select**
+  - Enhanced `edit-book` command now supports editing multiple books at once
+  - Multi-select book picker (spacebar to toggle, enter to confirm)
+  - Batch confirmation: "Type 'UPDATE N BOOKS' to confirm" for safety
+  - Individual edit forms for each selected book (allows different values)
+  - Progress indicators show `[2/5] Editing book-id` during batch processing
+  - Optimized commits: one catalog commit per shelf (not per book)
+  - Error isolation: failed edits don't abort the batch
+  - Summary output: "Successfully updated 5 books, 1 failed"
+  - Works across multiple shelves (groups by shelf for commits)
+  - Backward compatible: CLI mode unchanged for single book edits
+  - Use case: Batch tag additions, author name fixes, year corrections
 
 ### Changed
 

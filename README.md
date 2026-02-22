@@ -112,7 +112,7 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
 - GitHub account with a personal access token
 
 <p align="center">
-  <img src="assets/logo5.png" alt="Shelby sitting at a computer installing shelfctl" width="600">
+  <img src="assets/shelby5.png" alt="Shelby sitting at a computer installing shelfctl" width="600">
 </p>
 
 ## Install
@@ -266,7 +266,7 @@ shelfctl open sicp
 ---
 
 <p align="center">
-  <img src="assets/logo2.png" alt="Shelby kneeling with magnifying glass examining the commands below" width="400">
+  <img src="assets/shelby2.png" alt="Shelby kneeling with magnifying glass examining the commands below" width="400">
 </p>
 
 ## Commands
@@ -319,7 +319,7 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 ---
 
 <p align="center">
-  <img src="assets/logo3.png" alt="Shelby removing a book from a shelf" width="400">
+  <img src="assets/shelby3.png" alt="Shelby removing a book from a shelf" width="400">
 </p>
 
 ## Documentation

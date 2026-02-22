@@ -129,7 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Introduced Shelby the Shelf mascot throughout README
   - Updated all image alt text to reference Shelby
   - Added centered introduction: "Meet Shelby, your friendly library assistant."
-  - Added logo5.png (600px) above Install section
+  - Added shelby5.png (600px) above Install section
   - Added Credits section explaining Shelby character
   - Made Optional PDF Cover Thumbnails section collapsible
 - **Documentation: Design Philosophy**
@@ -263,7 +263,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Significantly improves UX for academic papers and published books
   - Tested with real-world PDFs
 - **Brand Assets**
-  - Created icon-16.png and icon-32.png from logo_icon.png
+  - Created icon-16.png and icon-32.png from shelby-icon.png
   - Generated using ImageMagick for favicon/icon use
   - Sizes: 581B and 1.0K respectively
 
@@ -360,7 +360,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed factual claims about GitHub limits (removed "1TB+", "2GB storage" specifics)
   - Reordered "Why" section: on-demand first, then Git LFS comparison
   - Clarified API-based operation (no local repos required, run from anywhere)
-  - Added logo2.png above Commands section
+  - Added shelby2.png above Commands section
 - **Documentation structure**
   - Moved all docs to `docs/` directory
   - Created navigation structure for doc generators

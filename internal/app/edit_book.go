@@ -211,6 +211,26 @@ Examples:
 				return fmt.Errorf("committing catalog: %w", err)
 			}
 
+			// Update README with new metadata
+			readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
+			if readmeErr == nil {
+				readmeContent := string(readmeData)
+				// Update stats (book count stays same) and refresh book entry if it exists in Recently Added
+				readmeContent = updateShelfREADMEStats(readmeContent, len(books))
+				readmeContent = appendToShelfREADME(readmeContent, updatedBook)
+
+				readmeMsg := fmt.Sprintf("Update README: edit %s", bookID)
+				if err := gh.CommitFile(owner, shelf.Repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+					if tui.ShouldUseTUI(cmd) {
+						warn("Could not update README.md: %v", err)
+					}
+				} else {
+					if tui.ShouldUseTUI(cmd) {
+						ok("README.md updated")
+					}
+				}
+			}
+
 			// Show summary
 			fmt.Println()
 			header("Book Updated")

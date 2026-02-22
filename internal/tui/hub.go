@@ -23,16 +23,6 @@ func (m MenuItem) FilterValue() string {
 	return m.Label + " " + m.Description
 }
 
-// GroupHeader represents a section header in the menu
-type GroupHeader struct {
-	Title string
-}
-
-// FilterValue implements list.Item
-func (g GroupHeader) FilterValue() string {
-	return g.Title
-}
-
 // HubContext holds optional context info to display in the hub
 type HubContext struct {
 	ShelfCount int
@@ -40,47 +30,24 @@ type HubContext struct {
 	HasCache   bool
 }
 
-// menuGroups defines the organized menu structure
-var menuGroups = []struct {
-	Header string
-	Items  []MenuItem
-}{
-	{
-		Header: "Browse & View",
-		Items: []MenuItem{
-			{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
-			{Key: "shelves", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
-			{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
-		},
-	},
-	{
-		Header: "Add & Import",
-		Items: []MenuItem{
-			{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
-			{Key: "shelve-url", Label: "Add from URL", Description: "Download and add a book from URL", Available: true},
-			{Key: "import-repo", Label: "Import from Repository", Description: "Migrate books from another repo", Available: true},
-		},
-	},
-	{
-		Header: "Manage",
-		Items: []MenuItem{
-			{Key: "edit-book", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
-			{Key: "move", Label: "Move Book", Description: "Transfer a book to another shelf or release", Available: true},
-		},
-	},
-	{
-		Header: "Remove",
-		Items: []MenuItem{
-			{Key: "delete-book", Label: "Delete Book", Description: "Remove a book from your library", Available: true},
-			{Key: "delete-shelf", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
-		},
-	},
-	{
-		Header: "",
-		Items: []MenuItem{
-			{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},
-		},
-	},
+// menuItems defines the menu in logical order
+var menuItems = []MenuItem{
+	// Browse & View
+	{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
+	{Key: "shelves", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
+	{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
+	// Add & Import
+	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
+	{Key: "shelve-url", Label: "Add from URL", Description: "Download and add a book from URL", Available: true},
+	{Key: "import-repo", Label: "Import from Repository", Description: "Migrate books from another repo", Available: true},
+	// Manage
+	{Key: "edit-book", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
+	{Key: "move", Label: "Move Book", Description: "Transfer a book to another shelf or release", Available: true},
+	// Remove
+	{Key: "delete-book", Label: "Delete Book", Description: "Remove a book from your library", Available: true},
+	{Key: "delete-shelf", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
+	// Exit
+	{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},
 }
 
 // menuDelegate renders menu items
@@ -93,20 +60,6 @@ func (d menuDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 }
 
 func (d menuDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
-	// Check if this is a group header
-	if header, ok := item.(GroupHeader); ok {
-		headerStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("86")).
-			Bold(true)
-		// Add top margin for non-first headers
-		if index > 0 {
-			headerStyle = headerStyle.MarginTop(1)
-		}
-		_, _ = fmt.Fprint(w, headerStyle.Render(header.Title))
-		return
-	}
-
-	// Render menu item
 	menuItem, ok := item.(MenuItem)
 	if !ok {
 		return
@@ -177,41 +130,6 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, tea.Quit
 			}
-			// If header is selected, do nothing
-			return m, nil
-
-		case msg.String() == "up", msg.String() == "k":
-			// Let list handle navigation first
-			var cmd tea.Cmd
-			m.list, cmd = m.list.Update(msg)
-			// Skip over group headers
-			for {
-				if _, isHeader := m.list.SelectedItem().(GroupHeader); !isHeader {
-					break
-				}
-				if m.list.Index() == 0 {
-					break // At top, can't go further
-				}
-				m.list, _ = m.list.Update(msg)
-			}
-			return m, cmd
-
-		case msg.String() == "down", msg.String() == "j":
-			// Let list handle navigation first
-			var cmd tea.Cmd
-			m.list, cmd = m.list.Update(msg)
-			// Skip over group headers
-			maxIndex := len(m.list.Items()) - 1
-			for {
-				if _, isHeader := m.list.SelectedItem().(GroupHeader); !isHeader {
-					break
-				}
-				if m.list.Index() >= maxIndex {
-					break // At bottom, can't go further
-				}
-				m.list, _ = m.list.Update(msg)
-			}
-			return m, cmd
 		}
 
 	case tea.WindowSizeMsg:
@@ -293,36 +211,20 @@ func (m hubModel) View() string {
 // RunHub launches the interactive hub menu
 // Returns the selected action key, or error if canceled
 func RunHub(ctx HubContext) (string, error) {
-	// Build items list with groups and filtering
+	// Filter menu items based on context
 	var items []list.Item
-	for _, group := range menuGroups {
-		// Filter group items based on context
-		var groupItems []MenuItem
-		for _, item := range group.Items {
-			// Hide shelf-related actions if no shelves configured
-			if ctx.ShelfCount == 0 {
-				if item.Key == "browse" || item.Key == "shelves" || item.Key == "shelve" || item.Key == "edit-book" || item.Key == "delete-book" || item.Key == "delete-shelf" {
-					continue
-				}
-			}
-			// Hide browse, edit-book, move, and delete-book if there are no books
-			if ctx.BookCount == 0 && (item.Key == "browse" || item.Key == "edit-book" || item.Key == "move" || item.Key == "delete-book") {
+	for _, item := range menuItems {
+		// Hide shelf-related actions if no shelves configured
+		if ctx.ShelfCount == 0 {
+			if item.Key == "browse" || item.Key == "shelves" || item.Key == "shelve" || item.Key == "edit-book" || item.Key == "delete-book" || item.Key == "delete-shelf" {
 				continue
 			}
-			groupItems = append(groupItems, item)
 		}
-
-		// Only add group if it has items
-		if len(groupItems) > 0 {
-			// Add header if present
-			if group.Header != "" {
-				items = append(items, GroupHeader{Title: group.Header})
-			}
-			// Add group items
-			for _, item := range groupItems {
-				items = append(items, item)
-			}
+		// Hide browse, edit-book, move, and delete-book if there are no books
+		if ctx.BookCount == 0 && (item.Key == "browse" || item.Key == "edit-book" || item.Key == "move" || item.Key == "delete-book") {
+			continue
 		}
+		items = append(items, item)
 	}
 
 	// Create list

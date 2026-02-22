@@ -152,12 +152,12 @@ func runShelve(cmd *cobra.Command, args []string, params *shelveParams) error {
 
 	// Step 8: Update catalog
 	book := buildCatalogEntry(metadata, ingested, owner, shelf.Repo, params.releaseTag)
-	if err := updateCatalog(owner, shelf.Repo, catalogPath, existingBooks, book, params.noPush); err != nil {
+	if err := updateCatalog(cmd, owner, shelf.Repo, catalogPath, existingBooks, book, params.noPush); err != nil {
 		return err
 	}
 
-	// Print summary
-	printBookSummary(metadata.bookID, metadata.title, ingested.sha256, ingested.size, metadata.assetName)
+	// Print summary (verbose for interactive, minimal for scripts)
+	printBookSummary(cmd, metadata.bookID, metadata.title, ingested.sha256, ingested.size, metadata.assetName)
 	return nil
 }
 
@@ -210,7 +210,9 @@ func selectFile(args []string, useTUI bool) (string, error) {
 }
 
 func ingestFile(src *ingest.Source, input string) (*ingestedFile, error) {
-	fmt.Printf("Ingesting %s …\n", color.CyanString(input))
+	if util.IsTTY() {
+		fmt.Printf("Ingesting %s …\n", color.CyanString(input))
+	}
 	rc, err := src.Open()
 	if err != nil {
 		return nil, fmt.Errorf("opening source: %w", err)
@@ -441,7 +443,9 @@ func uploadAsset(cmd *cobra.Command, owner, repo string, releaseID int64, assetN
 		}
 	}
 
-	ok("Uploaded: %s", asset.BrowserDownloadURL)
+	if tui.ShouldUseTUI(cmd) {
+		ok("Uploaded: %s", asset.BrowserDownloadURL)
+	}
 	return nil
 }
 
@@ -468,7 +472,7 @@ func buildCatalogEntry(metadata *bookMetadata, ingested *ingestedFile, owner, re
 	}
 }
 
-func updateCatalog(owner, repo, catalogPath string, existingBooks []catalog.Book, book catalog.Book, noPush bool) error {
+func updateCatalog(cmd *cobra.Command, owner, repo, catalogPath string, existingBooks []catalog.Book, book catalog.Book, noPush bool) error {
 	books := catalog.Append(existingBooks, book)
 	newCatalog, err := catalog.Marshal(books)
 	if err != nil {
@@ -479,7 +483,9 @@ func updateCatalog(owner, repo, catalogPath string, existingBooks []catalog.Book
 		if err := os.WriteFile(catalogPath, newCatalog, 0600); err != nil {
 			return err
 		}
-		ok("Catalog updated locally (not pushed)")
+		if tui.ShouldUseTUI(cmd) {
+			ok("Catalog updated locally (not pushed)")
+		}
 		return nil
 	}
 
@@ -487,13 +493,15 @@ func updateCatalog(owner, repo, catalogPath string, existingBooks []catalog.Book
 	if err := gh.CommitFile(owner, repo, catalogPath, newCatalog, msg); err != nil {
 		return fmt.Errorf("committing catalog: %w", err)
 	}
-	ok("Catalog committed and pushed")
+	if tui.ShouldUseTUI(cmd) {
+		ok("Catalog committed and pushed")
+	}
 
-	updateREADME(owner, repo, books, book)
+	updateREADME(cmd, owner, repo, books, book)
 	return nil
 }
 
-func updateREADME(owner, repo string, books []catalog.Book, book catalog.Book) {
+func updateREADME(cmd *cobra.Command, owner, repo string, books []catalog.Book, book catalog.Book) {
 	readmeData, _, readmeErr := gh.GetFileContent(owner, repo, "README.md", "")
 	if readmeErr != nil {
 		return
@@ -505,19 +513,29 @@ func updateREADME(owner, repo string, books []catalog.Book, book catalog.Book) {
 
 	readmeMsg := fmt.Sprintf("Update README: add %s", book.ID)
 	if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
-		warn("Could not update README.md: %v", err)
+		if tui.ShouldUseTUI(cmd) {
+			warn("Could not update README.md: %v", err)
+		}
 	} else {
-		ok("README.md updated")
+		if tui.ShouldUseTUI(cmd) {
+			ok("README.md updated")
+		}
 	}
 }
 
-func printBookSummary(bookID, title, sha256 string, size int64, assetName string) {
-	fmt.Println()
-	fmt.Printf("  id:      %s\n", color.WhiteString(bookID))
-	fmt.Printf("  title:   %s\n", title)
-	fmt.Printf("  sha256:  %s\n", sha256)
-	fmt.Printf("  size:    %s\n", humanBytes(size))
-	fmt.Printf("  asset:   %s\n", assetName)
+func printBookSummary(cmd *cobra.Command, bookID, title, sha256 string, size int64, assetName string) {
+	if tui.ShouldUseTUI(cmd) {
+		// Interactive mode: verbose formatted output
+		fmt.Println()
+		fmt.Printf("  id:      %s\n", color.WhiteString(bookID))
+		fmt.Printf("  title:   %s\n", title)
+		fmt.Printf("  sha256:  %s\n", sha256)
+		fmt.Printf("  size:    %s\n", humanBytes(size))
+		fmt.Printf("  asset:   %s\n", assetName)
+	} else {
+		// Script mode: just print the book ID for easy parsing
+		fmt.Println(bookID)
+	}
 }
 
 // promptOrDefault reads a line from stdin, falling back to def on empty input.

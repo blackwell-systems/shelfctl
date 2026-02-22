@@ -7,6 +7,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +32,7 @@ func newShelvesCmd() *cobra.Command {
 		Use:   "shelves",
 		Short: "Validate all configured shelves",
 		Long:  "Checks that each shelf repo exists, has a catalog.yml, and has the required release.",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(cfg.Shelves) == 0 {
 				warn("No shelves configured. Run: shelfctl init --repo shelf-<topic> --name <topic>")
 				return nil
@@ -49,15 +50,25 @@ func newShelvesCmd() *cobra.Command {
 				}
 			}
 
-			// Render as table
-			renderShelfTable(statuses)
+			// Render based on mode
+			if tui.ShouldUseTUI(cmd) {
+				// Interactive mode: show formatted table
+				renderShelfTable(statuses)
 
-			if anyFailed {
+				if anyFailed {
+					fmt.Println()
+					return fmt.Errorf("one or more shelves have issues (run with --fix to repair)")
+				}
 				fmt.Println()
-				return fmt.Errorf("one or more shelves have issues (run with --fix to repair)")
+				ok("All shelves healthy")
+			} else {
+				// Script mode: simple list
+				renderShelfList(statuses)
+
+				if anyFailed {
+					return fmt.Errorf("one or more shelves have issues")
+				}
 			}
-			fmt.Println()
-			ok("All shelves healthy")
 			return nil
 		},
 	}
@@ -133,6 +144,12 @@ func collectShelfStatus(shelf config.ShelfConfig, fix bool) shelfStatus {
 	}
 
 	return status
+}
+
+func renderShelfList(statuses []shelfStatus) {
+	for _, s := range statuses {
+		fmt.Printf("%s\t%s\t%d\n", s.name, s.repo, s.bookCount)
+	}
 }
 
 func renderShelfTable(statuses []shelfStatus) {

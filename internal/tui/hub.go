@@ -78,6 +78,8 @@ type hubModel struct {
 	action   string // which action was selected
 	err      error
 	context  HubContext
+	width    int
+	height   int
 }
 
 type hubKeys struct {
@@ -123,8 +125,18 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+
+		// Account for outer padding and border (same as browse view)
+		const outerPaddingH = 4 * 2 // left/right padding
+		const outerPaddingV = 2 * 2 // top/bottom padding
 		h, v := StyleBorder.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
+
+		listWidth := msg.Width - outerPaddingH - h
+		listHeight := msg.Height - outerPaddingV - v
+
+		m.list.SetSize(listWidth, listHeight)
 	}
 
 	var cmd tea.Cmd
@@ -158,6 +170,10 @@ func (m hubModel) View() string {
 		statusBar = status
 	}
 
+	// Outer container for centering - same as browse view
+	outerStyle := lipgloss.NewStyle().
+		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
+
 	// Combine header, status, and list
 	parts := []string{header}
 	if statusBar != "" {
@@ -167,7 +183,8 @@ func (m hubModel) View() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
-	return StyleBorder.Render(content)
+	// Apply border, then outer container for floating effect
+	return outerStyle.Render(StyleBorder.Render(content))
 }
 
 // RunHub launches the interactive hub menu
@@ -193,7 +210,7 @@ func RunHub(ctx HubContext) (string, error) {
 	delegate := menuDelegate{}
 	l := list.New(items, delegate, 0, 0)
 	l.Title = "Select an action"
-	l.SetShowStatusBar(true)
+	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.Styles.Title = StyleHeader
 	l.Styles.HelpStyle = StyleHelp

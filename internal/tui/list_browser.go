@@ -235,20 +235,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) updateListSize() {
-	// Account for master wrapper border and padding
+	// Account for outer container padding, master wrapper border, and inner padding
+	const outerPaddingH = 4 * 2 // left/right padding from outer container
+	const outerPaddingV = 2 * 2 // top/bottom padding from outer container
 	const masterBorder = 2
 	const dividerWidth = 3
 
+	// Calculate available space after outer padding and border
+	availableWidth := m.width - outerPaddingH - masterBorder
+	availableHeight := m.height - outerPaddingV - masterBorder
+
 	if m.showDetails {
 		// Split view: list takes ~60% of available width
-		availableWidth := m.width - masterBorder
 		listWidth := (availableWidth * 6) / 10
 
 		// Set list size (accounting for divider)
-		m.list.SetSize(listWidth-1, m.height-masterBorder-2)
+		m.list.SetSize(listWidth-1, availableHeight-2)
 	} else {
 		// Full width for list
-		m.list.SetSize(m.width-masterBorder, m.height-masterBorder-2)
+		m.list.SetSize(availableWidth, availableHeight-2)
 	}
 }
 
@@ -352,20 +357,36 @@ func (m model) View() string {
 		return ""
 	}
 
-	// Master wrapper style - applied once to the entire layout
+	// Outer container for centering - adds margin around the entire box
+	outerStyle := lipgloss.NewStyle().
+		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
+
+	// Inner content box with border
 	masterStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorGray).
-		Padding(0).
-		PaddingTop(1)
+		Padding(0)
 
-	// Apply responsive sizing based on terminal dimensions
+	// Calculate dimensions for inner box
+	// Subtract outer padding (2*2 vertical, 4*2 horizontal) and border (2 each side)
 	if m.width > 0 && m.height > 0 {
+		innerWidth := m.width - (4 * 2) - 2   // outer padding + border
+		innerHeight := m.height - (2 * 2) - 2 // outer padding + border
+
+		// Ensure minimum size
+		if innerWidth < 60 {
+			innerWidth = 60
+		}
+		if innerHeight < 10 {
+			innerHeight = 10
+		}
+
 		masterStyle = masterStyle.
-			Width(m.width - 2).
-			Height(m.height - 2)
+			Width(innerWidth).
+			Height(innerHeight)
 	}
 
+	var content string
 	if m.showDetails {
 		// Split-panel layout: compose panels then wrap
 		listView := m.list.View()
@@ -378,19 +399,19 @@ func (m model) View() string {
 		divider := dividerStyle.Render("│")
 
 		// Join horizontally: list + divider + details
-		content := lipgloss.JoinHorizontal(
+		content = lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			listView,
 			divider,
 			detailsView,
 		)
-
-		// Apply master wrapper to the complete composed layout
-		return masterStyle.Render(content)
+	} else {
+		// Single panel: list only
+		content = m.list.View()
 	}
 
-	// Single panel: apply master wrapper to list only
-	return masterStyle.Render(m.list.View())
+	// Apply inner box border, then outer container for floating effect
+	return outerStyle.Render(masterStyle.Render(content))
 }
 
 // RunListBrowser launches an interactive book browser.

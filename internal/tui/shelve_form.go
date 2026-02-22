@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // ShelveFormData holds the metadata collected from the user.
@@ -130,6 +131,10 @@ func (m shelveFormModel) View() string {
 		return ""
 	}
 
+	// Outer container for centering
+	outerStyle := lipgloss.NewStyle().
+		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
+
 	var b strings.Builder
 
 	// Header
@@ -158,7 +163,14 @@ func (m shelveFormModel) View() string {
 	b.WriteString(StyleHelp.Render("Tab/↑↓: Navigate  Enter: Submit  Esc: Cancel"))
 	b.WriteString("\n")
 
-	return b.String()
+	content := b.String()
+
+	// Add inner padding inside border
+	innerPadding := lipgloss.NewStyle().
+		Padding(0, 2, 0, 1) // top, right, bottom, left
+
+	// Apply inner padding, then border, then outer padding
+	return outerStyle.Render(StyleBorder.Render(innerPadding.Render(content)))
 }
 
 // getValue returns the input value or the placeholder default if empty.

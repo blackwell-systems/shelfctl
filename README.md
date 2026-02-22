@@ -218,6 +218,10 @@ Run `shelfctl` with no arguments to launch an interactive menu:
 shelfctl
 ```
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="shelfctl interactive TUI hub menu" width="600">
+</p>
+
 This provides a visual interface with:
 - 🎯 **Guided workflows** - No need to remember commands or flags
 - 📚 **Browse Library** - Visual book browser with search

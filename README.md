@@ -289,7 +289,7 @@ open ~/.local/share/shelfctl/cache/index.html  # Opens in default browser
 ```
 
 <p align="center">
-  <img src="assets/html_viewer.jpeg" alt="shelfctl HTML index with tag filters and book grid" width="600">
+  <img src="assets/html_viewer.jpeg" alt="shelfctl HTML index with tag filters and book grid" width="800">
 </p>
 
 ---

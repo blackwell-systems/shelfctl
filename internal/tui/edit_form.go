@@ -180,6 +180,12 @@ func (m editFormModel) View() string {
 		b.WriteString("\n\n")
 	}
 
+	// Show current tags above the form
+	if len(m.defaults.Tags) > 0 {
+		b.WriteString(StyleHelp.Render("Current tags: " + strings.Join(m.defaults.Tags, ", ")))
+		b.WriteString("\n\n")
+	}
+
 	// Form fields
 	fields := []string{"Title", "Author", "Year", "Tags"}
 	for i, label := range fields {

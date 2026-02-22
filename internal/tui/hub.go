@@ -325,10 +325,8 @@ func RunHub(ctx HubContext) (string, error) {
 	// Create list
 	delegate := menuDelegate{}
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "Select an action"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
-	l.Styles.Title = StyleHeader
 	l.Styles.HelpStyle = StyleHelp
 
 	// Set help

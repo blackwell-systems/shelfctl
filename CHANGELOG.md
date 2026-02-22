@@ -8,10 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Miller Columns File Browser (Hierarchical View)**
+  - File picker now uses Miller columns layout (like macOS Finder column view)
+  - Multiple directory levels displayed side-by-side for visual hierarchy
+  - Enter/Right/L: Navigate into selected directory (adds column to the right)
+  - Backspace/Left/H: Go back to parent level (removes rightmost column)
+  - Tab/Shift+Tab: Switch focus between visible columns
+  - Shows up to 3 columns at once, automatically adjusts to terminal width
+  - Focused column highlighted with cyan border, unfocused columns dimmed
+  - Faster navigation - see multiple levels at once without repeated backspace
 - **Multi-File Selection for Shelve Command (TUI Mode)**
   - Select multiple files using checkboxes in the file picker
   - Spacebar to toggle selection, enter to confirm
-  - Checkbox state persists across directory navigation
+  - Checkbox state persists across directory navigation and columns
   - Can select files from multiple directories in one session
   - Progress indicators show `[2/5] filename.pdf` during batch processing
   - Individual metadata forms for each file in the batch

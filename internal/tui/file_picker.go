@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // FileItem represents a file or directory in the picker.
@@ -90,13 +91,20 @@ func newFileDelegate(ms *multiselect.Model) fileDelegate {
 	}
 }
 
+// column represents a single directory level in Miller columns view
+type column struct {
+	path string
+	list *multiselect.Model
+}
+
 type filePickerModel struct {
-	list          *multiselect.Model // Pointer to allow nil for single-select mode
-	currentPath   string
+	columns       []column // Stack of directory levels
+	focusedCol    int      // Which column is currently focused
 	quitting      bool
-	selected      string
 	err           error
 	selectedMulti []string // Return value for multi-select
+	width         int
+	height        int
 }
 
 // filePickerKeys defines keyboard shortcuts
@@ -105,6 +113,8 @@ type filePickerKeys struct {
 	selectItem key.Binding
 	parent     key.Binding
 	toggle     key.Binding
+	navRight   key.Binding
+	navLeft    key.Binding
 }
 
 var fileKeys = filePickerKeys{
@@ -113,16 +123,24 @@ var fileKeys = filePickerKeys{
 		key.WithHelp("q", "cancel"),
 	),
 	selectItem: key.NewBinding(
-		key.WithKeys("enter"),
+		key.WithKeys("enter", "right", "l"),
 		key.WithHelp("enter", "select/open"),
 	),
 	parent: key.NewBinding(
-		key.WithKeys("backspace", "h"),
+		key.WithKeys("backspace", "left", "h"),
 		key.WithHelp("backspace", "parent dir"),
 	),
 	toggle: key.NewBinding(
 		key.WithKeys(" "),
 		key.WithHelp("space", "toggle"),
+	),
+	navRight: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "next column"),
+	),
+	navLeft: key.NewBinding(
+		key.WithKeys("shift+tab"),
+		key.WithHelp("shift+tab", "prev column"),
 	),
 }
 
@@ -131,19 +149,16 @@ func (m filePickerModel) Init() tea.Cmd {
 }
 
 func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var currentList list.Model
-	if m.list != nil {
-		currentList = m.list.List
-	} else {
-		// Single-select mode - list is stored directly in model (legacy path)
-		// This shouldn't happen with the new design, but kept for safety
+	if len(m.columns) == 0 {
 		return m, nil
 	}
+
+	focusedList := &m.columns[m.focusedCol].list.List
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// Don't handle keys when filtering
-		if currentList.FilterState() == list.Filtering {
+		if focusedList.FilterState() == list.Filtering {
 			break
 		}
 
@@ -154,59 +169,65 @@ func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, fileKeys.toggle):
-			// Toggle checkbox in multi-select mode
-			if m.list != nil {
-				m.list.Toggle()
-			}
+			// Toggle checkbox in focused column
+			m.columns[m.focusedCol].list.Toggle()
+			return m, nil
 
 		case key.Matches(msg, fileKeys.selectItem):
-			if item, ok := currentList.SelectedItem().(*FileItem); ok {
+			if item, ok := focusedList.SelectedItem().(*FileItem); ok {
 				if item.IsDir {
-					// Navigate into directory
-					return m.loadDirectory(item.Path)
+					// Navigate into directory - push new column
+					return m.pushColumn(item.Path)
 				}
 
-				// In multi-select mode, collect all checked files
-				if m.list != nil {
-					items := currentList.Items()
-					for _, listItem := range items {
-						if fileItem, ok := listItem.(*FileItem); ok && fileItem.IsSelected() {
-							m.selectedMulti = append(m.selectedMulti, fileItem.Path)
-						}
-					}
-					// Fallback: if nothing checked, select current file
-					if len(m.selectedMulti) == 0 {
-						m.selectedMulti = []string{item.Path}
-					}
-					m.quitting = true
-					return m, tea.Quit
+				// File selected - collect all checked files across all columns
+				m.selectedMulti = m.collectSelectedFiles()
+				// Fallback: if nothing checked, select current file
+				if len(m.selectedMulti) == 0 {
+					m.selectedMulti = []string{item.Path}
 				}
-
-				// Single-select mode (shouldn't reach here with new design)
-				m.selected = item.Path
 				m.quitting = true
 				return m, tea.Quit
 			}
 
 		case key.Matches(msg, fileKeys.parent):
-			// Go up one directory
-			parent := filepath.Dir(m.currentPath)
-			if parent != m.currentPath {
-				return m.loadDirectory(parent)
+			// Go up one level - pop column
+			if len(m.columns) > 1 {
+				m.columns = m.columns[:len(m.columns)-1]
+				m.focusedCol = len(m.columns) - 1
+				return m, nil
+			}
+			// If only one column, go to parent directory
+			parent := filepath.Dir(m.columns[0].path)
+			if parent != m.columns[0].path {
+				return m.replaceColumn(0, parent)
+			}
+
+		case key.Matches(msg, fileKeys.navRight):
+			// Move focus to next column if it exists
+			if m.focusedCol < len(m.columns)-1 {
+				m.focusedCol++
+				return m, nil
+			}
+
+		case key.Matches(msg, fileKeys.navLeft):
+			// Move focus to previous column
+			if m.focusedCol > 0 {
+				m.focusedCol--
+				return m, nil
 			}
 		}
 
 	case tea.WindowSizeMsg:
-		h, v := StyleBorder.GetFrameSize()
-		if m.list != nil {
-			m.list.List.SetSize(msg.Width-h, msg.Height-v)
-		}
+		m.width = msg.Width
+		m.height = msg.Height
+		m.resizeColumns()
+		return m, nil
 	}
 
+	// Update focused column's list
 	var cmd tea.Cmd
-	if m.list != nil {
-		*m.list, cmd = m.list.Update(msg)
-	}
+	*m.columns[m.focusedCol].list, cmd = m.columns[m.focusedCol].list.Update(msg)
 	return m, cmd
 }
 
@@ -214,59 +235,46 @@ func (m filePickerModel) View() string {
 	if m.quitting {
 		return ""
 	}
-	if m.list != nil {
-		return StyleBorder.Render(m.list.View())
+	if len(m.columns) == 0 {
+		return ""
 	}
-	return ""
+
+	// Determine which columns to show (last N that fit on screen)
+	maxVisibleCols := 3
+	startCol := 0
+	if len(m.columns) > maxVisibleCols {
+		startCol = len(m.columns) - maxVisibleCols
+	}
+
+	// Render visible columns
+	visibleCols := m.columns[startCol:]
+	columnViews := make([]string, len(visibleCols))
+
+	for i, col := range visibleCols {
+		actualIndex := startCol + i
+
+		// Add visual indicator for focused column
+		style := StyleBorder
+		if actualIndex == m.focusedCol {
+			style = style.BorderForeground(lipgloss.Color("6")) // Cyan border for focused
+		} else {
+			style = style.BorderForeground(lipgloss.Color("240")) // Dim border for unfocused
+		}
+		columnViews[i] = style.Render(col.list.View())
+	}
+
+	// Join columns horizontally
+	return lipgloss.JoinHorizontal(lipgloss.Top, columnViews...)
 }
 
-// loadDirectory loads files from the given directory
-func (m filePickerModel) loadDirectory(path string) (tea.Model, tea.Cmd) {
-	var currentList *list.Model
-	if m.list != nil {
-		currentList = &m.list.List
-	}
-
-	if currentList == nil {
-		return m, nil
-	}
-
+// buildDirectoryItems creates list items for the given directory
+func buildDirectoryItems(path string) ([]list.Item, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		// Don't quit on permission errors - just show error in title and allow going back
-		if m.list != nil {
-			m.list.SetTitle(path + " (Permission Denied - Press Backspace)")
-		}
-
-		// Add parent directory entry so user can navigate back
-		parent := filepath.Dir(path)
-		items := []list.Item{}
-		if parent != path {
-			items = append(items, &FileItem{
-				Name:  "..",
-				Path:  parent,
-				IsDir: true,
-			})
-		}
-		currentList.SetItems(items)
-		m.currentPath = path
-		return m, nil
+		return nil, err
 	}
 
-	// Build file items
 	var items []list.Item
-
-	// Add parent directory entry if not at root
-	parent := filepath.Dir(path)
-	if parent != path {
-		items = append(items, &FileItem{
-			Name:  "..",
-			Path:  parent,
-			IsDir: true,
-		})
-	}
-
-	// Add directories and files separately, then sort
 	var dirs []*FileItem
 	var files []*FileItem
 
@@ -288,7 +296,6 @@ func (m filePickerModel) loadDirectory(path string) (tea.Model, tea.Cmd) {
 			Path:  fullPath,
 			IsDir: entry.IsDir(),
 			Size:  info.Size(),
-			// selection state will be restored by multiselect.RestoreSelectionState()
 		}
 
 		if item.IsDir {
@@ -314,19 +321,114 @@ func (m filePickerModel) loadDirectory(path string) (tea.Model, tea.Cmd) {
 		items = append(items, f)
 	}
 
-	// Update list
-	m.currentPath = path
-	currentList.SetItems(items)
+	return items, nil
+}
 
-	// Restore selection state and update title
-	if m.list != nil {
-		m.list.SetTitle(path)
-		m.list.RestoreSelectionState()
+// createColumn creates a new column for the given path
+func (m *filePickerModel) createColumn(path string) (*column, error) {
+	items, err := buildDirectoryItems(path)
+	if err != nil {
+		return nil, err
 	}
 
-	currentList.ResetSelected()
+	// Create base list with temporary delegate
+	tempDelegate := delegate.New(func(w io.Writer, m list.Model, index int, item list.Item) {})
+	l := list.New(items, tempDelegate, 0, 0)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(true)
+	l.Styles.Title = StyleHeader
+	l.Styles.HelpStyle = StyleHelp
+
+	// Wrap with multi-select
+	ms := multiselect.New(l)
+	ms.SetTitle(filepath.Base(path))
+
+	// Create proper delegate with multi-select support
+	d := newFileDelegate(&ms)
+	ms.List.SetDelegate(d)
+
+	// Set help keybindings
+	ms.List.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{fileKeys.toggle, fileKeys.parent}
+	}
+
+	// Restore selection state
+	ms.RestoreSelectionState()
+
+	col := &column{
+		path: path,
+		list: &ms,
+	}
+
+	return col, nil
+}
+
+// pushColumn adds a new column for the given directory
+func (m filePickerModel) pushColumn(path string) (tea.Model, tea.Cmd) {
+	col, err := m.createColumn(path)
+	if err != nil {
+		// On error, show message but don't crash
+		if len(m.columns) > 0 {
+			m.columns[m.focusedCol].list.SetTitle(path + " (Permission Denied)")
+		}
+		return m, nil
+	}
+
+	m.columns = append(m.columns, *col)
+	m.focusedCol = len(m.columns) - 1
+	m.resizeColumns()
 
 	return m, nil
+}
+
+// replaceColumn replaces the column at the given index with a new path
+func (m filePickerModel) replaceColumn(index int, path string) (tea.Model, tea.Cmd) {
+	col, err := m.createColumn(path)
+	if err != nil {
+		return m, nil
+	}
+
+	m.columns[index] = *col
+	m.resizeColumns()
+
+	return m, nil
+}
+
+// collectSelectedFiles gathers all selected files across all columns
+func (m *filePickerModel) collectSelectedFiles() []string {
+	var selected []string
+	for _, col := range m.columns {
+		items := col.list.List.Items()
+		for _, item := range items {
+			if fileItem, ok := item.(*FileItem); ok && fileItem.IsSelected() {
+				selected = append(selected, fileItem.Path)
+			}
+		}
+	}
+	return selected
+}
+
+// resizeColumns adjusts column widths based on terminal size
+func (m *filePickerModel) resizeColumns() {
+	if len(m.columns) == 0 || m.width == 0 || m.height == 0 {
+		return
+	}
+
+	// Calculate column width
+	// Show up to 3 columns, each getting equal width
+	numVisible := len(m.columns)
+	if numVisible > 3 {
+		numVisible = 3
+	}
+
+	h, v := StyleBorder.GetFrameSize()
+	colWidth := (m.width / numVisible) - h - 1 // -1 for spacing
+	colHeight := m.height - v
+
+	// Resize each column's list
+	for i := range m.columns {
+		m.columns[i].list.List.SetSize(colWidth, colHeight)
+	}
 }
 
 // RunFilePicker launches an interactive file browser for selecting a single file.
@@ -345,6 +447,7 @@ func RunFilePicker(startPath string) (string, error) {
 
 // RunFilePickerMulti launches an interactive file browser with multi-select support.
 // Users can toggle checkboxes with spacebar and confirm with enter.
+// Uses Miller columns (hierarchical view) for navigation.
 // Returns a slice of selected file paths, or error if canceled.
 func RunFilePickerMulti(startPath string) ([]string, error) {
 	if startPath == "" {
@@ -361,40 +464,18 @@ func RunFilePickerMulti(startPath string) ([]string, error) {
 		startPath = filepath.Join(home, startPath[2:])
 	}
 
-	// Create base list with temporary delegate (will be replaced)
-	// We use a basic render function temporarily since we need the list to create multiselect,
-	// but we need multiselect to create the proper delegate
-	tempDelegate := delegate.New(func(w io.Writer, m list.Model, index int, item list.Item) {
-		// Temporary - will be replaced immediately
-	})
-	l := list.New([]list.Item{}, tempDelegate, 0, 0)
-	l.Title = "Select Files"
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(true)
-	l.Styles.Title = StyleHeader
-	l.Styles.HelpStyle = StyleHelp
-
-	// Wrap with multi-select
-	ms := multiselect.New(l)
-	ms.SetTitle(startPath)
-
-	// Now create the proper delegate with access to multi-select model
-	d := newFileDelegate(&ms)
-	ms.List.SetDelegate(d)
-
-	// Set help keybindings for multi-select mode
-	ms.List.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{fileKeys.toggle, fileKeys.parent}
-	}
-
+	// Create initial model with empty columns
 	m := filePickerModel{
-		list:        &ms,
-		currentPath: startPath,
+		columns:    []column{},
+		focusedCol: 0,
 	}
 
-	// Load initial directory
-	initialModel, _ := m.loadDirectory(startPath)
-	m, _ = initialModel.(filePickerModel)
+	// Create initial column
+	col, err := m.createColumn(startPath)
+	if err != nil {
+		return nil, fmt.Errorf("loading start path: %w", err)
+	}
+	m.columns = []column{*col}
 
 	// Run the program
 	p := tea.NewProgram(m, tea.WithAltScreen())

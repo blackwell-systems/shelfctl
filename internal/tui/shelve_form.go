@@ -32,6 +32,8 @@ type shelveFormModel struct {
 	result   *ShelveFormData
 	err      error
 	canceled bool
+	width    int
+	height   int
 }
 
 const (
@@ -85,6 +87,11 @@ func (m shelveFormModel) Init() tea.Cmd {
 
 func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
@@ -135,6 +142,30 @@ func (m shelveFormModel) View() string {
 	outerStyle := lipgloss.NewStyle().
 		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
 
+	// Inner content box with border
+	masterStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(ColorGray).
+		Padding(1, 2) // Add padding inside the border (top/bottom: 1, left/right: 2)
+
+	// Calculate dimensions for inner box
+	if m.width > 0 && m.height > 0 {
+		innerWidth := m.width - (4 * 2) - 2   // outer padding + border
+		innerHeight := m.height - (2 * 2) - 2 // outer padding + border
+
+		// Ensure minimum size
+		if innerWidth < 60 {
+			innerWidth = 60
+		}
+		if innerHeight < 10 {
+			innerHeight = 10
+		}
+
+		masterStyle = masterStyle.
+			Width(innerWidth).
+			Height(innerHeight)
+	}
+
 	var b strings.Builder
 
 	// Header
@@ -165,12 +196,8 @@ func (m shelveFormModel) View() string {
 
 	content := b.String()
 
-	// Add inner padding inside border
-	innerPadding := lipgloss.NewStyle().
-		Padding(0, 2, 0, 1) // top, right, bottom, left
-
-	// Apply inner padding, then border, then outer padding
-	return outerStyle.Render(StyleBorder.Render(innerPadding.Render(content)))
+	// Apply border with padding, then outer container
+	return outerStyle.Render(masterStyle.Render(content))
 }
 
 // getValue returns the input value or the placeholder default if empty.

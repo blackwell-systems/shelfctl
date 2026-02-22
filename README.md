@@ -377,4 +377,8 @@ Shelby the Shelf (our mascot) is a terminal wearing a bookshelf like a sweater, 
 
 ## License
 
-MIT - See [LICENSE](LICENSE) for details
+**Software:** MIT License - See [LICENSE](LICENSE) for details
+
+**Shelby Mascot & Brand Assets:** Proprietary - See [assets/LICENSE](assets/LICENSE) for terms
+
+You're free to use, modify, and distribute the shelfctl software under MIT terms. The Shelby mascot and brand assets can be distributed with shelfctl but cannot be modified or used in other projects without permission.

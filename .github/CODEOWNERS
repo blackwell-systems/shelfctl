@@ -1,0 +1,19 @@
+# Code owners for shelfctl
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @blackwell-systems
+
+# Go source code
+*.go @blackwell-systems
+
+# Documentation
+*.md @blackwell-systems
+/docs/ @blackwell-systems
+
+# CI/CD configuration
+/.github/ @blackwell-systems
+
+# Configuration
+*.yml @blackwell-systems
+*.yaml @blackwell-systems

@@ -295,6 +295,8 @@ shelfctl cache [command]
 
 Remove books from local cache. Books remain in catalog and release - only local copies deleted.
 
+**Protection for modified files:** By default, books with local changes (annotations/highlights) are protected and won't be deleted. Use `--force` to override.
+
 ```bash
 shelfctl cache clear [book-id...] [flags]
 ```
@@ -302,6 +304,7 @@ shelfctl cache clear [book-id...] [flags]
 **Flags:**
 - `--shelf`: Clear cache for all books on this shelf
 - `--all`: Clear entire cache directory
+- `--force`: Delete modified files (with annotations/highlights)
 
 **Examples:**
 
@@ -309,22 +312,43 @@ shelfctl cache clear [book-id...] [flags]
 # Interactive picker (multi-select with spacebar)
 shelfctl cache clear
 
-# Remove specific books
+# Remove specific books (skips modified files)
 shelfctl cache clear sicp taocp-vol1
 
-# Clear all books from a shelf
+# Force delete including modified files
+shelfctl cache clear sicp --force
+
+# Clear all books from a shelf (protects modified)
 shelfctl cache clear --shelf programming
+
+# Clear shelf including modified files
+shelfctl cache clear --shelf programming --force
 
 # Nuke entire cache (requires "CLEAR ALL CACHE" confirmation)
 shelfctl cache clear --all
 ```
 
 **What it does:**
-1. Shows confirmation prompt for bulk operations
-2. Removes cached files from `~/.cache/shelfctl/`
-3. Books remain in catalog.yml and release assets
-4. Books will re-download when opened or browsed
-5. Useful for reclaiming disk space without affecting library
+1. Checks for modified files (annotations/highlights)
+2. Skips modified files by default, warns with sync suggestion
+3. Shows confirmation prompt for bulk operations
+4. Removes cached files from `~/.cache/shelfctl/`
+5. Books remain in catalog.yml and release assets
+6. Books will re-download when opened or browsed
+7. Useful for reclaiming disk space without affecting library
+
+**Protection behavior:**
+```
+# Without --force (safe)
+$ shelfctl cache clear sicp
+⚠ sicp: modified (use --force to delete)
+  Tip: Run 'shelfctl sync sicp' to upload changes first
+
+# With --force (destructive)
+$ shelfctl cache clear sicp --force
+⚠ This includes modified files with annotations
+Type 'CLEAR CACHE' to confirm: _
+```
 
 #### cache info
 

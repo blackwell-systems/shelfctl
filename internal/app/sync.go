@@ -57,16 +57,20 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 		shelves = []config.ShelfConfig{*shelf}
 	}
 
-	totalSynced := 0
-	totalSkipped := 0
-	totalErrors := 0
+	// First pass: count how many books need syncing
+	booksToSync := []struct {
+		shelf  *config.ShelfConfig
+		book   *catalog.Book
+		path   string
+		size   int64
+		newSHA string
+	}{}
 
-	for _, shelf := range shelves {
+	for i := range shelves {
+		shelf := &shelves[i]
 		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 		catalogPath := shelf.EffectiveCatalogPath()
-		releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
 
-		// Load catalog
 		mgr := catalog.NewManager(gh, owner, shelf.Repo, catalogPath)
 		books, err := mgr.Load()
 		if err != nil {
@@ -74,17 +78,8 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 			continue
 		}
 
-		// Get release
-		rel, err := gh.EnsureRelease(owner, shelf.Repo, releaseTag)
-		if err != nil {
-			warn("Could not get release for shelf %s: %v", shelf.Name, err)
-			continue
-		}
-
-		// Process books
-		modified := false
-		for i := range books {
-			b := &books[i]
+		for j := range books {
+			b := &books[j]
 
 			// Skip if not in our target list (when not --all)
 			if !all && !contains(bookIDs, b.ID) {
@@ -94,9 +89,7 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 			// Skip if not cached
 			if !cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
 				if !all {
-					// Only warn for explicitly requested books
 					warn("Book %s not cached locally", b.ID)
-					totalSkipped++
 				}
 				continue
 			}
@@ -106,92 +99,151 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 			cachedSHA, cachedSize, err := computeFileHash(cachedPath)
 			if err != nil {
 				warn("Could not read cached file for %s: %v", b.ID, err)
-				totalErrors++
 				continue
 			}
 
-			if cachedSHA == b.Checksum.SHA256 {
-				// No changes
-				if !all {
-					// Only print for explicitly requested books
-					if tui.ShouldUseTUI(cmd) {
-						fmt.Printf("✓ %s: no changes\n", b.ID)
-					}
-				}
-				totalSkipped++
-				continue
-			}
-
-			// File has been modified - sync it
-			if tui.ShouldUseTUI(cmd) {
-				fmt.Printf("Syncing %s (%s) …\n", b.ID, b.Title)
-			}
-
-			// Find and delete old asset
-			oldAsset, err := gh.FindAsset(owner, shelf.Repo, rel.ID, b.Source.Asset)
-			if err != nil {
-				warn("Could not find asset for %s: %v", b.ID, err)
-				totalErrors++
-				continue
-			}
-			if oldAsset != nil {
-				if err := gh.DeleteAsset(owner, shelf.Repo, oldAsset.ID); err != nil {
-					warn("Could not delete old asset for %s: %v", b.ID, err)
-					totalErrors++
-					continue
+			if cachedSHA != b.Checksum.SHA256 {
+				booksToSync = append(booksToSync, struct {
+					shelf  *config.ShelfConfig
+					book   *catalog.Book
+					path   string
+					size   int64
+					newSHA string
+				}{
+					shelf:  shelf,
+					book:   b,
+					path:   cachedPath,
+					size:   cachedSize,
+					newSHA: cachedSHA,
+				})
+			} else if !all {
+				// Only print for explicitly requested books
+				if tui.ShouldUseTUI(cmd) {
+					fmt.Printf("✓ %s: no changes\n", b.ID)
 				}
 			}
+		}
+	}
 
-			// Upload modified file
-			f, err := os.Open(cachedPath)
-			if err != nil {
-				warn("Could not open cached file for %s: %v", b.ID, err)
+	// If nothing to sync, exit early
+	if len(booksToSync) == 0 {
+		if all {
+			fmt.Println("No modified books found in cache")
+		}
+		return nil
+	}
+
+	// Second pass: sync books with progress indicators
+	totalSynced := 0
+	totalErrors := 0
+
+	for idx, item := range booksToSync {
+		shelf := item.shelf
+		b := item.book
+		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+		catalogPath := shelf.EffectiveCatalogPath()
+		releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
+
+		// Show progress counter
+		progressPrefix := fmt.Sprintf("[%d/%d]", idx+1, len(booksToSync))
+		if tui.ShouldUseTUI(cmd) {
+			fmt.Printf("%s Syncing %s (%s)\n", progressPrefix, b.ID, b.Title)
+		}
+
+		// Load catalog
+		mgr := catalog.NewManager(gh, owner, shelf.Repo, catalogPath)
+		books, err := mgr.Load()
+		if err != nil {
+			warn("Could not load catalog for shelf %s: %v", shelf.Name, err)
+			totalErrors++
+			continue
+		}
+
+		// Get release
+		rel, err := gh.EnsureRelease(owner, shelf.Repo, releaseTag)
+		if err != nil {
+			warn("Could not get release for shelf %s: %v", shelf.Name, err)
+			totalErrors++
+			continue
+		}
+
+		// Find and delete old asset
+		oldAsset, err := gh.FindAsset(owner, shelf.Repo, rel.ID, b.Source.Asset)
+		if err != nil {
+			warn("Could not find asset for %s: %v", b.ID, err)
+			totalErrors++
+			continue
+		}
+		if oldAsset != nil {
+			if err := gh.DeleteAsset(owner, shelf.Repo, oldAsset.ID); err != nil {
+				warn("Could not delete old asset for %s: %v", b.ID, err)
 				totalErrors++
 				continue
-			}
-
-			_, err = gh.UploadAsset(owner, shelf.Repo, rel.ID, b.Source.Asset, f, cachedSize, "application/octet-stream")
-			_ = f.Close()
-			if err != nil {
-				warn("Could not upload modified file for %s: %v", b.ID, err)
-				totalErrors++
-				continue
-			}
-
-			// Update catalog entry
-			b.Checksum.SHA256 = cachedSHA
-			b.SizeBytes = cachedSize
-
-			modified = true
-			totalSynced++
-
-			if tui.ShouldUseTUI(cmd) {
-				ok("Synced %s", b.ID)
 			}
 		}
 
-		// Commit catalog if any books were synced
-		if modified {
-			var commitMsg string
-			if totalSynced == 1 {
-				// Find which book was synced for better message
-				for i := range books {
-					if contains(bookIDs, books[i].ID) || all {
-						commitMsg = fmt.Sprintf("sync: update %s with local changes", books[i].ID)
-						break
-					}
-				}
-				if commitMsg == "" {
-					commitMsg = "sync: update book with local changes"
-				}
-			} else {
-				commitMsg = fmt.Sprintf("sync: update %d books with local changes", totalSynced)
+		// Upload modified file with progress bar
+		f, err := os.Open(item.path)
+		if err != nil {
+			warn("Could not open cached file for %s: %v", b.ID, err)
+			totalErrors++
+			continue
+		}
+
+		var uploadErr error
+		if tui.ShouldUseTUI(cmd) {
+			// Show progress bar during upload
+			progressCh := make(chan int64, 100)
+			errCh := make(chan error, 1)
+
+			go func() {
+				progressCh <- 0
+				pr := tui.NewProgressReader(f, item.size, progressCh)
+				_, err := gh.UploadAsset(owner, shelf.Repo, rel.ID, b.Source.Asset, pr, item.size, "application/octet-stream")
+				close(progressCh)
+				errCh <- err
+			}()
+
+			label := fmt.Sprintf("%s Uploading %s → %s/%s", progressPrefix, b.Source.Asset, owner, shelf.Repo)
+			if err := tui.ShowProgress(label, item.size, progressCh); err != nil {
+				_ = f.Close()
+				return err // User cancelled
 			}
 
+			uploadErr = <-errCh
+		} else {
+			// Non-interactive: direct upload
+			_, uploadErr = gh.UploadAsset(owner, shelf.Repo, rel.ID, b.Source.Asset, f, item.size, "application/octet-stream")
+		}
+
+		_ = f.Close()
+
+		if uploadErr != nil {
+			warn("Could not upload modified file for %s: %v", b.ID, uploadErr)
+			totalErrors++
+			continue
+		}
+
+		// Update catalog entry
+		bookToUpdate := catalog.ByID(books, b.ID)
+		if bookToUpdate != nil {
+			bookToUpdate.Checksum.SHA256 = item.newSHA
+			bookToUpdate.SizeBytes = item.size
+
+			commitMsg := fmt.Sprintf("sync: update %s with local changes", b.ID)
 			if err := mgr.Save(books, commitMsg); err != nil {
 				warn("Could not save catalog for shelf %s: %v", shelf.Name, err)
+				totalErrors++
 				continue
 			}
+
+			totalSynced++
+			if tui.ShouldUseTUI(cmd) {
+				ok("%s Synced %s", progressPrefix, b.ID)
+			}
+		} else {
+			warn("Could not find book %s in catalog after upload", b.ID)
+			totalErrors++
 		}
 	}
 
@@ -199,16 +251,10 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 	if tui.ShouldUseTUI(cmd) {
 		fmt.Println()
 		if totalSynced > 0 {
-			ok("Synced %d books", totalSynced)
-		}
-		if totalSkipped > 0 && !all {
-			fmt.Printf("%d books had no changes\n", totalSkipped)
+			ok("Successfully synced %d books", totalSynced)
 		}
 		if totalErrors > 0 {
-			warn("%d errors", totalErrors)
-		}
-		if totalSynced == 0 && totalErrors == 0 && totalSkipped == 0 && all {
-			fmt.Println("No modified books found in cache")
+			warn("%d books failed to sync", totalErrors)
 		}
 	}
 

@@ -45,9 +45,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Detects when cached files differ from Release asset (annotations, highlights, etc.)
   - Re-uploads modified file and updates catalog (replaces asset, no versioning)
   - Supports `sync book-id`, `sync --all`, `sync --all --shelf name`
+  - Progress indicators: "[2/5]" counter and upload progress bar for each book
   - `cache info` now shows modified count: "3 books have local changes"
   - Hub Cache Info panel displays modified books with hint to run sync
   - Keeps GitHub in sync with your working copies without version clutter
+- **Cache Clear Protection**
+  - Modified files (with annotations/highlights) are now protected by default
+  - `cache clear` skips modified files and shows warning with sync suggestion
+  - New `--force` flag to delete modified files if absolutely needed
+  - Applies to all clear operations: specific books, shelf, all, interactive
+  - Prevents accidental loss of annotations when reclaiming disk space
 - **Multi-Select Download in Browse**
   - Spacebar to toggle selection (checkboxes appear in list)
   - 'g' downloads all selected books to cache (or current if none selected)

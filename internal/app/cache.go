@@ -32,6 +32,7 @@ func newCacheClearCmd() *cobra.Command {
 	var (
 		shelfName string
 		all       bool
+		force     bool
 	)
 
 	cmd := &cobra.Command{
@@ -39,33 +40,38 @@ func newCacheClearCmd() *cobra.Command {
 		Short: "Remove books from local cache",
 		Long: `Remove books from local cache without deleting them from shelves.
 
+Modified files (with annotations/highlights) are protected by default.
+Use --force to delete modified files.
+
 Books will be re-downloaded when opened or browsed.
 
 Examples:
   shelfctl cache clear book-id-1 book-id-2    Remove specific books
   shelfctl cache clear --shelf books          Remove all books from a shelf
   shelfctl cache clear --all                  Remove entire cache
+  shelfctl cache clear --force                Remove including modified files
   shelfctl cache clear                        Interactive picker`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if all {
-				return clearAllCache()
+				return clearAllCache(force)
 			}
 
 			if shelfName != "" {
-				return clearShelfCache(shelfName)
+				return clearShelfCache(shelfName, force)
 			}
 
 			if len(args) > 0 {
-				return clearSpecificBooks(args)
+				return clearSpecificBooks(args, force)
 			}
 
 			// Interactive mode
-			return clearBooksInteractive(cmd)
+			return clearBooksInteractive(cmd, force)
 		},
 	}
 
 	cmd.Flags().StringVar(&shelfName, "shelf", "", "Clear cache for all books on this shelf")
 	cmd.Flags().BoolVar(&all, "all", false, "Clear entire cache")
+	cmd.Flags().BoolVar(&force, "force", false, "Delete modified files (annotations/highlights)")
 
 	return cmd
 }
@@ -91,7 +97,7 @@ func newCacheInfoCmd() *cobra.Command {
 }
 
 // clearAllCache removes the entire cache directory
-func clearAllCache() error {
+func clearAllCache(force bool) error {
 	cacheDir := cacheMgr.Path("", "", "", "")
 	cacheDir = filepath.Dir(cacheDir) // Go up one level to get base dir
 
@@ -101,11 +107,31 @@ func clearAllCache() error {
 		return nil
 	}
 
+	// Check for modified files if not forcing
+	if !force {
+		allBooks := loadAllBooksAcrossShelves()
+		modifiedCount := 0
+		for _, item := range allBooks {
+			if item.Cached && cacheMgr.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
+				modifiedCount++
+			}
+		}
+
+		if modifiedCount > 0 {
+			warn("%d books have local changes (annotations/highlights)", modifiedCount)
+			fmt.Printf("Run 'shelfctl sync --all' first, or use --force to delete anyway\n")
+			return fmt.Errorf("modified files protected")
+		}
+	}
+
 	// Get size before clearing
 	size, count := calculateDirSize(cacheDir)
 
 	// Confirm
 	fmt.Printf("This will remove %d cached files (%s)\n", count, humanBytes(size))
+	if force {
+		fmt.Printf("%s This includes modified files with annotations\n", color.YellowString("⚠"))
+	}
 	fmt.Printf("Type 'CLEAR ALL CACHE' to confirm: ")
 	reader := bufio.NewReader(os.Stdin)
 	confirmation, _ := reader.ReadString('\n')
@@ -125,7 +151,7 @@ func clearAllCache() error {
 }
 
 // clearShelfCache removes all cached books from a specific shelf
-func clearShelfCache(shelfName string) error {
+func clearShelfCache(shelfName string, force bool) error {
 	shelf := cfg.ShelfByName(shelfName)
 	if shelf == nil {
 		return fmt.Errorf("shelf %q not found", shelfName)
@@ -141,8 +167,9 @@ func clearShelfCache(shelfName string) error {
 		return fmt.Errorf("loading catalog: %w", err)
 	}
 
-	// Count cached books
+	// Count cached books and check for modifications
 	cachedCount := 0
+	modifiedCount := 0
 	var cachedSize int64
 
 	for i := range books {
@@ -153,6 +180,11 @@ func clearShelfCache(shelfName string) error {
 			if info, err := os.Stat(path); err == nil {
 				cachedSize += info.Size()
 			}
+
+			// Check if modified
+			if !force && cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+				modifiedCount++
+			}
 		}
 	}
 
@@ -161,8 +193,18 @@ func clearShelfCache(shelfName string) error {
 		return nil
 	}
 
+	// Warn about modifications
+	if modifiedCount > 0 && !force {
+		warn("%d books have local changes (annotations/highlights)", modifiedCount)
+		fmt.Printf("Run 'shelfctl sync --shelf %s' first, or use --force to delete anyway\n", shelfName)
+		return fmt.Errorf("modified files protected")
+	}
+
 	// Confirm
 	fmt.Printf("This will remove %d cached books from shelf %s (%s)\n", cachedCount, shelfName, humanBytes(cachedSize))
+	if force && modifiedCount > 0 {
+		fmt.Printf("%s This includes %d modified files with annotations\n", color.YellowString("⚠"), modifiedCount)
+	}
 	fmt.Printf("Type 'CLEAR CACHE' to confirm: ")
 	reader := bufio.NewReader(os.Stdin)
 	confirmation, _ := reader.ReadString('\n')
@@ -174,9 +216,17 @@ func clearShelfCache(shelfName string) error {
 
 	// Remove each cached book
 	removed := 0
+	skipped := 0
 	for i := range books {
 		b := &books[i]
 		if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
+			// Skip modified files unless forced
+			if !force && cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+				fmt.Printf("⚠ Skipped %s (modified)\n", b.ID)
+				skipped++
+				continue
+			}
+
 			if err := cacheMgr.Remove(owner, shelf.Repo, b.ID, b.Source.Asset); err != nil {
 				warn("Failed to remove %s: %v", b.ID, err)
 				continue
@@ -186,15 +236,19 @@ func clearShelfCache(shelfName string) error {
 	}
 
 	ok("Removed %d books from cache (%s)", removed, humanBytes(cachedSize))
+	if skipped > 0 {
+		fmt.Printf("%s Skipped %d modified books (use --force to delete)\n", color.CyanString("ℹ"), skipped)
+	}
 	return nil
 }
 
 // clearSpecificBooks removes specific books from cache by ID
-func clearSpecificBooks(bookIDs []string) error {
+func clearSpecificBooks(bookIDs []string, force bool) error {
 	// Load all shelves to find the books
 	allBooks := loadAllBooksAcrossShelves()
 
 	removedCount := 0
+	skippedCount := 0
 	var totalSize int64
 
 	for _, bookID := range bookIDs {
@@ -204,6 +258,14 @@ func clearSpecificBooks(bookIDs []string) error {
 				found = true
 				if !item.Cached {
 					fmt.Printf("%s: not cached\n", bookID)
+					continue
+				}
+
+				// Check if modified
+				if !force && cacheMgr.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
+					fmt.Printf("%s %s: modified (use --force to delete)\n", color.YellowString("⚠"), bookID)
+					fmt.Printf("  Tip: Run 'shelfctl sync %s' to upload changes first\n", bookID)
+					skippedCount++
 					continue
 				}
 
@@ -231,26 +293,40 @@ func clearSpecificBooks(bookIDs []string) error {
 	if removedCount > 0 {
 		ok("Removed %d books from cache (%s)", removedCount, humanBytes(totalSize))
 	}
+	if skippedCount > 0 {
+		fmt.Printf("\n%s Skipped %d modified books\n", color.CyanString("ℹ"), skippedCount)
+	}
 
 	return nil
 }
 
 // clearBooksInteractive launches interactive picker to select books to clear from cache
-func clearBooksInteractive(cmd *cobra.Command) error {
+func clearBooksInteractive(cmd *cobra.Command, force bool) error {
 	// Load all cached books
 	allBooks := loadAllBooksAcrossShelves()
 
 	// Filter to only cached books
 	var cachedBooks []tui.BookItem
+	modifiedCount := 0
 	for _, item := range allBooks {
 		if item.Cached {
 			cachedBooks = append(cachedBooks, item)
+			// Check if modified
+			if cacheMgr.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
+				modifiedCount++
+			}
 		}
 	}
 
 	if len(cachedBooks) == 0 {
 		ok("No books in cache")
 		return nil
+	}
+
+	// Warn about modified files
+	if modifiedCount > 0 && !force {
+		fmt.Printf("\n%s %d books have local changes (annotations/highlights)\n", color.YellowString("⚠"), modifiedCount)
+		fmt.Printf("Modified books will be skipped unless you use --force\n\n")
 	}
 
 	// Launch multi-select picker
@@ -263,26 +339,50 @@ func clearBooksInteractive(cmd *cobra.Command) error {
 		return fmt.Errorf("no books selected")
 	}
 
-	// Calculate total size
+	// Check for modified files in selection
+	var toRemove []tui.BookItem
+	var skipped []tui.BookItem
 	var totalSize int64
+
 	for _, item := range selected {
 		path := cacheMgr.Path(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset)
 		if info, err := os.Stat(path); err == nil {
 			totalSize += info.Size()
 		}
+
+		// Check if modified
+		if !force && cacheMgr.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
+			skipped = append(skipped, item)
+		} else {
+			toRemove = append(toRemove, item)
+		}
+	}
+
+	// Warn about skipped files
+	if len(skipped) > 0 {
+		fmt.Printf("\n%s The following books have local changes and will be skipped:\n", color.YellowString("⚠"))
+		for _, item := range skipped {
+			fmt.Printf("  - %s (%s)\n", item.Book.ID, item.Book.Title)
+		}
+		fmt.Printf("\nRun 'shelfctl sync --all' to upload changes, or use --force to delete\n")
+	}
+
+	if len(toRemove) == 0 {
+		fmt.Printf("\nNo unmodified books selected. Nothing to remove.\n")
+		return nil
 	}
 
 	// Confirm
-	if len(selected) > 1 {
-		fmt.Printf("\nYou are about to remove %d books from cache (%s):\n", len(selected), humanBytes(totalSize))
-		for _, item := range selected {
+	if len(toRemove) > 1 {
+		fmt.Printf("\nYou are about to remove %d books from cache:\n", len(toRemove))
+		for _, item := range toRemove {
 			fmt.Printf("  - %s (%s)\n", item.Book.ID, item.Book.Title)
 		}
-		fmt.Printf("\nType 'CLEAR %d BOOKS' to confirm: ", len(selected))
+		fmt.Printf("\nType 'CLEAR %d BOOKS' to confirm: ", len(toRemove))
 		reader := bufio.NewReader(os.Stdin)
 		confirmation, _ := reader.ReadString('\n')
 		confirmation = strings.TrimSpace(confirmation)
-		expected := fmt.Sprintf("CLEAR %d BOOKS", len(selected))
+		expected := fmt.Sprintf("CLEAR %d BOOKS", len(toRemove))
 		if confirmation != expected {
 			return fmt.Errorf("cancelled")
 		}
@@ -290,7 +390,7 @@ func clearBooksInteractive(cmd *cobra.Command) error {
 
 	// Remove from cache
 	removedCount := 0
-	for _, item := range selected {
+	for _, item := range toRemove {
 		if err := cacheMgr.Remove(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset); err != nil {
 			warn("Failed to remove %s: %v", item.Book.ID, err)
 			continue
@@ -299,6 +399,9 @@ func clearBooksInteractive(cmd *cobra.Command) error {
 	}
 
 	ok("Removed %d books from cache (%s)", removedCount, humanBytes(totalSize))
+	if len(skipped) > 0 {
+		fmt.Printf("%s Skipped %d modified books\n", color.CyanString("ℹ"), len(skipped))
+	}
 	return nil
 }
 

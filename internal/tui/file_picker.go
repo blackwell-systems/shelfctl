@@ -361,8 +361,13 @@ func RunFilePickerMulti(startPath string) ([]string, error) {
 		startPath = filepath.Join(home, startPath[2:])
 	}
 
-	// Create base list
-	l := list.New([]list.Item{}, fileDelegate{}, 0, 0)
+	// Create base list with temporary delegate (will be replaced)
+	// We use a basic render function temporarily since we need the list to create multiselect,
+	// but we need multiselect to create the proper delegate
+	tempDelegate := delegate.New(func(w io.Writer, m list.Model, index int, item list.Item) {
+		// Temporary - will be replaced immediately
+	})
+	l := list.New([]list.Item{}, tempDelegate, 0, 0)
 	l.Title = "Select Files"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
@@ -373,7 +378,7 @@ func RunFilePickerMulti(startPath string) ([]string, error) {
 	ms := multiselect.New(l)
 	ms.SetTitle(startPath)
 
-	// Update delegate to have access to multi-select model
+	// Now create the proper delegate with access to multi-select model
 	d := newFileDelegate(&ms)
 	ms.List.SetDelegate(d)
 

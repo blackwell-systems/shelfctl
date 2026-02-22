@@ -41,7 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No need to exit hub menu - details appear automatically as you navigate
   - Shows shelf name, repository, book count, and status for each shelf
   - Navigate away to hide panel, Enter to execute full "View Shelves" command
+  - Details panel constrained to fixed 45-character width (doesn't expand on wide terminals)
   - Smoother UX without context switching or "Press Enter" pauses
+- **Enhanced Browse Details Panel**
+  - Added file size display in human-readable format (e.g., "7.6 MiB", "21.9 MiB")
+  - Added year field when available
+  - All text fields now truncate with ellipsis to prevent wrapping into left pane
+  - Dynamically adjusts on terminal resize
+  - Affects long IDs, titles, authors, repository names, asset names
 
 ### Fixed
 

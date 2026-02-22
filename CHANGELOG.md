@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use case: Batch tag additions, author name fixes, year corrections
 
 ### Changed
+- **Hub Menu with Inline Shelf Preview**
+  - "View Shelves" now shows shelf information in split-panel on the right when highlighted
+  - No need to exit hub menu - details appear automatically as you navigate
+  - Shows shelf name, repository, book count, and status for each shelf
+  - Navigate away to hide panel, Enter to execute full "View Shelves" command
+  - Smoother UX without context switching or "Press Enter" pauses
 
 ### Fixed
 

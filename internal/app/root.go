@@ -732,16 +732,47 @@ func buildHubContext() tui.HubContext {
 		ShelfCount: len(cfg.Shelves),
 	}
 
-	// Count total books across all shelves (best effort)
+	// Collect shelf details for inline display
+	var shelfDetails []tui.ShelfStatus
 	for _, shelf := range cfg.Shelves {
 		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 		catalogPath := shelf.EffectiveCatalogPath()
+		release := shelf.EffectiveRelease(cfg.Defaults.Release)
+
+		status := tui.ShelfStatus{
+			Name:      shelf.Name,
+			Repo:      shelf.Repo,
+			Owner:     owner,
+			BookCount: 0,
+			Status:    "✓ Healthy",
+		}
+
+		// Check repo exists
+		exists, err := gh.RepoExists(owner, shelf.Repo)
+		if err != nil || !exists {
+			status.Status = "✗ Repo not found"
+			shelfDetails = append(shelfDetails, status)
+			continue
+		}
+
+		// Load catalog and count books
 		if data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, ""); err == nil {
 			if books, err := catalog.Parse(data); err == nil {
+				status.BookCount = len(books)
 				ctx.BookCount += len(books)
 			}
+		} else {
+			status.Status = "⚠ Catalog missing"
 		}
+
+		// Check release exists
+		if _, err := gh.GetReleaseByTag(owner, shelf.Repo, release); err != nil {
+			status.Status = "⚠ Release missing"
+		}
+
+		shelfDetails = append(shelfDetails, status)
 	}
 
+	ctx.ShelfDetails = shelfDetails
 	return ctx
 }

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
@@ -24,11 +25,21 @@ func (m MenuItem) FilterValue() string {
 	return m.Label + " " + m.Description
 }
 
+// ShelfStatus represents the status of a single shelf
+type ShelfStatus struct {
+	Name      string
+	Repo      string
+	Owner     string
+	BookCount int
+	Status    string // "✓ Healthy", "⚠ Warning", "✗ Error"
+}
+
 // HubContext holds optional context info to display in the hub
 type HubContext struct {
-	ShelfCount int
-	BookCount  int
-	HasCache   bool
+	ShelfCount   int
+	BookCount    int
+	HasCache     bool
+	ShelfDetails []ShelfStatus // for inline display
 }
 
 // menuItems defines the menu in logical order
@@ -74,13 +85,15 @@ func renderMenuItem(w io.Writer, m list.Model, index int, item list.Item) {
 }
 
 type hubModel struct {
-	list     list.Model
-	quitting bool
-	action   string // which action was selected
-	err      error
-	context  HubContext
-	width    int
-	height   int
+	list        list.Model
+	quitting    bool
+	action      string // which action was selected
+	err         error
+	context     HubContext
+	width       int
+	height      int
+	shelfData   string // rendered shelves table for details panel
+	showDetails bool   // whether to show the details panel
 }
 
 type hubKeys struct {
@@ -128,30 +141,83 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-
-		// Account for outer padding, inner padding, border, and header content
-		const outerPaddingH = 4 * 2 // left/right outer padding
-		const outerPaddingV = 2 * 2 // top/bottom outer padding
-		const innerPaddingH = 1 + 2 // left (1) + right (2) inner padding
-		const headerLines = 4       // header + status + spacing
-		h, v := StyleBorder.GetFrameSize()
-
-		listWidth := msg.Width - outerPaddingH - innerPaddingH - h
-		listHeight := msg.Height - outerPaddingV - v - headerLines
-
-		if listWidth < 40 {
-			listWidth = 40
-		}
-		if listHeight < 5 {
-			listHeight = 5
-		}
-
-		m.list.SetSize(listWidth, listHeight)
+		m.updateListSize()
 	}
 
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
+
+	// Check if "View Shelves" is highlighted
+	if item, ok := m.list.SelectedItem().(MenuItem); ok {
+		m.showDetails = (item.Key == "shelves")
+		m.updateListSize()
+	}
+
 	return m, cmd
+}
+
+func (m *hubModel) updateListSize() {
+	// Account for outer padding, inner padding, border, and header content
+	const outerPaddingH = 4 * 2 // left/right outer padding
+	const outerPaddingV = 2 * 2 // top/bottom outer padding
+	const innerPaddingH = 1 + 2 // left (1) + right (2) inner padding
+	const headerLines = 4       // header + status + spacing
+	const borderWidth = 1       // right border on list when details shown
+	h, v := StyleBorder.GetFrameSize()
+
+	availableWidth := m.width - outerPaddingH - innerPaddingH - h
+	listHeight := m.height - outerPaddingV - v - headerLines
+
+	if m.showDetails {
+		// Split view: list takes ~50% of available width
+		listWidth := (availableWidth * 5) / 10
+		if listWidth < 30 {
+			listWidth = 30
+		}
+		m.list.SetSize(listWidth-borderWidth, listHeight)
+	} else {
+		// Full width for list
+		if availableWidth < 40 {
+			availableWidth = 40
+		}
+		m.list.SetSize(availableWidth, listHeight)
+	}
+
+	if listHeight < 5 {
+		m.list.SetSize(availableWidth, 5)
+	}
+}
+
+func (m hubModel) renderDetailsPane() string {
+	if len(m.context.ShelfDetails) == 0 {
+		return ""
+	}
+
+	// Calculate details pane width (50% of screen, accounting for divider and master border)
+	detailsWidth := ((m.width - 2) * 5) / 10
+	if detailsWidth < 35 {
+		detailsWidth = 35
+	}
+
+	detailsStyle := lipgloss.NewStyle().
+		Width(detailsWidth).
+		Padding(1, 1)
+
+	// Render shelves table
+	var s strings.Builder
+	s.WriteString(StyleHeader.Render("Configured Shelves"))
+	s.WriteString("\n\n")
+
+	for _, shelf := range m.context.ShelfDetails {
+		s.WriteString(StyleHighlight.Render(shelf.Name))
+		s.WriteString("\n")
+		s.WriteString(fmt.Sprintf("  Repo: %s/%s\n", shelf.Owner, shelf.Repo))
+		s.WriteString(fmt.Sprintf("  Books: %d\n", shelf.BookCount))
+		s.WriteString(fmt.Sprintf("  Status: %s\n", shelf.Status))
+		s.WriteString("\n")
+	}
+
+	return detailsStyle.Render(s.String())
 }
 
 func (m hubModel) View() string {
@@ -191,7 +257,27 @@ func (m hubModel) View() string {
 	}
 	parts = append(parts, m.list.View())
 
-	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
+	listContent := lipgloss.JoinVertical(lipgloss.Left, parts...)
+
+	var content string
+	if m.showDetails {
+		// Split-panel layout
+		listStyle := lipgloss.NewStyle().
+			BorderRight(true).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(ColorGray)
+		listView := listStyle.Render(listContent)
+		detailsView := m.renderDetailsPane()
+
+		content = lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			listView,
+			detailsView,
+		)
+	} else {
+		// Single panel: menu only
+		content = listContent
+	}
 
 	// Add padding inside the border (more on right to prevent text bleeding to edge)
 	innerPadding := lipgloss.NewStyle().

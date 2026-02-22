@@ -32,6 +32,31 @@ func (b BookItem) FilterValue() string {
 	return fmt.Sprintf("%s %s %s %s", b.Book.ID, b.Book.Title, tags, b.ShelfName)
 }
 
+// truncateText truncates a string to maxWidth with ellipsis
+func truncateText(s string, maxWidth int) string {
+	if len(s) <= maxWidth {
+		return s
+	}
+	if maxWidth <= 1 {
+		return "…"
+	}
+	return s[:maxWidth-1] + "…"
+}
+
+// formatBytes formats bytes as human-readable size
+func formatBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for n := n / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
 // IsSelected implements multiselect.SelectableItem
 func (b BookItem) IsSelected() bool {
 	return b.selected
@@ -299,6 +324,14 @@ func (m model) renderDetailsPane() string {
 		detailsWidth = 30 // Minimum width for readability
 	}
 
+	// Calculate max text width: panel width minus padding (2 chars)
+	// Account for label widths (e.g., "Repository: " is 12 chars)
+	const labelWidth = 12 // longest label
+	maxTextWidth := detailsWidth - 2 - labelWidth
+	if maxTextWidth < 10 {
+		maxTextWidth = 10
+	}
+
 	// Style for the details content area
 	detailsStyle := lipgloss.NewStyle().
 		Width(detailsWidth).
@@ -323,36 +356,45 @@ func (m model) renderDetailsPane() string {
 
 	// ID
 	s.WriteString(StyleHighlight.Render("ID: "))
-	s.WriteString(bookItem.Book.ID)
+	s.WriteString(truncateText(bookItem.Book.ID, maxTextWidth))
 	s.WriteString("\n\n")
 
 	// Title
 	s.WriteString(StyleHighlight.Render("Title: "))
-	s.WriteString(bookItem.Book.Title)
+	s.WriteString(truncateText(bookItem.Book.Title, maxTextWidth))
 	s.WriteString("\n\n")
 
 	// Author
 	if bookItem.Book.Author != "" {
 		s.WriteString(StyleHighlight.Render("Author: "))
-		s.WriteString(bookItem.Book.Author)
+		s.WriteString(truncateText(bookItem.Book.Author, maxTextWidth))
+		s.WriteString("\n\n")
+	}
+
+	// Year
+	if bookItem.Book.Year > 0 {
+		s.WriteString(StyleHighlight.Render("Year: "))
+		s.WriteString(fmt.Sprintf("%d", bookItem.Book.Year))
 		s.WriteString("\n\n")
 	}
 
 	// Tags
 	if len(bookItem.Book.Tags) > 0 {
 		s.WriteString(StyleHighlight.Render("Tags: "))
-		s.WriteString(StyleTag.Render(strings.Join(bookItem.Book.Tags, ", ")))
+		tagsText := strings.Join(bookItem.Book.Tags, ", ")
+		s.WriteString(StyleTag.Render(truncateText(tagsText, maxTextWidth)))
 		s.WriteString("\n\n")
 	}
 
 	// Shelf
 	s.WriteString(StyleHighlight.Render("Shelf: "))
-	s.WriteString(bookItem.ShelfName)
+	s.WriteString(truncateText(bookItem.ShelfName, maxTextWidth))
 	s.WriteString("\n\n")
 
 	// Repository
 	s.WriteString(StyleHighlight.Render("Repository: "))
-	fmt.Fprintf(&s, "%s/%s", bookItem.Owner, bookItem.Repo)
+	repoText := fmt.Sprintf("%s/%s", bookItem.Owner, bookItem.Repo)
+	s.WriteString(truncateText(repoText, maxTextWidth))
 	s.WriteString("\n\n")
 
 	// Cache status
@@ -364,13 +406,20 @@ func (m model) renderDetailsPane() string {
 	}
 	s.WriteString("\n\n")
 
+	// Size
+	if bookItem.Book.SizeBytes > 0 {
+		s.WriteString(StyleHighlight.Render("Size: "))
+		s.WriteString(formatBytes(bookItem.Book.SizeBytes))
+		s.WriteString("\n\n")
+	}
+
 	// Asset info
 	s.WriteString(StyleHighlight.Render("Format: "))
-	s.WriteString(bookItem.Book.Format)
+	s.WriteString(truncateText(bookItem.Book.Format, maxTextWidth))
 	s.WriteString("\n")
 
 	s.WriteString(StyleHighlight.Render("Asset: "))
-	s.WriteString(bookItem.Book.Source.Asset)
+	s.WriteString(truncateText(bookItem.Book.Source.Asset, maxTextWidth))
 	s.WriteString("\n")
 
 	// Apply details panel styling

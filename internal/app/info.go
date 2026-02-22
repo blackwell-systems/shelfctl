@@ -86,6 +86,10 @@ func findBook(id, shelfName string) (*catalog.Book, *config.ShelfConfig, error) 
 		shelves = cfg.Shelves
 	}
 
+	var firstBook *catalog.Book
+	var firstShelf *config.ShelfConfig
+	var foundShelves []string
+
 	for i := range shelves {
 		shelf := &shelves[i]
 		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
@@ -98,10 +102,32 @@ func findBook(id, shelfName string) (*catalog.Book, *config.ShelfConfig, error) 
 			continue
 		}
 		if b := catalog.ByID(books, id); b != nil {
-			return b, shelf, nil
+			foundShelves = append(foundShelves, shelf.Name)
+			if firstBook == nil {
+				firstBook = b
+				firstShelf = shelf
+			}
 		}
 	}
-	return nil, nil, fmt.Errorf("book %q not found in any shelf", id)
+
+	if firstBook == nil {
+		return nil, nil, fmt.Errorf("book %q not found in any shelf", id)
+	}
+
+	// Warn if book ID exists in multiple shelves (and user didn't specify --shelf)
+	if len(foundShelves) > 1 && shelfName == "" {
+		warn("Book ID %q found in multiple shelves:", id)
+		for _, s := range foundShelves {
+			if s == firstShelf.Name {
+				fmt.Printf("  - %s (using this one)\n", color.YellowString(s))
+			} else {
+				fmt.Printf("  - %s\n", s)
+			}
+		}
+		fmt.Printf("Use --shelf to specify which one to use.\n\n")
+	}
+
+	return firstBook, firstShelf, nil
 }
 
 func humanBytes(n int64) string {

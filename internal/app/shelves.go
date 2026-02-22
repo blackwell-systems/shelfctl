@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
@@ -157,8 +158,8 @@ func renderShelfTable(statuses []shelfStatus) {
 			maxBooksLen = len(booksStr)
 		}
 		statusStr := formatStatus(s)
-		// Remove ANSI codes for length calculation
-		statusLen := len(stripAnsi(statusStr))
+		// Remove ANSI codes for length calculation (count runes not bytes for Unicode)
+		statusLen := utf8.RuneCountInString(stripAnsi(statusStr))
 		if statusLen > maxStatusLen {
 			maxStatusLen = statusLen
 		}
@@ -248,7 +249,7 @@ func padRight(s string, width int) string {
 
 // padRightColored pads a colored string accounting for ANSI codes
 func padRightColored(s string, width int) string {
-	plainLen := len(stripAnsi(s))
+	plainLen := utf8.RuneCountInString(stripAnsi(s))
 	if plainLen >= width {
 		return s
 	}

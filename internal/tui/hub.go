@@ -1,7 +1,6 @@
 package tui
 
 import (
-	_ "embed"
 	"fmt"
 	"io"
 
@@ -10,9 +9,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-//go:embed assets/padded.png
-var shelbyIconPNG []byte
 
 // MenuItem represents an action in the hub menu
 type MenuItem struct {
@@ -166,16 +162,6 @@ func (m hubModel) View() string {
 	outerStyle := lipgloss.NewStyle().
 		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
 
-	// Try to show Shelby icon if terminal supports it
-	var iconDisplay string
-	protocol := DetectImageProtocol()
-	if protocol != ProtocolNone {
-		// Use embedded Shelby image
-		if img := RenderInlineImageBytes(shelbyIconPNG, protocol); img != "" {
-			iconDisplay = img
-		}
-	}
-
 	// Create header
 	header := lipgloss.NewStyle().
 		Bold(true).
@@ -197,12 +183,8 @@ func (m hubModel) View() string {
 		statusBar = status
 	}
 
-	// Combine icon (if available), header, status, and list
-	parts := []string{}
-	if iconDisplay != "" {
-		parts = append(parts, iconDisplay, "")
-	}
-	parts = append(parts, header)
+	// Combine header, status, and list
+	parts := []string{header}
 	if statusBar != "" {
 		parts = append(parts, statusBar)
 	}

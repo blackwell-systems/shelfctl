@@ -48,6 +48,9 @@ var menuItems = []MenuItem{
 	{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
 	{Key: "shelves", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
 	{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
+	// Cache
+	{Key: "cache-info", Label: "Cache Info", Description: "View cache statistics and disk usage", Available: true},
+	{Key: "cache-clear", Label: "Clear Cache", Description: "Remove books from local cache", Available: true},
 	// Add & Import
 	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
 	{Key: "shelve-url", Label: "Add from URL", Description: "Download and add a book from URL", Available: true},

@@ -601,6 +601,14 @@ func runHub() error {
 			cmdErr = newDeleteBookCmd().Execute()
 		case "delete-shelf":
 			cmdErr = newDeleteShelfCmd().Execute()
+		case "cache-info":
+			cmd := newCacheCmd()
+			cmd.SetArgs([]string{"info"})
+			cmdErr = cmd.Execute()
+		case "cache-clear":
+			cmd := newCacheCmd()
+			cmd.SetArgs([]string{"clear"})
+			cmdErr = cmd.Execute()
 		case "quit":
 			return nil
 		default:

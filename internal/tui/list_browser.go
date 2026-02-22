@@ -790,10 +790,10 @@ func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, er
 
 	// Set help keybindings
 	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.open, keys.get, keys.edit, keys.toggleSelect, keys.togglePanel}
+		return []key.Binding{keys.open, keys.get, keys.uncache, keys.edit, keys.toggleSelect, keys.togglePanel}
 	}
 	l.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.open, keys.get, keys.edit, keys.enter, keys.toggleSelect, keys.clearSelect, keys.togglePanel}
+		return []key.Binding{keys.open, keys.get, keys.uncache, keys.edit, keys.enter, keys.toggleSelect, keys.clearSelect, keys.togglePanel}
 	}
 
 	prog := progress.New(progress.WithDefaultGradient())

@@ -109,6 +109,66 @@ func init() {
 		newImportCmd(),
 		newIndexCmd(),
 	)
+
+	// Set up colored help template after commands are added
+	setupColoredHelp()
+}
+
+// setupColoredHelp customizes Cobra's help template with colors
+func setupColoredHelp() {
+	cyan := color.New(color.FgCyan, color.Bold).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+
+	helpTemplate := `{{with (or .Long .Short)}}{{. | trimTrailingWhitespaces}}
+
+{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
+
+	usageTemplate := cyan("Usage:") + `{{if .Runnable}}
+  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
+  {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
+
+` + cyan("Aliases:") + `
+  {{.NameAndAliases}}{{end}}{{if .HasExample}}
+
+` + cyan("Examples:") + `
+{{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
+
+` + cyan("Available Commands:") + `{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+  ` + green("{{rpad .Name .NamePadding}}") + ` {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
+
+{{.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
+  ` + green("{{rpad .Name .NamePadding}}") + ` {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
+
+Additional Commands:{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
+  ` + green("{{rpad .Name .NamePadding}}") + ` {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+
+` + cyan("Flags:") + `
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
+
+` + cyan("Global Flags:") + `
+{{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
+
+Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
+  {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
+
+Use ` + yellow("{{.CommandPath}} [command] --help") + ` for more information about a command.{{end}}
+`
+
+	rootCmd.SetHelpTemplate(helpTemplate)
+	rootCmd.SetUsageTemplate(usageTemplate)
+
+	// Apply to all subcommands recursively
+	applyTemplateRecursive(rootCmd, helpTemplate, usageTemplate)
+}
+
+// applyTemplateRecursive applies help templates to a command and all its subcommands
+func applyTemplateRecursive(cmd *cobra.Command, helpTpl, usageTpl string) {
+	for _, subCmd := range cmd.Commands() {
+		subCmd.SetHelpTemplate(helpTpl)
+		subCmd.SetUsageTemplate(usageTpl)
+		applyTemplateRecursive(subCmd, helpTpl, usageTpl)
+	}
 }
 
 // ok prints a green success line.

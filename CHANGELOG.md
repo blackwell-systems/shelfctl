@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - "Clear filters" button appears when tags are active
   - Live count shows filtered results (e.g., "15 books")
   - Works seamlessly with text search
+  - Added sort dropdown with options: Recently Added, Title (A-Z), Author (A-Z), Year (Newest/Oldest)
+  - Sorting works per-shelf and persists through filtering
 - **Multi-Select Download in Browse**
   - Spacebar to toggle selection (checkboxes appear in list)
   - 'g' downloads all selected books to cache (or current if none selected)

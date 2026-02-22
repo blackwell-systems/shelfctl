@@ -56,6 +56,8 @@ The hub provides access to all core operations and loops continuously until you 
 - Features:
   - Visual book grid with covers and metadata
   - Real-time search/filter by title, author, or tags (JavaScript)
+  - Clickable tag filters with word cloud interface
+  - Sort options: Recently Added, Title, Author, Year
   - Organized by shelf sections
   - Click books to open with system viewer (file:// links)
   - Responsive layout for mobile/desktop

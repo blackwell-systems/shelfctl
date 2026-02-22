@@ -843,6 +843,8 @@ shelfctl index
 
 - **Visual book grid** with covers and metadata
 - **Real-time search/filter** by title, author, or tags (no server needed)
+- **Clickable tag filters** with word cloud interface (multi-tag AND logic)
+- **Sort options** - Recently Added, Title (A-Z), Author (A-Z), Year (Newest/Oldest)
 - **Organized by shelf** sections
 - **Click books to open** with system viewer (file:// links)
 - **Responsive layout** for mobile/desktop

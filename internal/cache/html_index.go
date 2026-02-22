@@ -76,9 +76,32 @@ func generateHTML(books []IndexBook) string {
             color: #888;
             font-size: 0.9rem;
         }
-        .search-box {
+        .controls {
             max-width: 1200px;
             margin: 0 auto 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .search-box {
+            flex: 1;
+        }
+        .sort-box {
+            min-width: 200px;
+        }
+        #sort-by {
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 0.95rem;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #e0e0e0;
+            cursor: pointer;
+        }
+        #sort-by:focus {
+            outline: none;
+            border-color: #4a9eff;
         }
         #search {
             width: 100%;
@@ -247,6 +270,12 @@ func generateHTML(books []IndexBook) string {
             font-size: 1.1rem;
         }
         @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+            .sort-box {
+                width: 100%;
+            }
             .book-grid {
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             }
@@ -259,8 +288,19 @@ func generateHTML(books []IndexBook) string {
         <div class="subtitle">` + fmt.Sprintf("%d books", len(books)) + `</div>
     </header>
 
-    <div class="search-box">
-        <input type="text" id="search" placeholder="Search books by title, author, or tags...">
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="search" placeholder="Search books by title, author, or tags...">
+        </div>
+        <div class="sort-box">
+            <select id="sort-by">
+                <option value="recent">Recently Added</option>
+                <option value="title">Title (A-Z)</option>
+                <option value="author">Author (A-Z)</option>
+                <option value="year-desc">Year (Newest First)</option>
+                <option value="year-asc">Year (Oldest First)</option>
+            </select>
+        </div>
     </div>
 `)
 
@@ -313,6 +353,7 @@ func generateHTML(books []IndexBook) string {
 	}
 
 	// Render each shelf section
+	bookIndex := 0
 	for shelfName, shelfBookList := range shelfBooks {
 		fmt.Fprintf(&s, `
         <div class="shelf-section" data-shelf="%s">
@@ -321,7 +362,8 @@ func generateHTML(books []IndexBook) string {
 `, html.EscapeString(shelfName), html.EscapeString(shelfName), len(shelfBookList))
 
 		for _, book := range shelfBookList {
-			renderBookCard(&s, book)
+			renderBookCard(&s, book, bookIndex)
+			bookIndex++
 		}
 
 		s.WriteString(`
@@ -372,6 +414,41 @@ func generateHTML(books []IndexBook) string {
 
         // Search input handler
         search.addEventListener('input', applyFilters);
+
+        // Sort dropdown handler
+        const sortBy = document.getElementById('sort-by');
+        sortBy.addEventListener('change', sortBooks);
+
+        function sortBooks() {
+            const sortValue = sortBy.value;
+            const sections = document.querySelectorAll('.shelf-section');
+
+            sections.forEach(section => {
+                const grid = section.querySelector('.book-grid');
+                const cards = Array.from(grid.querySelectorAll('.book-card'));
+
+                cards.sort((a, b) => {
+                    switch(sortValue) {
+                        case 'title':
+                            return a.dataset.title.localeCompare(b.dataset.title);
+                        case 'author':
+                            const authorA = a.dataset.author || '';
+                            const authorB = b.dataset.author || '';
+                            return authorA.localeCompare(authorB);
+                        case 'year-desc':
+                            return parseInt(b.dataset.year || 0) - parseInt(a.dataset.year || 0);
+                        case 'year-asc':
+                            return parseInt(a.dataset.year || 0) - parseInt(b.dataset.year || 0);
+                        case 'recent':
+                        default:
+                            return parseInt(b.dataset.index || 0) - parseInt(a.dataset.index || 0);
+                    }
+                });
+
+                // Re-append cards in sorted order
+                cards.forEach(card => grid.appendChild(card));
+            });
+        }
 
         function applyFilters() {
             const query = search.value.toLowerCase();
@@ -442,17 +519,21 @@ func generateHTML(books []IndexBook) string {
 	return s.String()
 }
 
-func renderBookCard(s *strings.Builder, book IndexBook) {
+func renderBookCard(s *strings.Builder, book IndexBook, index int) {
 	// Convert tags to lowercase for search
 	tags := strings.Join(book.Book.Tags, ", ")
 
 	fmt.Fprintf(s, `
-                <a href="file://%s" class="book-card" data-id="%s" data-tags="%s">
+                <a href="file://%s" class="book-card" data-id="%s" data-tags="%s" data-title="%s" data-author="%s" data-year="%d" data-index="%d">
                     <div class="book-cover%s">
 `,
 		html.EscapeString(book.FilePath),
 		html.EscapeString(book.Book.ID),
 		html.EscapeString(tags),
+		html.EscapeString(book.Book.Title),
+		html.EscapeString(book.Book.Author),
+		book.Book.Year,
+		index,
 		func() string {
 			if !book.HasCover {
 				return " no-cover"

@@ -49,10 +49,6 @@ Zero infrastructure. Free by default (only pay if you choose Git LFS or exceed G
 
 ## Why not commit PDFs?
 
-### On-demand downloads (no cloning)
-Fetch a single book without cloning a repo or pulling a whole archive.
-`shelfctl open <book-id>` downloads *only that file* from GitHub's CDN and opens it. Your library can be huge, but you only download what you actually read.
-
 ### Git isn't a binary library (here's what to do instead)
 
 **The tradeoff:**
@@ -69,6 +65,10 @@ Fetch a single book without cloning a repo or pulling a whole archive.
 - Git history stays clean (only metadata is versioned)
 - Documents live outside version control entirely
 - Download individual files on-demand from GitHub's CDN
+
+### On-demand downloads (no cloning)
+Fetch a single book without cloning a repo or pulling a whole archive.
+`shelfctl open <book-id>` downloads *only that file* from GitHub's CDN and opens it. Your library can be huge, but you only download what you actually read.
 
 ### No infrastructure to run
 No database, no server, no object storage config. GitHub already hosts and serves the files.

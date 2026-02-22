@@ -105,6 +105,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Installation instructions in docs
 
 ### Changed
+- **Documentation: Installation and Authentication**
+  - Clarified GitHub CLI (gh) is optional, not required
+  - Added Prerequisites section to README and TUTORIAL
+  - Restructured authentication section with two clear options:
+    - Option A: Using gh CLI (optional convenience)
+    - Option B: Manual token
+  - Documented both classic PAT scopes and fine-grained PAT permissions
+  - Added security note: tokens never stored in config (only environment variable name)
+  - Added API rate limits note (5,000 requests/hour authenticated)
+- **Documentation: Core Value Proposition**
+  - Enhanced git history teaching with clear explanation:
+    - "Once PDFs land in git history, every clone stays heavy forever. Even after you delete the files, git history never forgets."
+  - Added warning callout about deleted files still bloating clones
+  - Added comparison table (Git commit vs LFS vs Release assets) with defensible claims
+  - Changed cost language to be evergreen (LFS: "Paid storage/bandwidth")
+  - Surfaced migration tools as core capability (not hidden feature)
+  - Added callout: "Already have PDFs committed in git? shelfctl can scan and migrate them"
+  - Added "Two ways to use it" section (Interactive TUI + Scriptable CLI)
+- **Documentation: Shelby the Mascot**
+  - Introduced Shelby the Shelf mascot throughout README
+  - Updated all image alt text to reference Shelby
+  - Added centered introduction: "Meet Shelby, your friendly library assistant."
+  - Added logo5.png (600px) above Install section
+  - Added Credits section explaining Shelby character
+  - Made Optional PDF Cover Thumbnails section collapsible
+- **Documentation: Design Philosophy**
+  - Added Design Philosophy section explaining domain-specific focus
+  - Positioned above Disclaimer in README
+  - Expanded in ARCHITECTURE.md with rationale for not generalizing
+  - Clear statement: "Does one thing well rather than many things poorly"
 - **Documentation Improvements**
   - Added missing flag documentation: `--force`, `--private`, `--app`, `--dry-run`, `--keep-old`
   - Added completion command to all guides
@@ -112,6 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added troubleshooting section for HTML index clicking issues
   - Removed implementation status tracking from HUB.md (user-focused docs)
   - Added shell completion setup to TUTORIAL.md
+  - Removed AI-sounding phrases (em dashes, "Most devs" → "If you use GitHub")
+  - Fixed confusing "(via gh)" language to "(via GitHub REST API directly)"
 - **Documentation Consolidation**
   - Merged SPEC.md content into ARCHITECTURE.md
   - Catalog and config schemas now in ARCHITECTURE.md reference sections
@@ -228,6 +260,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Zero binary size increase
   - Significantly improves UX for academic papers and published books
   - Tested with real-world PDFs
+- **Brand Assets**
+  - Created icon-16.png and icon-32.png from logo_icon.png
+  - Generated using ImageMagick for favicon/icon use
+  - Sizes: 581B and 1.0K respectively
 
 ### Added
 - **Comprehensive Architecture Documentation**

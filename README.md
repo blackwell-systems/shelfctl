@@ -386,5 +386,5 @@ You're free to use, modify, and distribute the shelfctl software under MIT terms
 ---
 
 <p align="center">
-  <img src="assets/shelf_faces.png" alt="Shelby faces">
+  <img src="assets/shelf_faces.png" alt="Shelby faces" width="800">
 </p>

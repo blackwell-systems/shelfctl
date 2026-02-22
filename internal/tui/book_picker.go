@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
+	"github.com/blackwell-systems/shelfctl/internal/tui/multiselect"
 	"github.com/blackwell-systems/shelfctl/internal/tui/picker"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -131,4 +132,168 @@ func RunBookPicker(books []BookItem, title string) (BookItem, error) {
 	}
 
 	return BookItem{}, fmt.Errorf("canceled")
+}
+
+// multiBookPickerModel is the model for multi-select book picking
+type multiBookPickerModel struct {
+	ms            multiselect.Model
+	quitting      bool
+	err           error
+	selectedBooks []BookItem
+}
+
+func (m multiBookPickerModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m multiBookPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		// Don't handle keys when filtering
+		if m.ms.List.FilterState() == list.Filtering {
+			break
+		}
+
+		switch msg.String() {
+		case "ctrl+c", "q", "esc":
+			m.quitting = true
+			m.err = fmt.Errorf("canceled by user")
+			return m, tea.Quit
+
+		case " ":
+			// Toggle checkbox
+			m.ms.Toggle()
+			return m, nil
+
+		case "enter":
+			// Collect all checked books
+			items := m.ms.List.Items()
+			for _, item := range items {
+				if bookItem, ok := item.(*BookItem); ok && bookItem.IsSelected() {
+					m.selectedBooks = append(m.selectedBooks, *bookItem)
+				}
+			}
+			// Fallback: if nothing checked, select current book
+			if len(m.selectedBooks) == 0 {
+				if item, ok := m.ms.List.SelectedItem().(*BookItem); ok {
+					m.selectedBooks = []BookItem{*item}
+				}
+			}
+			m.quitting = true
+			return m, tea.Quit
+		}
+	}
+
+	// Update the multiselect model
+	var cmd tea.Cmd
+	m.ms, cmd = m.ms.Update(msg)
+	return m, cmd
+}
+
+func (m multiBookPickerModel) View() string {
+	if m.quitting {
+		return ""
+	}
+	return StyleBorder.Render(m.ms.View())
+}
+
+// renderBookPickerItemMulti renders a book item with checkbox for multi-select mode
+func renderBookPickerItemMulti(w io.Writer, m list.Model, index int, item list.Item, ms *multiselect.Model) {
+	bookItem, ok := item.(*BookItem)
+	if !ok {
+		return
+	}
+
+	isSelected := index == m.Index()
+
+	// Get checkbox prefix
+	prefix := ms.CheckboxPrefix(bookItem)
+
+	// Build the display string
+	idStr := fmt.Sprintf("%-22s", bookItem.Book.ID)
+	title := bookItem.Book.Title
+	shelfInfo := StyleHelp.Render(fmt.Sprintf("[%s]", bookItem.ShelfName))
+
+	display := prefix + idStr + " " + title + " " + shelfInfo
+
+	if isSelected {
+		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+display))
+	} else {
+		_, _ = fmt.Fprint(w, "  "+StyleNormal.Render(display))
+	}
+}
+
+// RunBookPickerMulti launches an interactive book picker with multi-select support.
+// Users can toggle checkboxes with spacebar and confirm with enter.
+// Returns a slice of selected BookItems or error if canceled.
+func RunBookPickerMulti(books []BookItem, title string) ([]BookItem, error) {
+	if len(books) == 0 {
+		return nil, fmt.Errorf("no books to display")
+	}
+
+	// Convert BookItems to list.Items (as pointers so selection state persists)
+	items := make([]list.Item, len(books))
+	for i := range books {
+		items[i] = &books[i]
+	}
+
+	// Create base list with temporary delegate
+	tempDelegate := delegate.New(func(w io.Writer, m list.Model, index int, item list.Item) {})
+	l := list.New(items, tempDelegate, 0, 0)
+	if title != "" {
+		l.Title = title
+	} else {
+		l.Title = "Select books"
+	}
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(true)
+	l.Styles.Title = StyleHeader
+	l.Styles.HelpStyle = StyleHelp
+
+	// Wrap with multi-select
+	ms := multiselect.New(l)
+	ms.SetTitle(title)
+
+	// Create proper delegate with multi-select support
+	d := delegate.New(func(w io.Writer, m list.Model, index int, item list.Item) {
+		renderBookPickerItemMulti(w, m, index, item, &ms)
+	})
+	ms.List.SetDelegate(d)
+
+	// Set help keybindings
+	toggleKey := key.NewBinding(
+		key.WithKeys(" "),
+		key.WithHelp("space", "toggle"),
+	)
+	selectKey := key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "select"),
+	)
+	ms.List.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{toggleKey, selectKey}
+	}
+
+	// Restore selection state
+	ms.RestoreSelectionState()
+
+	// Create model with multi-select
+	m := multiBookPickerModel{ms: ms}
+
+	// Run the program
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		return nil, fmt.Errorf("running TUI: %w", err)
+	}
+
+	fm, ok := finalModel.(multiBookPickerModel)
+	if !ok {
+		return nil, fmt.Errorf("unexpected model type")
+	}
+
+	if fm.err != nil {
+		return nil, fm.err
+	}
+
+	return fm.selectedBooks, nil
 }

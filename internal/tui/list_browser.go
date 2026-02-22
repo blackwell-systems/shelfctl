@@ -22,6 +22,7 @@ type BookItem struct {
 	CoverPath string
 	Owner     string
 	Repo      string
+	selected  bool // For multi-select mode
 }
 
 // FilterValue returns a string used for filtering in the list
@@ -29,6 +30,22 @@ func (b BookItem) FilterValue() string {
 	// Include ID, title, tags, and shelf name in filter
 	tags := strings.Join(b.Book.Tags, " ")
 	return fmt.Sprintf("%s %s %s %s", b.Book.ID, b.Book.Title, tags, b.ShelfName)
+}
+
+// IsSelected implements multiselect.SelectableItem
+func (b BookItem) IsSelected() bool {
+	return b.selected
+}
+
+// SetSelected implements multiselect.SelectableItem
+func (b *BookItem) SetSelected(selected bool) {
+	b.selected = selected
+}
+
+// IsSelectable implements multiselect.SelectableItem
+// All books are selectable
+func (b BookItem) IsSelectable() bool {
+	return true
 }
 
 // renderBookItem renders a book in the browser list

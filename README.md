@@ -117,11 +117,24 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
 
 ## Install
 
+**Download pre-built binary:**
+
+Download the appropriate binary for your platform from the [releases page](https://github.com/blackwell-systems/shelfctl/releases/latest), extract the archive, and run:
+
+```bash
+tar -xzf shelfctl_*_Darwin_arm64.tar.gz  # or your platform
+./shelfctl
+```
+
+Optionally move to your PATH: `mv shelfctl /usr/local/bin/`
+
+**Using Go:**
+
 ```bash
 go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@latest
 ```
 
-Or build from source:
+**Build from source:**
 
 ```bash
 git clone https://github.com/blackwell-systems/shelfctl

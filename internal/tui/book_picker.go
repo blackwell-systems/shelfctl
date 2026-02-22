@@ -148,6 +148,12 @@ func (m multiBookPickerModel) Init() tea.Cmd {
 
 func (m multiBookPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		// Handle window resize - account for border
+		h, v := StyleBorder.GetFrameSize()
+		m.ms.List.SetSize(msg.Width-h, msg.Height-v)
+		return m, nil
+
 	case tea.KeyMsg:
 		// Don't handle keys when filtering
 		if m.ms.List.FilterState() == list.Filtering {

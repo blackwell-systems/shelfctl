@@ -28,7 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Error isolation: one failed file doesn't abort the entire batch
   - Summary output: "Successfully added 3 books, 1 failed"
   - Backward compatible: CLI mode unchanged, single file selection still works
-- **Reusable TUI Components**
+- **Reusable TUI Components** (All Ready for Extraction)
+  - New `millercolumns` package: Generic Miller columns layout component
+    - Pure layout/rendering component for hierarchical views
+    - Works with any model type (list.Model, multiselect.Model, custom models)
+    - Manages column stack, focus, and responsive width allocation
+    - Zero dependencies on shelfctl internals - only requires `lipgloss`
+    - Can be extracted to standalone repo without code changes
+    - Fully documented in `internal/tui/millercolumns/README.md` with examples
   - New `multiselect` package: Generic multi-select wrapper for any bubbles list
     - Checkbox UI with state persistence
     - Customizable appearance

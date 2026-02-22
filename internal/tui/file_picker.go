@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
+	"github.com/blackwell-systems/shelfctl/internal/tui/millercolumns"
 	"github.com/blackwell-systems/shelfctl/internal/tui/multiselect"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -91,20 +92,11 @@ func newFileDelegate(ms *multiselect.Model) fileDelegate {
 	}
 }
 
-// column represents a single directory level in Miller columns view
-type column struct {
-	path string
-	list *multiselect.Model
-}
-
 type filePickerModel struct {
-	columns       []column // Stack of directory levels
-	focusedCol    int      // Which column is currently focused
+	mc            millercolumns.Model
 	quitting      bool
 	err           error
 	selectedMulti []string // Return value for multi-select
-	width         int
-	height        int
 }
 
 // filePickerKeys defines keyboard shortcuts
@@ -149,16 +141,26 @@ func (m filePickerModel) Init() tea.Cmd {
 }
 
 func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if len(m.columns) == 0 {
+	col := m.mc.FocusedColumn()
+	if col == nil {
 		return m, nil
 	}
 
-	focusedList := &m.columns[m.focusedCol].list.List
+	// Get the multiselect model from the column
+	ms, ok := col.List.(*multiselect.Model)
+	if !ok {
+		return m, nil
+	}
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		// Handle window resize
+		m.mc.SetSize(msg.Width, msg.Height)
+		return m, nil
+
 	case tea.KeyMsg:
 		// Don't handle keys when filtering
-		if focusedList.FilterState() == list.Filtering {
+		if ms.List.FilterState() == list.Filtering {
 			break
 		}
 
@@ -170,11 +172,11 @@ func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, fileKeys.toggle):
 			// Toggle checkbox in focused column
-			m.columns[m.focusedCol].list.Toggle()
+			ms.Toggle()
 			return m, nil
 
 		case key.Matches(msg, fileKeys.selectItem):
-			if item, ok := focusedList.SelectedItem().(*FileItem); ok {
+			if item, ok := ms.List.SelectedItem().(*FileItem); ok {
 				if item.IsDir {
 					// Navigate into directory - push new column
 					return m.pushColumn(item.Path)
@@ -192,42 +194,34 @@ func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, fileKeys.parent):
 			// Go up one level - pop column
-			if len(m.columns) > 1 {
-				m.columns = m.columns[:len(m.columns)-1]
-				m.focusedCol = len(m.columns) - 1
-				return m, nil
+			if !m.mc.PopColumn() {
+				// If only one column remains, navigate to parent directory
+				col := m.mc.FocusedColumn()
+				if col != nil {
+					parent := filepath.Dir(col.ID)
+					if parent != col.ID {
+						return m.replaceColumn(0, parent)
+					}
+				}
 			}
-			// If only one column, go to parent directory
-			parent := filepath.Dir(m.columns[0].path)
-			if parent != m.columns[0].path {
-				return m.replaceColumn(0, parent)
-			}
+			return m, nil
 
 		case key.Matches(msg, fileKeys.navRight):
-			// Move focus to next column if it exists
-			if m.focusedCol < len(m.columns)-1 {
-				m.focusedCol++
-				return m, nil
-			}
+			m.mc.FocusNext()
+			return m, nil
 
 		case key.Matches(msg, fileKeys.navLeft):
-			// Move focus to previous column
-			if m.focusedCol > 0 {
-				m.focusedCol--
-				return m, nil
-			}
+			m.mc.FocusPrev()
+			return m, nil
 		}
-
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		m.resizeColumns()
-		return m, nil
 	}
 
-	// Update focused column's list
+	// Update the focused column's multiselect model
 	var cmd tea.Cmd
-	*m.columns[m.focusedCol].list, cmd = m.columns[m.focusedCol].list.Update(msg)
+	updatedMs, msCmd := ms.Update(msg)
+	m.mc.UpdateFocusedColumn(&updatedMs)
+	cmd = msCmd
+
 	return m, cmd
 }
 
@@ -235,36 +229,7 @@ func (m filePickerModel) View() string {
 	if m.quitting {
 		return ""
 	}
-	if len(m.columns) == 0 {
-		return ""
-	}
-
-	// Determine which columns to show (last N that fit on screen)
-	maxVisibleCols := 3
-	startCol := 0
-	if len(m.columns) > maxVisibleCols {
-		startCol = len(m.columns) - maxVisibleCols
-	}
-
-	// Render visible columns
-	visibleCols := m.columns[startCol:]
-	columnViews := make([]string, len(visibleCols))
-
-	for i, col := range visibleCols {
-		actualIndex := startCol + i
-
-		// Add visual indicator for focused column
-		style := StyleBorder
-		if actualIndex == m.focusedCol {
-			style = style.BorderForeground(lipgloss.Color("6")) // Cyan border for focused
-		} else {
-			style = style.BorderForeground(lipgloss.Color("240")) // Dim border for unfocused
-		}
-		columnViews[i] = style.Render(col.list.View())
-	}
-
-	// Join columns horizontally
-	return lipgloss.JoinHorizontal(lipgloss.Top, columnViews...)
+	return m.mc.View()
 }
 
 // buildDirectoryItems creates list items for the given directory
@@ -324,8 +289,8 @@ func buildDirectoryItems(path string) ([]list.Item, error) {
 	return items, nil
 }
 
-// createColumn creates a new column for the given path
-func (m *filePickerModel) createColumn(path string) (*column, error) {
+// createListForPath creates a multiselect list model for the given path
+func createListForPath(path string) (*multiselect.Model, error) {
 	items, err := buildDirectoryItems(path)
 	if err != nil {
 		return nil, err
@@ -355,80 +320,52 @@ func (m *filePickerModel) createColumn(path string) (*column, error) {
 	// Restore selection state
 	ms.RestoreSelectionState()
 
-	col := &column{
-		path: path,
-		list: &ms,
-	}
-
-	return col, nil
+	return &ms, nil
 }
 
 // pushColumn adds a new column for the given directory
 func (m filePickerModel) pushColumn(path string) (tea.Model, tea.Cmd) {
-	col, err := m.createColumn(path)
+	listModel, err := createListForPath(path)
 	if err != nil {
-		// On error, show message but don't crash
-		if len(m.columns) > 0 {
-			m.columns[m.focusedCol].list.SetTitle(path + " (Permission Denied)")
+		// On error, show message in current column but don't crash
+		col := m.mc.FocusedColumn()
+		if col != nil {
+			if ms, ok := col.List.(*multiselect.Model); ok {
+				ms.SetTitle(path + " (Permission Denied)")
+			}
 		}
 		return m, nil
 	}
 
-	m.columns = append(m.columns, *col)
-	m.focusedCol = len(m.columns) - 1
-	m.resizeColumns()
-
+	m.mc.PushColumn(path, listModel)
 	return m, nil
 }
 
 // replaceColumn replaces the column at the given index with a new path
 func (m filePickerModel) replaceColumn(index int, path string) (tea.Model, tea.Cmd) {
-	col, err := m.createColumn(path)
+	listModel, err := createListForPath(path)
 	if err != nil {
 		return m, nil
 	}
 
-	m.columns[index] = *col
-	m.resizeColumns()
-
+	m.mc.ReplaceColumn(index, path, listModel)
 	return m, nil
 }
 
 // collectSelectedFiles gathers all selected files across all columns
 func (m *filePickerModel) collectSelectedFiles() []string {
 	var selected []string
-	for _, col := range m.columns {
-		items := col.list.List.Items()
-		for _, item := range items {
-			if fileItem, ok := item.(*FileItem); ok && fileItem.IsSelected() {
-				selected = append(selected, fileItem.Path)
+	for _, col := range m.mc.Columns() {
+		if ms, ok := col.List.(*multiselect.Model); ok {
+			items := ms.List.Items()
+			for _, item := range items {
+				if fileItem, ok := item.(*FileItem); ok && fileItem.IsSelected() {
+					selected = append(selected, fileItem.Path)
+				}
 			}
 		}
 	}
 	return selected
-}
-
-// resizeColumns adjusts column widths based on terminal size
-func (m *filePickerModel) resizeColumns() {
-	if len(m.columns) == 0 || m.width == 0 || m.height == 0 {
-		return
-	}
-
-	// Calculate column width
-	// Show up to 3 columns, each getting equal width
-	numVisible := len(m.columns)
-	if numVisible > 3 {
-		numVisible = 3
-	}
-
-	h, v := StyleBorder.GetFrameSize()
-	colWidth := (m.width / numVisible) - h - 1 // -1 for spacing
-	colHeight := m.height - v
-
-	// Resize each column's list
-	for i := range m.columns {
-		m.columns[i].list.List.SetSize(colWidth, colHeight)
-	}
 }
 
 // RunFilePicker launches an interactive file browser for selecting a single file.
@@ -464,18 +401,25 @@ func RunFilePickerMulti(startPath string) ([]string, error) {
 		startPath = filepath.Join(home, startPath[2:])
 	}
 
-	// Create initial model with empty columns
-	m := filePickerModel{
-		columns:    []column{},
-		focusedCol: 0,
-	}
-
-	// Create initial column
-	col, err := m.createColumn(startPath)
+	// Create initial list for start path
+	initialList, err := createListForPath(startPath)
 	if err != nil {
 		return nil, fmt.Errorf("loading start path: %w", err)
 	}
-	m.columns = []column{*col}
+
+	// Create miller columns model with custom styling
+	mc := millercolumns.New(millercolumns.Config{
+		MaxVisibleColumns:    3,
+		FocusedBorderColor:   lipgloss.Color("6"),   // Cyan
+		UnfocusedBorderColor: lipgloss.Color("240"), // Gray
+		BorderStyle:          StyleBorder,
+	})
+	mc.PushColumn(startPath, initialList)
+
+	// Create file picker model
+	m := filePickerModel{
+		mc: mc,
+	}
 
 	// Run the program
 	p := tea.NewProgram(m, tea.WithAltScreen())

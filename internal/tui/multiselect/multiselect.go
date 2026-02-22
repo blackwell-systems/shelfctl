@@ -164,6 +164,11 @@ func (m *Model) CheckboxPrefix(item SelectableItem) string {
 	return m.checkboxEmpty
 }
 
+// Init initializes the model. Required to implement tea.Model.
+func (m Model) Init() tea.Cmd {
+	return nil
+}
+
 // Update handles messages for the multi-select model.
 // Pass key messages through to this before handling other updates.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {

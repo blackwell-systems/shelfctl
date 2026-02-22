@@ -1,0 +1,84 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/shelfctl
+    binary: shelfctl
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - CHANGELOG.md
+      - LICENSE
+      - docs/*
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - 'typo'
+
+release:
+  github:
+    owner: blackwell-systems
+    name: shelfctl
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## shelfctl {{ .Tag }}
+
+    Organize PDFs and books across GitHub using Release assets instead of git commits.
+
+    ### Installation
+
+    **Homebrew (macOS/Linux)**:
+    ```bash
+    brew install blackwell-systems/tap/shelfctl
+    ```
+
+    **Go install**:
+    ```bash
+    go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@{{ .Tag }}
+    ```
+
+    **Download binary**:
+    Download the appropriate binary for your platform below.
+
+  footer: |
+    ---
+
+    **Full changelog**: See [CHANGELOG.md](https://github.com/blackwell-systems/shelfctl/blob/{{ .Tag }}/CHANGELOG.md) for complete details.

@@ -83,6 +83,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Searchable documentation with syntax highlighting for code blocks
   - Source editing links to GitHub for all pages
 
+- **Improved Book Picker Display**
+  - Book pickers (edit, delete, move) now show tags alongside book information
+  - Display format: `book-id  Book Title [tag1,tag2] [local] [shelf-name]`
+  - Cached books show `[local]` indicator in green to quickly identify downloaded books
+  - Consistent with list browser display for better visual recognition
+  - Helps users identify books by tags without opening details panel
+
 ### Changed
 - **Refactored TUI Pickers to Use Base Components**
   - `shelf_picker.go` now uses `picker.Base` (reduced from 163 to 133 lines)
@@ -110,6 +117,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consistent commit messages and error handling
 
 ### Fixed
+- **Multi-Select Book Picker Only Showing One Item**
+  - Multi-select book picker now properly handles window resize events
+  - Previously displayed only one item at a time due to 0x0 list dimensions
+  - Now calculates proper dimensions accounting for border frame size
+  - Affects delete-book and move-book commands in TUI mode
+- **Batch Delete Confirmation Always Failing**
+  - Fixed confirmation prompt to read full phrase "DELETE N BOOKS"
+  - Previously used `fmt.Scanln()` which stopped at first space, only capturing "DELETE"
+  - Now uses `bufio.ReadString('\n')` to read complete line including spaces
+  - Batch deletions now work correctly after user confirmation
+- **README Update Warnings for Unchanged Content**
+  - Skip README commits when content hasn't actually changed
+  - Eliminates spurious "nothing to commit, working tree clean" warnings
+  - Affects updateREADMEAfterRemove, updateREADMEAfterAdd, and updateREADME functions
+  - Books that aren't in "Recently Added" section no longer trigger warnings
 - **Apostrophes and Quotes in Book IDs**
   - slugify() now removes apostrophes and quotes instead of converting them to hyphens
   - "Let's Go Further" → "lets-go-further" (was: "let-s-go-further")

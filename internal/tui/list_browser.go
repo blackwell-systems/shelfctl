@@ -93,7 +93,7 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 	// Cached indicator
 	cachedMark := ""
 	if bookItem.Cached {
-		cachedMark = " " + StyleCached.Render("✓")
+		cachedMark = " " + StyleCached.Render("[local]")
 	}
 
 	// Check if this item is selected

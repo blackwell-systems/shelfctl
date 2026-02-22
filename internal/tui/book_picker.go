@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/blackwell-systems/shelfctl/internal/tui/multiselect"
@@ -22,15 +23,33 @@ func renderBookPickerItem(w io.Writer, m list.Model, index int, item list.Item) 
 	// Build the display string
 	idStr := fmt.Sprintf("%-22s", bookItem.Book.ID)
 	title := bookItem.Book.Title
-	shelfInfo := StyleHelp.Render(fmt.Sprintf("[%s]", bookItem.ShelfName))
+
+	// Tags
+	tagStr := ""
+	if len(bookItem.Book.Tags) > 0 {
+		tagsJoined := strings.Join(bookItem.Book.Tags, ",")
+		const maxTagWidth = 30
+		if len(tagsJoined) > maxTagWidth {
+			tagsJoined = tagsJoined[:maxTagWidth-1] + "…"
+		}
+		tagStr = " " + StyleTag.Render("["+tagsJoined+"]")
+	}
+
+	// Cached indicator
+	cachedStr := ""
+	if bookItem.Cached {
+		cachedStr = " " + StyleCached.Render("[local]")
+	}
+
+	shelfInfo := " " + StyleHelp.Render("["+bookItem.ShelfName+"]")
 
 	// Check if this item is selected
 	isSelected := index == m.Index()
 
 	if isSelected {
-		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+idStr+" "+title+" "+shelfInfo))
+		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+idStr+" "+title+tagStr+cachedStr+shelfInfo))
 	} else {
-		_, _ = fmt.Fprint(w, "  "+StyleNormal.Render(idStr)+" "+title+" "+shelfInfo)
+		_, _ = fmt.Fprint(w, "  "+StyleNormal.Render(idStr)+" "+title+tagStr+cachedStr+shelfInfo)
 	}
 }
 
@@ -218,9 +237,27 @@ func renderBookPickerItemMulti(w io.Writer, m list.Model, index int, item list.I
 	// Build the display string
 	idStr := fmt.Sprintf("%-22s", bookItem.Book.ID)
 	title := bookItem.Book.Title
-	shelfInfo := StyleHelp.Render(fmt.Sprintf("[%s]", bookItem.ShelfName))
 
-	display := prefix + idStr + " " + title + " " + shelfInfo
+	// Tags
+	tagStr := ""
+	if len(bookItem.Book.Tags) > 0 {
+		tagsJoined := strings.Join(bookItem.Book.Tags, ",")
+		const maxTagWidth = 30
+		if len(tagsJoined) > maxTagWidth {
+			tagsJoined = tagsJoined[:maxTagWidth-1] + "…"
+		}
+		tagStr = " " + StyleTag.Render("["+tagsJoined+"]")
+	}
+
+	// Cached indicator
+	cachedStr := ""
+	if bookItem.Cached {
+		cachedStr = " " + StyleCached.Render("[local]")
+	}
+
+	shelfInfo := " " + StyleHelp.Render("["+bookItem.ShelfName+"]")
+
+	display := prefix + idStr + " " + title + tagStr + cachedStr + shelfInfo
 
 	if isSelected {
 		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+display))

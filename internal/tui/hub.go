@@ -162,6 +162,17 @@ func (m hubModel) View() string {
 	outerStyle := lipgloss.NewStyle().
 		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
 
+	// Try to show Shelby icon if terminal supports it
+	var iconDisplay string
+	protocol := DetectImageProtocol()
+	if protocol != ProtocolNone {
+		// Use the padded logo with Shelby holding magnifying glass
+		iconPath := "/Users/dayna.blackwell/code/shelfctl/assets/padded.png"
+		if img := RenderInlineImage(iconPath, protocol); img != "" {
+			iconDisplay = img
+		}
+	}
+
 	// Create header
 	header := lipgloss.NewStyle().
 		Bold(true).
@@ -183,8 +194,12 @@ func (m hubModel) View() string {
 		statusBar = status
 	}
 
-	// Combine header, status, and list
-	parts := []string{header}
+	// Combine icon (if available), header, status, and list
+	parts := []string{}
+	if iconDisplay != "" {
+		parts = append(parts, iconDisplay, "")
+	}
+	parts = append(parts, header)
 	if statusBar != "" {
 		parts = append(parts, statusBar)
 	}

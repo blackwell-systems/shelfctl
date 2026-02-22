@@ -11,6 +11,10 @@
 </p>
 
 <p align="center">
+  <em>Meet Shelby, your friendly library assistant.</em>
+</p>
+
+<p align="center">
   <img src="assets/shelf.png" alt="shelfctl architecture" width="800">
 </p>
 
@@ -107,6 +111,10 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
 - Go 1.21 or later
 - GitHub account with a personal access token
 
+<p align="center">
+  <img src="assets/logo5.png" alt="Shelby sitting at a computer installing shelfctl" width="600">
+</p>
+
 ## Install
 
 ```bash
@@ -160,7 +168,8 @@ Add to shell profile to persist (`~/.bashrc` or `~/.zshrc`).
 
 **API Rate Limits**: GitHub's authenticated API allows 5,000 requests/hour. shelfctl caches downloaded book files locally; metadata is fetched from GitHub as needed. For typical personal library usage, you're unlikely to hit rate limits.
 
-### Optional: PDF Cover Thumbnails
+<details>
+<summary><strong>Optional: PDF Cover Thumbnails</strong></summary>
 
 For automatic cover extraction from PDFs, install poppler:
 
@@ -179,6 +188,8 @@ sudo pacman -S poppler
 ```
 
 Not required - shelfctl works fine without it. Covers are extracted automatically when you download PDFs if poppler is installed.
+
+</details>
 
 ---
 
@@ -315,12 +326,6 @@ shelfctl is domain-specific by design: it solves the PDF/EPUB library problem an
 
 ---
 
-## Design Philosophy
-
-shelfctl is domain-specific by design: it solves the PDF/EPUB library problem and nothing else. This narrow focus keeps it simple, maintainable, and excellent at what it does.
-
----
-
 ## ⚖️ Disclaimer
 
 shelfctl is a specialized management tool designed to help developers organize their personal document libraries using the GitHub API. By using this software, you agree to the following:
@@ -344,6 +349,12 @@ If you find shelfctl useful:
 - 🐛 **Report issues** or suggest features
 - 🤝 **Contribute** improvements (see [CONTRIBUTING.md](CONTRIBUTING.md))
 - ☕ **Buy me a coffee** via the badge above
+
+---
+
+## Credits
+
+Shelby the Shelf (our mascot) is a terminal wearing a bookshelf like a sweater, because why not.
 
 ---
 

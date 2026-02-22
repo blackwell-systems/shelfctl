@@ -49,34 +49,45 @@ func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 		defaults: defaults,
 	}
 
+	const inputWidth = 50
+	const maxPlaceholderWidth = 45 // Leave room for borders and padding
+
+	// Truncate long placeholders to prevent overflow
+	truncate := func(s string, max int) string {
+		if len(s) > max {
+			return s[:max-1] + "…"
+		}
+		return s
+	}
+
 	// Title field
 	m.inputs[fieldTitle] = textinput.New()
-	m.inputs[fieldTitle].Placeholder = defaults.Title
+	m.inputs[fieldTitle].Placeholder = truncate(defaults.Title, maxPlaceholderWidth)
 	m.inputs[fieldTitle].Focus()
 	m.inputs[fieldTitle].CharLimit = 200
-	m.inputs[fieldTitle].Width = 50
+	m.inputs[fieldTitle].Width = inputWidth
 
 	// Author field
 	m.inputs[fieldAuthor] = textinput.New()
 	if defaults.Author != "" {
-		m.inputs[fieldAuthor].Placeholder = defaults.Author
+		m.inputs[fieldAuthor].Placeholder = truncate(defaults.Author, maxPlaceholderWidth)
 	} else {
 		m.inputs[fieldAuthor].Placeholder = "Author name"
 	}
 	m.inputs[fieldAuthor].CharLimit = 100
-	m.inputs[fieldAuthor].Width = 50
+	m.inputs[fieldAuthor].Width = inputWidth
 
 	// Tags field
 	m.inputs[fieldTags] = textinput.New()
 	m.inputs[fieldTags].Placeholder = "comma,separated,tags"
 	m.inputs[fieldTags].CharLimit = 200
-	m.inputs[fieldTags].Width = 50
+	m.inputs[fieldTags].Width = inputWidth
 
 	// ID field
 	m.inputs[fieldID] = textinput.New()
-	m.inputs[fieldID].Placeholder = defaults.ID
+	m.inputs[fieldID].Placeholder = truncate(defaults.ID, maxPlaceholderWidth)
 	m.inputs[fieldID].CharLimit = 63
-	m.inputs[fieldID].Width = 50
+	m.inputs[fieldID].Width = inputWidth
 
 	return m
 }
@@ -148,8 +159,13 @@ func (m shelveFormModel) View() string {
 	b.WriteString(StyleHeader.Render("Add Book to Library"))
 	b.WriteString("\n\n")
 
-	// File info
-	b.WriteString(StyleHelp.Render(fmt.Sprintf("File: %s", m.defaults.Filename)))
+	// File info - truncate long filenames to fit within border
+	filename := m.defaults.Filename
+	const maxFilenameWidth = 60 // Keep it under the input width + padding
+	if len(filename) > maxFilenameWidth {
+		filename = filename[:maxFilenameWidth-1] + "…"
+	}
+	b.WriteString(StyleHelp.Render(fmt.Sprintf("File: %s", filename)))
 	b.WriteString("\n\n")
 
 	// Form fields

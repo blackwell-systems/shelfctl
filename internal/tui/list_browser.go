@@ -89,17 +89,9 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 		coverMark = "📷 "
 	}
 
-	// Book ID (truncate if too long)
-	id := bookItem.Book.ID
-	const maxIDWidth = 20
-	if len(id) > maxIDWidth {
-		id = id[:maxIDWidth-1] + "…"
-	}
-	idStr := fmt.Sprintf("%-20s", id)
-
 	// Title (truncate based on available width)
 	title := bookItem.Book.Title
-	const maxTitleWidth = 50
+	const maxTitleWidth = 70 // Increased from 50 (removed 20-char ID field)
 	if len(title) > maxTitleWidth {
 		title = title[:maxTitleWidth-1] + "…"
 	}
@@ -126,10 +118,10 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 
 	if isSelected {
 		// Highlight selected item
-		s.WriteString(StyleHighlight.Render("› " + coverMark + idStr + " " + title + tagStr + cachedMark))
+		s.WriteString(StyleHighlight.Render("› " + coverMark + title + tagStr + cachedMark))
 	} else {
 		// Normal rendering
-		s.WriteString("  " + coverMark + StyleNormal.Render(idStr) + " " + title + tagStr + cachedMark)
+		s.WriteString("  " + coverMark + title + tagStr + cachedMark)
 	}
 
 	_, _ = fmt.Fprint(w, s.String())

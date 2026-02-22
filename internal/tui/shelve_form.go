@@ -200,13 +200,23 @@ func (m shelveFormModel) View() string {
 	return outerStyle.Render(StyleBorder.Render(innerPadding.Render(content)))
 }
 
-// getValue returns the input value or the placeholder default if empty.
+// getValue returns the input value or the original default if empty.
 func (m shelveFormModel) getValue(field int) string {
 	val := m.inputs[field].Value()
 	if val != "" {
 		return val
 	}
-	return m.inputs[field].Placeholder
+	// Return original defaults, not the truncated placeholder
+	switch field {
+	case fieldTitle:
+		return m.defaults.Title
+	case fieldAuthor:
+		return m.defaults.Author
+	case fieldID:
+		return m.defaults.ID
+	default:
+		return ""
+	}
 }
 
 // RunShelveForm launches an interactive form for book metadata entry.

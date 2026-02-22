@@ -53,6 +53,7 @@ type progressModel struct {
 	label      string
 	done       bool
 	err        error
+	cancelled  bool
 	progressCh <-chan int64
 }
 
@@ -71,7 +72,17 @@ func tickCmd() tea.Cmd {
 
 func waitForProgress(ch <-chan int64) tea.Cmd {
 	return func() tea.Msg {
-		return progressMsg(<-ch)
+		select {
+		case n, ok := <-ch:
+			if !ok {
+				// Channel closed, operation complete
+				return progressMsg(-1)
+			}
+			return progressMsg(n)
+		case <-time.After(100 * time.Millisecond):
+			// Timeout - return nil to avoid blocking, tick will keep UI alive
+			return nil
+		}
 	}
 }
 
@@ -81,6 +92,7 @@ func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Allow Ctrl+C to quit
 		if msg.String() == "ctrl+c" {
 			m.done = true
+			m.cancelled = true
 			return m, tea.Quit
 		}
 
@@ -88,14 +100,25 @@ func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.done {
 			return m, tea.Quit
 		}
+		// Just refresh UI on tick
 		return m, tickCmd()
 
 	case progressMsg:
+		if int64(msg) == -1 {
+			// Channel closed, operation complete
+			m.done = true
+			return m, tea.Quit
+		}
 		m.current = int64(msg)
 		if m.current >= m.total {
 			m.done = true
 			return m, tea.Quit
 		}
+		// Wait for next progress update
+		return m, waitForProgress(m.progressCh)
+
+	case nil:
+		// Timeout from waitForProgress - retry waiting
 		return m, waitForProgress(m.progressCh)
 
 	case tea.WindowSizeMsg:
@@ -136,6 +159,7 @@ func (m progressModel) View() string {
 // ShowProgress displays a progress bar while performing an operation.
 // The operation should wrap its io.Reader/Writer with a ProgressReader
 // and send progress updates through the channel.
+// Returns error if cancelled by user (Ctrl+C).
 func ShowProgress(label string, total int64, progressCh <-chan int64) error {
 	prog := progress.New(progress.WithDefaultGradient())
 
@@ -148,8 +172,14 @@ func ShowProgress(label string, total int64, progressCh <-chan int64) error {
 	}
 
 	p := tea.NewProgram(m)
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if err != nil {
 		return err
+	}
+
+	// Check if user cancelled
+	if fm, ok := finalModel.(progressModel); ok && fm.cancelled {
+		return fmt.Errorf("cancelled by user")
 	}
 
 	return nil

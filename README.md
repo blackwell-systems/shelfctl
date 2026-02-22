@@ -70,6 +70,14 @@ Zero infrastructure. Free by default (only pay if you choose Git LFS or exceed G
 Fetch a single book without cloning a repo or pulling a whole archive.
 `shelfctl open <book-id>` downloads *only that file* from GitHub's CDN and opens it. Your library can be huge, but you only download what you actually read.
 
+---
+
+<p align="center">
+  <img src="assets/shelf3.png" alt="shelfctl features" width="800">
+</p>
+
+## Features
+
 ### No infrastructure to run
 No database, no server, no object storage config. GitHub already hosts and serves the files.
 
@@ -80,10 +88,6 @@ Everything is API-driven. No local repos required. The same config works on any 
 CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your existing workflows.
 
 ---
-
-<p align="center">
-  <img src="assets/shelf3.png" alt="shelfctl features" width="800">
-</p>
 
 ## How it works
 

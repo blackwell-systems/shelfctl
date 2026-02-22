@@ -234,17 +234,6 @@ It will display the standard CLI help instead.
 
 Clean, focused, and functional. The menu dynamically shows only available operations (e.g., "Delete Book" is hidden when no books exist). Additional commands are available via `shelfctl <command>`.
 
-## Advantages of the Hub
-
-1. **Discoverability** - See all available operations at a glance
-2. **Guidance** - No need to remember command names or flags
-3. **Visual feedback** - See shelf/book counts in real-time, cache status, progress
-4. **Consistent experience** - All operations follow similar patterns
-5. **Faster** - No need to type commands repeatedly, stays in loop
-6. **Smart filtering** - Menu shows only available operations (no clutter)
-7. **Complete workflow** - From browsing to opening books without leaving TUI
-8. **Safety** - Clear confirmations for destructive operations
-
 ## CLI Compatibility
 
 All operations remain available as direct commands:

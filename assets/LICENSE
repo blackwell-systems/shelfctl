@@ -1,0 +1,36 @@
+# Shelby Mascot and Brand Assets License
+
+The Shelby mascot images and brand assets in this directory are proprietary.
+
+Copyright (c) 2024-2026 Dayna Blackwell / Blackwell Systems™. All rights reserved.
+
+## Covered Assets
+
+- shelby*.png (all Shelby mascot images)
+- icon-*.png (favicon and icon variants)
+- shelf*.png (shelf illustrations)
+- Any other brand imagery in this directory
+
+## Usage Terms
+
+**PERMITTED:**
+- ✓ Use bundled with unmodified shelfctl distributions
+- ✓ Display in documentation and promotional materials for shelfctl
+- ✓ Reference in articles, reviews, or tutorials about shelfctl
+
+**NOT PERMITTED WITHOUT WRITTEN PERMISSION:**
+- ✗ Modifications, derivatives, or remixes of the mascot
+- ✗ Use in other projects, products, or services
+- ✗ Use in ways that imply endorsement
+- ✗ Commercial use outside of shelfctl distributions
+- ✗ Removal or alteration of branding
+
+## Contact
+
+For licensing inquiries or permission requests, contact:
+https://github.com/blackwell-systems
+
+---
+
+**Note:** The shelfctl software code is separately licensed under the MIT License.
+See the LICENSE file in the repository root for software licensing terms.

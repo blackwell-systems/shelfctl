@@ -7,7 +7,7 @@
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/blackwellsystems)
 
 <p align="center">
-  <img src="assets/padded.png" alt="Shelby the Shelf - shelfctl mascot holding a magnifying glass">
+  <img src="assets/shelby-padded.png" alt="Shelby the Shelf - shelfctl mascot holding a magnifying glass">
 </p>
 
 <p align="center">

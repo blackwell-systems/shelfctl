@@ -108,8 +108,8 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
 
 ## Prerequisites
 
-- Go 1.21 or later
 - GitHub account with a personal access token
+- Go 1.21+ (only if using `go install` or building from source)
 
 <p align="center">
   <img src="assets/shelby5.png" alt="Shelby sitting at a computer installing shelfctl" width="600">

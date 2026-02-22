@@ -1,8 +1,10 @@
 package app
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
@@ -585,6 +587,10 @@ func runHub() error {
 			cmdErr = newIndexCmd().Execute()
 		case "shelve":
 			cmdErr = newShelveCmd().Execute()
+		case "shelve-url":
+			cmdErr = runShelveFromURL()
+		case "import-repo":
+			cmdErr = runImportFromRepo()
 		case "edit-book":
 			cmdErr = newEditBookCmd().Execute()
 		case "move":
@@ -624,6 +630,100 @@ func runHub() error {
 		var dummy string
 		_, _ = fmt.Scanln(&dummy)
 	}
+}
+
+func runShelveFromURL() error {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println()
+	header("Add Book from URL")
+	fmt.Println()
+	fmt.Print("Enter URL: ")
+	url, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	url = strings.TrimSpace(url)
+	if url == "" {
+		return fmt.Errorf("URL cannot be empty")
+	}
+
+	// Call shelve command with URL
+	cmd := newShelveCmd()
+	cmd.SetArgs([]string{url})
+	return cmd.Execute()
+}
+
+func runImportFromRepo() error {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println()
+	header("Import Books from Repository")
+	fmt.Println()
+	fmt.Println("This will scan a repository for PDFs and migrate them to your shelves.")
+	fmt.Println()
+	fmt.Print("Enter source repository (owner/repo): ")
+	source, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return fmt.Errorf("repository cannot be empty")
+	}
+
+	// Validate format
+	if !strings.Contains(source, "/") {
+		return fmt.Errorf("repository must be in format: owner/repo")
+	}
+
+	fmt.Println()
+	fmt.Println(color.CyanString("Scanning repository for PDFs..."))
+
+	// Run migrate scan to create queue file
+	queueFile := fmt.Sprintf("/tmp/shelfctl-import-%d.txt", os.Getpid())
+	scanCmd := newMigrateScanCmd()
+	scanCmd.SetArgs([]string{"--source", source, "--out", queueFile})
+	if err := scanCmd.Execute(); err != nil {
+		return fmt.Errorf("scan failed: %w", err)
+	}
+
+	// Check if queue file has content
+	data, err := os.ReadFile(queueFile)
+	if err != nil {
+		return fmt.Errorf("reading queue file: %w", err)
+	}
+	if len(data) == 0 {
+		fmt.Println()
+		fmt.Println(color.YellowString("No PDFs found in repository."))
+		_ = os.Remove(queueFile)
+		return nil
+	}
+
+	fileCount := strings.Count(string(data), "\n")
+	fmt.Println()
+	fmt.Printf("Found %s files to migrate.\n", color.WhiteString("%d", fileCount))
+	fmt.Println()
+	fmt.Print("Proceed with migration? (Y/n): ")
+	confirm, _ := reader.ReadString('\n')
+	confirm = strings.TrimSpace(strings.ToLower(confirm))
+
+	if confirm != "" && confirm != "y" && confirm != "yes" {
+		_ = os.Remove(queueFile)
+		return fmt.Errorf("canceled by user")
+	}
+
+	// Run migrate batch
+	fmt.Println()
+	fmt.Println(color.CyanString("Starting migration..."))
+	batchCmd := newMigrateBatchCmd()
+	batchCmd.SetArgs([]string{queueFile, "--continue"})
+	err = batchCmd.Execute()
+
+	// Clean up queue file
+	_ = os.Remove(queueFile)
+
+	return err
 }
 
 func buildHubContext() tui.HubContext {

@@ -35,6 +35,8 @@ var menuItems = []MenuItem{
 	{Key: "shelves", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
 	{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
 	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
+	{Key: "shelve-url", Label: "Add from URL", Description: "Download and add a book from URL", Available: true},
+	{Key: "import-repo", Label: "Import from Repository", Description: "Migrate books from another repo", Available: true},
 	{Key: "edit-book", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
 	{Key: "move", Label: "Move Book", Description: "Transfer a book to another shelf or release", Available: true},
 	{Key: "delete-book", Label: "Delete Book", Description: "Remove a book from your library", Available: true},

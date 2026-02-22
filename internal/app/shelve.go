@@ -709,6 +709,7 @@ func slugify(s string) string {
 	result := strings.TrimRight(b.String(), "-")
 	if len(result) > 63 {
 		result = result[:63]
+		result = strings.TrimRight(result, "-") // Trim again after truncation
 	}
 	if result == "" {
 		return "book"

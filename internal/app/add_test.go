@@ -39,3 +39,26 @@ func TestSlugify_MaxLength(t *testing.T) {
 		t.Errorf("slugify result length = %d, want ≤63", len(got))
 	}
 }
+
+func TestSlugify_TrailingHyphenAfterTruncation(t *testing.T) {
+	// Test case: long filename that truncates at a hyphen position
+	// "how-linux-works-what-every-superuser-should-know-3rd-edition" is 59 chars
+	// But with longer variants, truncation might land on a hyphen
+	long := "how-linux-works-what-every-superuser-should-know-3rd-edition-revised"
+	got := slugify(long)
+
+	// Should not end with hyphen
+	if len(got) > 0 && got[len(got)-1] == '-' {
+		t.Errorf("slugify(%q) ends with hyphen: %q", long, got)
+	}
+
+	// Should be ≤63 chars
+	if len(got) > 63 {
+		t.Errorf("slugify result length = %d, want ≤63", len(got))
+	}
+
+	// Should match ID regex
+	if got != "" && !idRe.MatchString(got) {
+		t.Errorf("slugify(%q) = %q, does not match ID regex", long, got)
+	}
+}

@@ -47,7 +47,7 @@ Zero infrastructure. Free by default (only pay if you choose Git LFS or exceed G
 
 ---
 
-## Why
+## Why not commit PDFs?
 
 ### On-demand downloads (no cloning)
 Fetch a single book without cloning a repo or pulling a whole archive.

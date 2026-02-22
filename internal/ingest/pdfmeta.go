@@ -86,13 +86,27 @@ func extractField(text, field string) string {
 
 // decodePDFString handles basic PDF string escaping
 func decodePDFString(s string) string {
-	// Handle common escape sequences
-	s = strings.ReplaceAll(s, `\n`, "\n")
-	s = strings.ReplaceAll(s, `\r`, "\r")
-	s = strings.ReplaceAll(s, `\t`, "\t")
-	s = strings.ReplaceAll(s, `\(`, "(")
-	s = strings.ReplaceAll(s, `\)`, ")")
-	s = strings.ReplaceAll(s, `\\`, "\\")
+	// Check if this is UTF-16BE encoded (starts with BOM: FE FF)
+	if len(s) >= 2 && s[0] == 0xFE && s[1] == 0xFF {
+		// This is UTF-16BE data embedded in a parentheses string
+		rawBytes := []byte(s[2:]) // Skip BOM
+
+		if len(rawBytes)%2 == 0 {
+			u16 := make([]uint16, len(rawBytes)/2)
+			for i := 0; i < len(u16); i++ {
+				u16[i] = uint16(rawBytes[i*2])<<8 | uint16(rawBytes[i*2+1])
+			}
+			s = string(utf16.Decode(u16))
+		}
+	} else {
+		// Handle common escape sequences for regular text
+		s = strings.ReplaceAll(s, `\n`, "\n")
+		s = strings.ReplaceAll(s, `\r`, "\r")
+		s = strings.ReplaceAll(s, `\t`, "\t")
+		s = strings.ReplaceAll(s, `\(`, "(")
+		s = strings.ReplaceAll(s, `\)`, ")")
+		s = strings.ReplaceAll(s, `\\`, "\\")
+	}
 
 	// Trim whitespace
 	s = strings.TrimSpace(s)

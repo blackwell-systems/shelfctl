@@ -76,11 +76,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consistent commit messages and error handling
 
 ### Fixed
-- **Unicode Character Rendering in Shelve Form**
-  - PDF metadata containing special Unicode characters (smart quotes, apostrophes, dashes) now display correctly in terminal
-  - Added `sanitizeForTerminal()` function to convert problematic Unicode to ASCII equivalents
-  - Fixes rendering issues like `��` appearing before book titles
-  - Affects titles extracted from PDFs like "Let's Go Further" (smart apostrophe U+2019)
+- **UTF-16BE Encoded PDF Metadata Not Decoded Properly**
+  - PDF metadata with UTF-16BE encoding (starting with BOM FE FF) now decodes correctly
+  - Added UTF-16BE detection and decoding in `decodePDFString()` function
+  - Fixes rendering issues like `��` appearing before book titles extracted from PDFs
+  - Affects titles like "Let's Go Further" which are UTF-16BE encoded in PDF metadata
+  - Added defensive `sanitizeForTerminal()` for converting problematic Unicode characters to ASCII equivalents
 
 ## [0.1.0] - 2026-02-21
 

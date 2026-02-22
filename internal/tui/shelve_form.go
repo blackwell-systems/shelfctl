@@ -66,10 +66,7 @@ func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 	m.inputs[fieldTitle].Focus()
 	m.inputs[fieldTitle].CharLimit = 200
 	m.inputs[fieldTitle].Width = inputWidth
-	m.inputs[fieldTitle].Prompt = "> "
-	m.inputs[fieldTitle].PromptStyle = lipgloss.NewStyle()
-	m.inputs[fieldTitle].TextStyle = lipgloss.NewStyle()
-	m.inputs[fieldTitle].Cursor.Style = lipgloss.NewStyle()
+	m.inputs[fieldTitle].Prompt = ""
 
 	// Author field
 	m.inputs[fieldAuthor] = textinput.New()
@@ -80,30 +77,21 @@ func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 	}
 	m.inputs[fieldAuthor].CharLimit = 100
 	m.inputs[fieldAuthor].Width = inputWidth
-	m.inputs[fieldAuthor].Prompt = "> "
-	m.inputs[fieldAuthor].PromptStyle = lipgloss.NewStyle()
-	m.inputs[fieldAuthor].TextStyle = lipgloss.NewStyle()
-	m.inputs[fieldAuthor].Cursor.Style = lipgloss.NewStyle()
+	m.inputs[fieldAuthor].Prompt = ""
 
 	// Tags field
 	m.inputs[fieldTags] = textinput.New()
 	m.inputs[fieldTags].Placeholder = "comma,separated,tags"
 	m.inputs[fieldTags].CharLimit = 200
 	m.inputs[fieldTags].Width = inputWidth
-	m.inputs[fieldTags].Prompt = "> "
-	m.inputs[fieldTags].PromptStyle = lipgloss.NewStyle()
-	m.inputs[fieldTags].TextStyle = lipgloss.NewStyle()
-	m.inputs[fieldTags].Cursor.Style = lipgloss.NewStyle()
+	m.inputs[fieldTags].Prompt = ""
 
 	// ID field
 	m.inputs[fieldID] = textinput.New()
 	m.inputs[fieldID].Placeholder = truncate(defaults.ID, maxPlaceholderWidth)
 	m.inputs[fieldID].CharLimit = 63
 	m.inputs[fieldID].Width = inputWidth
-	m.inputs[fieldID].Prompt = "> "
-	m.inputs[fieldID].PromptStyle = lipgloss.NewStyle()
-	m.inputs[fieldID].TextStyle = lipgloss.NewStyle()
-	m.inputs[fieldID].Cursor.Style = lipgloss.NewStyle()
+	m.inputs[fieldID].Prompt = ""
 
 	return m
 }

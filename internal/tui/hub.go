@@ -169,12 +169,13 @@ func (m *hubModel) updateListSize() {
 	listHeight := m.height - outerPaddingV - v - headerLines
 
 	if m.showDetails {
-		// Split view: list takes ~50% of available width
-		listWidth := (availableWidth * 5) / 10
+		// Split view: list takes remaining width after fixed details panel
+		const detailsPanelWidth = 45 + 2 // panel width + padding
+		listWidth := availableWidth - detailsPanelWidth - borderWidth
 		if listWidth < 30 {
 			listWidth = 30
 		}
-		m.list.SetSize(listWidth-borderWidth, listHeight)
+		m.list.SetSize(listWidth, listHeight)
 	} else {
 		// Full width for list
 		if availableWidth < 40 {
@@ -193,11 +194,8 @@ func (m hubModel) renderDetailsPane() string {
 		return ""
 	}
 
-	// Calculate details pane width (50% of screen, accounting for divider and master border)
-	detailsWidth := ((m.width - 2) * 5) / 10
-	if detailsWidth < 35 {
-		detailsWidth = 35
-	}
+	// Fixed width for details panel - just enough for content
+	const detailsWidth = 45
 
 	detailsStyle := lipgloss.NewStyle().
 		Width(detailsWidth).

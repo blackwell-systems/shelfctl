@@ -66,6 +66,23 @@ func RenderInlineImage(imagePath string, protocol TerminalImageProtocol) string 
 	return ""
 }
 
+// RenderInlineImageBytes renders image data inline using the terminal's protocol.
+// Returns the terminal escape sequences to display the image, or empty string on error.
+func RenderInlineImageBytes(data []byte, protocol TerminalImageProtocol) string {
+	if protocol == ProtocolNone {
+		return ""
+	}
+
+	switch protocol {
+	case ProtocolKitty:
+		return renderKittyImage(data)
+	case ProtocolITerm2:
+		return renderITerm2Image(data)
+	}
+
+	return ""
+}
+
 // renderKittyImage uses Kitty's graphics protocol
 // Format: \x1b_Ga=T,f=100,t=f;<base64>\x1b\\
 func renderKittyImage(data []byte) string {

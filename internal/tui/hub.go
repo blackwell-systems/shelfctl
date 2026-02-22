@@ -1,6 +1,7 @@
 package tui
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 
@@ -9,6 +10,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+//go:embed assets/padded.png
+var shelbyIconPNG []byte
 
 // MenuItem represents an action in the hub menu
 type MenuItem struct {
@@ -166,9 +170,8 @@ func (m hubModel) View() string {
 	var iconDisplay string
 	protocol := DetectImageProtocol()
 	if protocol != ProtocolNone {
-		// Use the padded logo with Shelby holding magnifying glass
-		iconPath := "/Users/dayna.blackwell/code/shelfctl/assets/padded.png"
-		if img := RenderInlineImage(iconPath, protocol); img != "" {
+		// Use embedded Shelby image
+		if img := RenderInlineImageBytes(shelbyIconPNG, protocol); img != "" {
 			iconDisplay = img
 		}
 	}

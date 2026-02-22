@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Styled Table Output for Shelves Command**
+  - Beautiful table format with box-drawing characters
+  - Color-coded status indicators (✓ Healthy, ⚠ Warning, ✗ Error)
+  - Shows shelf name, repository, book count, and status at a glance
+  - Dynamic column width adjustment
+  - Cyan bold headers for improved readability
+- **Duplicate Book ID Warning**
+  - Warns when a book ID exists in multiple shelves
+  - Shows which shelf is being used and lists all matches
+  - Prompts user to use `--shelf` flag to disambiguate
+  - Affects: info, open, edit-book, delete-book, move commands
+- **Stylish Colored Help Output**
+  - Added colors to all CLI help screens for better readability
+  - Cyan bold section headers (Usage, Flags, Commands)
+  - Green command names
+  - Yellow help hints
+  - Respects `--no-color` flag
+  - Applied recursively to all commands and subcommands
+- **CLI Accessibility Audit Documentation**
+  - Comprehensive CLI_ACCESSIBILITY_AUDIT.md document
+  - Confirms 99% of functionality is scriptable
+  - Documents the one exception (split command requires interactive input)
+  - Includes testing checklist and automation examples
+- **Repository Configuration**
+  - Added CODEOWNERS file: automatic review requests for @blackwell-systems on all PRs
+  - Added .gitignore: excludes bin/, IDE files (.idea/, .vscode/), build artifacts
+  - Removed bin/shelfctl from git tracking (now in .gitignore)
 - **Enhanced Shelves Command**
   - Now displays book count for each shelf in output
   - Shows "(empty)" for shelves with no books
@@ -307,6 +334,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `open` command inlines download logic (previously called `get`)
 
 ### Changed
+- **TUI Browser Details Pane**
+  - Details pane now shown by default when launching browse command
+  - Users see book metadata immediately without needing to press tab
+  - Can still toggle to full-width list view with tab key
+  - Improves discoverability and first-time user experience
+- **Shelves Command Output Format**
+  - Changed from plain text list to styled table format
+  - Better visual organization with borders and columns
+  - Easier to scan multiple shelves at once
 - **Linter Configuration**
   - Updated to golangci-lint v2 configuration format
   - Disabled noisy stylistic linters (gocritic, revive)
@@ -314,6 +350,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All code now passes linting with zero issues
 
 ### Fixed
+- **Text Overflow in Browse TUI**
+  - Long book IDs, titles, and tags now truncate with ellipsis (…)
+  - Prevents text from running into adjacent columns
+  - ID max: 20 chars, Title max: 50 chars, Tags max: 30 chars
+  - Fixes display issues like "book-id-that-is-way-too-long title-running-together ✓"
 - **Error Handling**
   - Fixed all errcheck issues (14 instances of unchecked defer Close/Remove calls)
   - Properly handle errors in deferred cleanup operations across all packages

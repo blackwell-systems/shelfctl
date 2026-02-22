@@ -49,29 +49,6 @@ View books in this shelf:
 shelfctl browse --shelf %s
 `+"```"+`
 
-## Organization
-
-<!-- You can organize books here by topic, reading status, etc. -->
-
-### By Topic
-
-<!-- Example:
-- **Algorithms**: book-id-1, book-id-2
-- **Systems**: book-id-3, book-id-4
--->
-
-### Reading Lists
-
-<!-- Example:
-- **Currently Reading**: book-id-1
-- **Want to Read**: book-id-2, book-id-3
-- **Completed**: book-id-4
--->
-
-### Favorites
-
-<!-- Add your favorite books here -->
-
 ## Maintenance
 
 This shelf is managed with shelfctl. The source of truth for metadata is `+"`catalog.yml`"+`.

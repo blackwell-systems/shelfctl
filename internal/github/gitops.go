@@ -45,6 +45,10 @@ func (c *Client) CommitFile(owner, repo, filePath string, content []byte, messag
 	if err := runGit(tmpDir, "commit", "-m", message); err != nil {
 		return err
 	}
+	// Pull with rebase to handle any remote changes since clone
+	if err := runGit(tmpDir, "pull", "--rebase"); err != nil {
+		return fmt.Errorf("git pull --rebase: %w", err)
+	}
 	if err := runGit(tmpDir, "push"); err != nil {
 		return fmt.Errorf("git push: %w", err)
 	}

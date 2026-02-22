@@ -239,7 +239,7 @@ func (m *model) updateListSize() {
 	const outerPaddingH = 4 * 2 // left/right padding from outer container
 	const outerPaddingV = 2 * 2 // top/bottom padding from outer container
 	const masterBorder = 2
-	const dividerWidth = 3
+	const borderWidth = 1 // right border on list when details shown
 
 	// Calculate available space after outer padding and border
 	availableWidth := m.width - outerPaddingH - masterBorder
@@ -249,8 +249,8 @@ func (m *model) updateListSize() {
 		// Split view: list takes ~60% of available width
 		listWidth := (availableWidth * 6) / 10
 
-		// Set list size (accounting for divider)
-		m.list.SetSize(listWidth-1, availableHeight-2)
+		// Set list size (accounting for right border)
+		m.list.SetSize(listWidth-borderWidth, availableHeight-2)
 	} else {
 		// Full width for list
 		m.list.SetSize(availableWidth, availableHeight-2)
@@ -389,20 +389,18 @@ func (m model) View() string {
 	var content string
 	if m.showDetails {
 		// Split-panel layout: compose panels then wrap
-		listView := m.list.View()
+		// Add border on right side of list to create solid divider
+		listStyle := lipgloss.NewStyle().
+			BorderRight(true).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(ColorGray)
+		listView := listStyle.Render(m.list.View())
 		detailsView := m.renderDetailsPane()
 
-		// Create a vertical divider between panels
-		dividerStyle := lipgloss.NewStyle().
-			Foreground(ColorGray).
-			Padding(0, 1)
-		divider := dividerStyle.Render("│")
-
-		// Join horizontally: list + divider + details
+		// Join horizontally: list (with border) + details
 		content = lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			listView,
-			divider,
 			detailsView,
 		)
 	} else {

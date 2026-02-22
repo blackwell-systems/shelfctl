@@ -764,9 +764,14 @@ func updateREADMEAfterRemove(owner, repo string, remainingBooks []catalog.Book, 
 		return // README doesn't exist or can't be read
 	}
 
-	readmeContent := string(readmeData)
-	readmeContent = updateShelfREADMEStats(readmeContent, len(remainingBooks))
+	originalContent := string(readmeData)
+	readmeContent := updateShelfREADMEStats(originalContent, len(remainingBooks))
 	readmeContent = removeFromShelfREADME(readmeContent, removedBookID)
+
+	// Only commit if content actually changed
+	if readmeContent == originalContent {
+		return // No changes to commit
+	}
 
 	readmeMsg := fmt.Sprintf("Update README: remove %s", removedBookID)
 	if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
@@ -783,9 +788,14 @@ func updateREADMEAfterAdd(owner, repo string, books []catalog.Book, book catalog
 		return // README doesn't exist or can't be read
 	}
 
-	readmeContent := string(readmeData)
-	readmeContent = updateShelfREADMEStats(readmeContent, len(books))
+	originalContent := string(readmeData)
+	readmeContent := updateShelfREADMEStats(originalContent, len(books))
 	readmeContent = appendToShelfREADME(readmeContent, book)
+
+	// Only commit if content actually changed
+	if readmeContent == originalContent {
+		return // No changes to commit
+	}
 
 	readmeMsg := fmt.Sprintf("Update README: add %s", book.ID)
 	if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {

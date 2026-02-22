@@ -559,9 +559,14 @@ func updateREADME(cmd *cobra.Command, owner, repo string, books []catalog.Book, 
 		return
 	}
 
-	readmeContent := string(readmeData)
-	readmeContent = updateShelfREADMEStats(readmeContent, len(books))
+	originalContent := string(readmeData)
+	readmeContent := updateShelfREADMEStats(originalContent, len(books))
 	readmeContent = appendToShelfREADME(readmeContent, book)
+
+	// Only commit if content actually changed
+	if readmeContent == originalContent {
+		return // No changes to commit
+	}
 
 	readmeMsg := fmt.Sprintf("Update README: add %s", book.ID)
 	if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {

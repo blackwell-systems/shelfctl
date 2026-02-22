@@ -341,6 +341,91 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 		path := cacheMgr.Path(item.Owner, item.Repo, b.ID, b.Source.Asset)
 		return openFile(path, "")
 
+	case tui.ActionEdit:
+		// Edit book metadata
+		shelf := cfg.ShelfByName(item.ShelfName)
+		if shelf == nil {
+			return fmt.Errorf("shelf %q not found", item.ShelfName)
+		}
+		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+		catalogPath := shelf.EffectiveCatalogPath()
+
+		// Show edit form
+		defaults := tui.EditFormDefaults{
+			BookID: b.ID,
+			Title:  b.Title,
+			Author: b.Author,
+			Year:   b.Year,
+			Tags:   b.Tags,
+		}
+
+		formData, err := tui.RunEditForm(defaults)
+		if err != nil {
+			return err
+		}
+
+		// Parse tags
+		tags := []string{}
+		if formData.Tags != "" {
+			for _, t := range strings.Split(formData.Tags, ",") {
+				t = strings.TrimSpace(t)
+				if t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+
+		// Build updated book
+		updatedBook := *b
+		updatedBook.Title = formData.Title
+		updatedBook.Author = formData.Author
+		updatedBook.Year = formData.Year
+		updatedBook.Tags = tags
+
+		// Load catalog
+		data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+		if err != nil {
+			return fmt.Errorf("loading catalog: %w", err)
+		}
+		books, err := catalog.Parse(data)
+		if err != nil {
+			return fmt.Errorf("parsing catalog: %w", err)
+		}
+
+		// Update book in catalog
+		books = catalog.Append(books, updatedBook)
+
+		// Commit catalog
+		updatedData, err := catalog.Marshal(books)
+		if err != nil {
+			return fmt.Errorf("marshaling catalog: %w", err)
+		}
+		commitMsg := fmt.Sprintf("edit: update %s metadata", b.ID)
+		if err := gh.CommitFile(owner, shelf.Repo, catalogPath, updatedData, commitMsg); err != nil {
+			return fmt.Errorf("committing catalog: %w", err)
+		}
+
+		// Update README with new metadata
+		readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
+		if readmeErr == nil {
+			originalContent := string(readmeData)
+			readmeContent := updateShelfREADMEStats(originalContent, len(books))
+			readmeContent = appendToShelfREADME(readmeContent, updatedBook)
+
+			// Only commit if content actually changed
+			if readmeContent != originalContent {
+				readmeMsg := fmt.Sprintf("Update README: edit %s", b.ID)
+				if err := gh.CommitFile(owner, shelf.Repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+					warn("Could not update README.md: %v", err)
+				} else {
+					ok("README.md updated")
+				}
+			}
+		}
+
+		ok("Book successfully updated: %s", b.ID)
+		return nil
+
 	default:
 		return nil
 	}

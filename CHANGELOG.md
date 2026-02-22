@@ -89,6 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cached books show `[local]` indicator in green to quickly identify downloaded books
   - Consistent with list browser display for better visual recognition
   - Helps users identify books by tags without opening details panel
+- **Quick Edit from Browse**
+  - Added `e` key binding in browse mode to directly open edit form
+  - Streamlines workflow: browse → press `e` → edit metadata → save
+  - No need to quit browse, navigate menu, find book again
+  - Shows updated book info immediately after saving
+  - Works with full edit form (title, author, year, tags)
 
 ### Changed
 - **Refactored TUI Pickers to Use Base Components**

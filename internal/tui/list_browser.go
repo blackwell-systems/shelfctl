@@ -116,6 +116,7 @@ type keyMap struct {
 	enter       key.Binding
 	open        key.Binding
 	get         key.Binding
+	edit        key.Binding
 	filter      key.Binding
 	togglePanel key.Binding
 }
@@ -137,6 +138,10 @@ var keys = keyMap{
 		key.WithKeys("g"),
 		key.WithHelp("g", "download"),
 	),
+	edit: key.NewBinding(
+		key.WithKeys("e"),
+		key.WithHelp("e", "edit"),
+	),
 	filter: key.NewBinding(
 		key.WithKeys("/"),
 		key.WithHelp("/", "filter"),
@@ -157,6 +162,7 @@ const (
 	ActionShowDetails BrowserAction = "details"
 	ActionOpen        BrowserAction = "open"
 	ActionDownload    BrowserAction = "download"
+	ActionEdit        BrowserAction = "edit"
 )
 
 // BrowserResult holds the result of a browser session
@@ -227,6 +233,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Download book
 			if item, ok := m.list.SelectedItem().(BookItem); ok {
 				m.action = ActionDownload
+				m.selected = &item
+				m.quitting = true
+				return m, tea.Quit
+			}
+
+		case key.Matches(msg, keys.edit):
+			// Edit book
+			if item, ok := m.list.SelectedItem().(BookItem); ok {
+				m.action = ActionEdit
 				m.selected = &item
 				m.quitting = true
 				return m, tea.Quit
@@ -447,10 +462,10 @@ func RunListBrowser(books []BookItem) (*BrowserResult, error) {
 
 	// Set help keybindings
 	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.open, keys.get, keys.togglePanel}
+		return []key.Binding{keys.open, keys.get, keys.edit, keys.togglePanel}
 	}
 	l.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.open, keys.get, keys.enter, keys.togglePanel}
+		return []key.Binding{keys.open, keys.get, keys.edit, keys.enter, keys.togglePanel}
 	}
 
 	m := model{

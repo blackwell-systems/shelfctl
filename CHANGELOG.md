@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.1.1] - 2026-02-22
+
+### Added
 - **Miller Columns File Browser (Hierarchical View)**
   - File picker now uses Miller columns layout (like macOS Finder column view)
   - Multiple directory levels displayed side-by-side for visual hierarchy
@@ -123,13 +131,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consistent commit messages and error handling
 
 ### Fixed
-- **Progress UI Freezing on Slow Uploads/Downloads**
-  - Progress bar no longer freezes when network connection is slow or stuck
-  - Added 100ms timeout to progress channel receive to prevent indefinite blocking
-  - Ctrl+C now properly cancels uploads/downloads instead of hanging
-  - ShowProgress returns cancellation error to stop waiting for operation result
-  - Fixes hang when large uploads (6MB+) get stuck at 0% during network issues
-  - UI remains responsive even if upload hasn't started sending data yet
+- **Progress UI Hanging at 0% and Not Completing**
+  - **Root cause**: HTTP client buffers entire file before upload, causing all progress updates to happen at once, overwhelming the channel
+  - **Progress throttling**: ProgressReader now sends updates every 1MB instead of every 16KB, reducing messages from ~1060 to ~17 for a 17MB file
+  - **Increased channel buffer**: Raised from 10 to 50 to handle burst updates without dropping
+  - **Removed timeout race condition**: `waitForProgress` now blocks on channel indefinitely instead of using 100ms timeout that could miss final messages
+  - **Separate tick for UI responsiveness**: Independent tickCmd keeps UI refreshing while waiting for progress
+  - **Result**: Progress bar updates smoothly and exits cleanly when complete
+  - Shows "Connecting to GitHub..." message before progress bar to explain initial delay during connection establishment
+  - Ctrl+C properly cancels uploads/downloads and returns cancellation error
 - **Multi-Select Book Picker Only Showing One Item**
   - Multi-select book picker now properly handles window resize events
   - Previously displayed only one item at a time due to 0x0 list dimensions

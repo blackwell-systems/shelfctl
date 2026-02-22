@@ -15,6 +15,7 @@ type ProgressReader struct {
 	total       int64
 	read        int64
 	progressMsg chan int64
+	lastReport  int64 // Last byte count we reported
 }
 
 // NewProgressReader creates a reader that reports progress.
@@ -30,10 +31,21 @@ func NewProgressReader(r io.Reader, total int64, progressMsg chan int64) *Progre
 func (pr *ProgressReader) Read(p []byte) (int, error) {
 	n, err := pr.reader.Read(p)
 	pr.read += int64(n)
-	if pr.progressMsg != nil {
-		select {
-		case pr.progressMsg <- pr.read:
-		default:
+
+	if pr.progressMsg != nil && n > 0 {
+		// Only send progress updates every 1MB (or on completion)
+		// This reduces updates from ~1060 to ~17 for a 17MB file
+		const updateInterval = 1024 * 1024 // 1MB
+		sinceLast := pr.read - pr.lastReport
+		isComplete := err == io.EOF || pr.read >= pr.total
+
+		if sinceLast >= updateInterval || isComplete {
+			select {
+			case pr.progressMsg <- pr.read:
+				pr.lastReport = pr.read
+			default:
+				// Channel full, skip this update
+			}
 		}
 	}
 	return n, err
@@ -72,17 +84,13 @@ func tickCmd() tea.Cmd {
 
 func waitForProgress(ch <-chan int64) tea.Cmd {
 	return func() tea.Msg {
-		select {
-		case n, ok := <-ch:
-			if !ok {
-				// Channel closed, operation complete
-				return progressMsg(-1)
-			}
-			return progressMsg(n)
-		case <-time.After(100 * time.Millisecond):
-			// Timeout - return nil to avoid blocking, tick will keep UI alive
-			return nil
+		// Block on channel read - UI stays alive via tickCmd
+		n, ok := <-ch
+		if !ok {
+			// Channel closed, operation complete
+			return progressMsg(-1)
 		}
+		return progressMsg(n)
 	}
 }
 
@@ -114,11 +122,7 @@ func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.done = true
 			return m, tea.Quit
 		}
-		// Wait for next progress update
-		return m, waitForProgress(m.progressCh)
-
-	case nil:
-		// Timeout from waitForProgress - retry waiting
+		// Wait for next progress update (tick is already running from Init)
 		return m, waitForProgress(m.progressCh)
 
 	case tea.WindowSizeMsg:

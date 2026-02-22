@@ -466,11 +466,16 @@ func uploadAsset(cmd *cobra.Command, owner, repo string, releaseID int64, assetN
 	// Use progress bar in TTY mode
 	var asset *github.Asset
 	if util.IsTTY() && tui.ShouldUseTUI(cmd) {
-		progressCh := make(chan int64, 10)
+		progressCh := make(chan int64, 50)
 		errCh := make(chan error, 1)
+
+		// Show connecting message
+		fmt.Printf("Connecting to GitHub...\n")
 
 		// Start upload in goroutine
 		go func() {
+			// Send initial progress to unblock UI
+			progressCh <- 0
 			pr := tui.NewProgressReader(uploadFile, size, progressCh)
 			a, err := gh.UploadAsset(owner, repo, releaseID, assetName, pr, size, "application/octet-stream")
 			close(progressCh)

@@ -55,8 +55,11 @@ func newOpenCmd() *cobra.Command {
 
 				// Use progress bar in TTY mode
 				if util.IsTTY() && tui.ShouldUseTUI(cmd) {
-					progressCh := make(chan int64, 10)
+					progressCh := make(chan int64, 50)
 					errCh := make(chan error, 1)
+
+					// Show connecting message
+					fmt.Printf("Connecting to GitHub...\n")
 
 					// Start download in goroutine
 					go func() {
@@ -69,8 +72,8 @@ func newOpenCmd() *cobra.Command {
 					// Show progress UI
 					label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
 					if err := tui.ShowProgress(label, asset.Size, progressCh); err != nil {
-					return err // User cancelled
-				}
+						return err // User cancelled
+					}
 
 					// Get result
 					if err := <-errCh; err != nil {

@@ -14,6 +14,11 @@ func TestSlugify(t *testing.T) {
 		{"123abc", "123abc"},
 		{"---all-dashes---", "all-dashes"},
 		{"", "book"},
+		{"Let's Go Further", "lets-go-further"},
+		{"Don't Stop Believin'", "dont-stop-believin"},
+		{"The \"Best\" Book", "the-best-book"},
+		{"O'Reilly's Guide", "oreillys-guide"},
+		{"It's a \u201Cquoted\u201D title", "its-a-quoted-title"},
 	}
 	for _, c := range cases {
 		got := slugify(c.in)

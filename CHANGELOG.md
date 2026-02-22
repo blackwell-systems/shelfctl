@@ -92,6 +92,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consistent commit messages and error handling
 
 ### Fixed
+- **Apostrophes and Quotes in Book IDs**
+  - slugify() now removes apostrophes and quotes instead of converting them to hyphens
+  - "Let's Go Further" → "lets-go-further" (was: "let-s-go-further")
+  - Handles ASCII quotes (', "), smart quotes (' ' " "), and curly quotes
+  - Added test cases for apostrophes, quotes, and possessives
 - **UTF-16BE Encoded PDF Metadata Not Decoded Properly**
   - PDF metadata with UTF-16BE encoding (starting with BOM FE FF) now decodes correctly
   - Added UTF-16BE detection and decoding in `decodePDFString()` function

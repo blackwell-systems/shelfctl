@@ -667,17 +667,27 @@ func promptOrDefault(label, def string) string {
 }
 
 // slugify converts a title to a lowercase, hyphenated ID candidate.
-// Consecutive non-alphanumeric characters collapse into a single hyphen.
+// Apostrophes and quotes are removed. Other non-alphanumeric characters
+// collapse into a single hyphen.
 func slugify(s string) string {
 	s = strings.ToLower(s)
 	var b strings.Builder
 	prevWasSep := false
 	for _, r := range s {
 		isAlnum := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		// Apostrophes and quotes are silently removed (don't separate words)
+		isQuote := r == '\'' || r == '"' ||
+			r == '\u2018' || r == '\u2019' || // Left/right single quotation marks
+			r == '\u201C' || r == '\u201D' // Left/right double quotation marks
+
 		if isAlnum {
 			b.WriteRune(r)
 			prevWasSep = false
+		} else if isQuote {
+			// Skip quotes entirely - don't write anything, don't mark as separator
+			continue
 		} else {
+			// Other non-alphanumeric characters become separators
 			if !prevWasSep && b.Len() > 0 {
 				b.WriteRune('-')
 			}

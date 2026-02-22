@@ -374,7 +374,7 @@ func (m model) renderDetailsPane() string {
 	// Year
 	if bookItem.Book.Year > 0 {
 		s.WriteString(StyleHighlight.Render("Year: "))
-		s.WriteString(fmt.Sprintf("%d", bookItem.Book.Year))
+		fmt.Fprintf(&s, "%d", bookItem.Book.Year)
 		s.WriteString("\n\n")
 	}
 

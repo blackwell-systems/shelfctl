@@ -7,7 +7,7 @@
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/blackwellsystems)
 
 <p align="center">
-  <img src="assets/padded.png" alt="shelfctl">
+  <img src="assets/padded.png" alt="Shelby the Shelf - shelfctl mascot holding a magnifying glass">
 </p>
 
 <p align="center">
@@ -242,7 +242,7 @@ shelfctl open sicp
 ---
 
 <p align="center">
-  <img src="assets/logo2.png" alt="shelfctl" width="400">
+  <img src="assets/logo2.png" alt="Shelby kneeling with magnifying glass examining the commands below" width="400">
 </p>
 
 ## Commands
@@ -295,7 +295,7 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 ---
 
 <p align="center">
-  <img src="assets/logo3.png" alt="shelfctl" width="400">
+  <img src="assets/logo3.png" alt="Shelby removing a book from a shelf" width="400">
 </p>
 
 ## Documentation

@@ -6,7 +6,6 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -136,19 +135,9 @@ func collectShelfStatus(shelf config.ShelfConfig, fix bool) shelfStatus {
 }
 
 func renderShelfTable(statuses []shelfStatus) {
-	// Define styles
-	headerStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#FAFAFA")).
-		Background(lipgloss.Color("#7D56F4")).
-		Padding(0, 1)
-
-	cellStyle := lipgloss.NewStyle().
-		Padding(0, 1)
-
-	borderColor := lipgloss.Color("#383838")
-	borderStyle := lipgloss.NewStyle().
-		Foreground(borderColor)
+	gray := color.New(color.FgHiBlack).SprintFunc()
+	bold := color.New(color.Bold).SprintFunc()
+	headerBg := color.New(color.BgMagenta, color.FgWhite, color.Bold).SprintFunc()
 
 	// Calculate column widths
 	maxNameLen := len("Shelf")
@@ -169,7 +158,7 @@ func renderShelfTable(statuses []shelfStatus) {
 		}
 		statusStr := formatStatus(s)
 		// Remove ANSI codes for length calculation
-		statusLen := lipgloss.Width(statusStr)
+		statusLen := len(stripAnsi(statusStr))
 		if statusLen > maxStatusLen {
 			maxStatusLen = statusLen
 		}
@@ -184,56 +173,58 @@ func renderShelfTable(statuses []shelfStatus) {
 	totalWidth := maxNameLen + maxRepoLen + maxBooksLen + maxStatusLen + 5 // +5 for borders
 
 	// Top border
-	fmt.Println(borderStyle.Render("┌" + strings.Repeat("─", totalWidth-2) + "┐"))
+	fmt.Println(gray("┌" + strings.Repeat("─", totalWidth-2) + "┐"))
 
 	// Title
 	title := " Configured Shelves "
 	padding := (totalWidth - len(title) - 2) / 2
-	fmt.Println(borderStyle.Render("│") +
+	fmt.Println(gray("│") +
 		strings.Repeat(" ", padding) +
-		lipgloss.NewStyle().Bold(true).Render(title) +
+		bold(title) +
 		strings.Repeat(" ", totalWidth-len(title)-padding-2) +
-		borderStyle.Render("│"))
+		gray("│"))
 
 	// Header separator
-	fmt.Println(borderStyle.Render("├" + strings.Repeat("─", maxNameLen) +
+	fmt.Println(gray("├" + strings.Repeat("─", maxNameLen) +
 		"┬" + strings.Repeat("─", maxRepoLen) +
 		"┬" + strings.Repeat("─", maxBooksLen) +
 		"┬" + strings.Repeat("─", maxStatusLen) + "┤"))
 
 	// Headers
-	fmt.Print(borderStyle.Render("│"))
-	fmt.Print(headerStyle.Width(maxNameLen - 2).Render("Shelf"))
-	fmt.Print(borderStyle.Render("│"))
-	fmt.Print(headerStyle.Width(maxRepoLen - 2).Render("Repository"))
-	fmt.Print(borderStyle.Render("│"))
-	fmt.Print(headerStyle.Width(maxBooksLen - 2).Render("Books"))
-	fmt.Print(borderStyle.Render("│"))
-	fmt.Print(headerStyle.Width(maxStatusLen - 2).Render("Status"))
-	fmt.Println(borderStyle.Render("│"))
+	fmt.Printf("%s %s %s %s %s %s %s %s %s\n",
+		gray("│"),
+		headerBg(padRight("Shelf", maxNameLen-2)),
+		gray("│"),
+		headerBg(padRight("Repository", maxRepoLen-2)),
+		gray("│"),
+		headerBg(padRight("Books", maxBooksLen-2)),
+		gray("│"),
+		headerBg(padRight("Status", maxStatusLen-2)),
+		gray("│"))
 
 	// Data separator
-	fmt.Println(borderStyle.Render("├" + strings.Repeat("─", maxNameLen) +
+	fmt.Println(gray("├" + strings.Repeat("─", maxNameLen) +
 		"┼" + strings.Repeat("─", maxRepoLen) +
 		"┼" + strings.Repeat("─", maxBooksLen) +
 		"┼" + strings.Repeat("─", maxStatusLen) + "┤"))
 
 	// Data rows
 	for i, s := range statuses {
-		fmt.Print(borderStyle.Render("│"))
-		fmt.Print(cellStyle.Width(maxNameLen - 2).Render(s.name))
-		fmt.Print(borderStyle.Render("│"))
-		fmt.Print(cellStyle.Width(maxRepoLen - 2).Render(s.repo))
-		fmt.Print(borderStyle.Render("│"))
-		fmt.Print(cellStyle.Width(maxBooksLen - 2).Render(formatBookCount(s.bookCount)))
-		fmt.Print(borderStyle.Render("│"))
 		statusStr := formatStatus(s)
-		fmt.Print(cellStyle.Width(maxStatusLen - 2).Render(statusStr))
-		fmt.Println(borderStyle.Render("│"))
+		fmt.Printf("%s %s %s %s %s %s %s %s %s\n",
+			gray("│"),
+			padRight(s.name, maxNameLen-2),
+			gray("│"),
+			padRight(s.repo, maxRepoLen-2),
+			gray("│"),
+			padRight(formatBookCount(s.bookCount), maxBooksLen-2),
+			gray("│"),
+			padRightColored(statusStr, maxStatusLen-2),
+			gray("│"))
 
 		// Add separator between rows if not last
 		if i < len(statuses)-1 {
-			fmt.Println(borderStyle.Render("├" + strings.Repeat("─", maxNameLen) +
+			fmt.Println(gray("├" + strings.Repeat("─", maxNameLen) +
 				"┼" + strings.Repeat("─", maxRepoLen) +
 				"┼" + strings.Repeat("─", maxBooksLen) +
 				"┼" + strings.Repeat("─", maxStatusLen) + "┤"))
@@ -241,10 +232,49 @@ func renderShelfTable(statuses []shelfStatus) {
 	}
 
 	// Bottom border
-	fmt.Println(borderStyle.Render("└" + strings.Repeat("─", maxNameLen) +
+	fmt.Println(gray("└" + strings.Repeat("─", maxNameLen) +
 		"┴" + strings.Repeat("─", maxRepoLen) +
 		"┴" + strings.Repeat("─", maxBooksLen) +
 		"┴" + strings.Repeat("─", maxStatusLen) + "┘"))
+}
+
+// padRight pads a string to the specified width with spaces
+func padRight(s string, width int) string {
+	if len(s) >= width {
+		return s[:width]
+	}
+	return s + strings.Repeat(" ", width-len(s))
+}
+
+// padRightColored pads a colored string accounting for ANSI codes
+func padRightColored(s string, width int) string {
+	plainLen := len(stripAnsi(s))
+	if plainLen >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-plainLen)
+}
+
+// stripAnsi removes ANSI color codes from a string for length calculation
+func stripAnsi(s string) string {
+	// Simple ANSI escape sequence stripper
+	var result strings.Builder
+	inEscape := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
+			inEscape = true
+			i++
+			continue
+		}
+		if inEscape {
+			if (s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= 'a' && s[i] <= 'z') {
+				inEscape = false
+			}
+			continue
+		}
+		result.WriteByte(s[i])
+	}
+	return result.String()
 }
 
 func formatBookCount(count int) string {

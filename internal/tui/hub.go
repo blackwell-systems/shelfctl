@@ -209,9 +209,9 @@ func (m hubModel) renderDetailsPane() string {
 	for _, shelf := range m.context.ShelfDetails {
 		s.WriteString(StyleHighlight.Render(shelf.Name))
 		s.WriteString("\n")
-		s.WriteString(fmt.Sprintf("  Repo: %s/%s\n", shelf.Owner, shelf.Repo))
-		s.WriteString(fmt.Sprintf("  Books: %d\n", shelf.BookCount))
-		s.WriteString(fmt.Sprintf("  Status: %s\n", shelf.Status))
+		fmt.Fprintf(&s, "  Repo: %s/%s\n", shelf.Owner, shelf.Repo)
+		fmt.Fprintf(&s, "  Books: %d\n", shelf.BookCount)
+		fmt.Fprintf(&s, "  Status: %s\n", shelf.Status)
 		s.WriteString("\n")
 	}
 

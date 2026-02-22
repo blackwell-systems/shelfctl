@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
+	"github.com/blackwell-systems/shelfctl/internal/tui/picker"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -20,23 +21,14 @@ func (s ShelfOption) FilterValue() string {
 	return s.Name + " " + s.Repo
 }
 
-// shelfDelegate renders shelf options
-type shelfDelegate struct{}
-
-func (d shelfDelegate) Height() int  { return 1 }
-func (d shelfDelegate) Spacing() int { return 0 }
-func (d shelfDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
-	return nil
-}
-
-func (d shelfDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+// renderShelfOption renders a shelf option in the picker list
+func renderShelfOption(w io.Writer, m list.Model, index int, item list.Item) {
 	shelfItem, ok := item.(ShelfOption)
 	if !ok {
 		return
 	}
 
 	isSelected := index == m.Index()
-
 	display := fmt.Sprintf("%s (%s)", shelfItem.Name, StyleHelp.Render(shelfItem.Repo))
 
 	if isSelected {
@@ -47,26 +39,8 @@ func (d shelfDelegate) Render(w io.Writer, m list.Model, index int, item list.It
 }
 
 type shelfPickerModel struct {
-	list     list.Model
-	quitting bool
+	base     *picker.Base
 	selected string
-	err      error
-}
-
-type shelfPickerKeys struct {
-	quit       key.Binding
-	selectItem key.Binding
-}
-
-var shelfKeys = shelfPickerKeys{
-	quit: key.NewBinding(
-		key.WithKeys("q", "esc", "ctrl+c"),
-		key.WithHelp("q", "cancel"),
-	),
-	selectItem: key.NewBinding(
-		key.WithKeys("enter"),
-		key.WithHelp("enter", "select"),
-	),
 }
 
 func (m shelfPickerModel) Init() tea.Cmd {
@@ -74,42 +48,20 @@ func (m shelfPickerModel) Init() tea.Cmd {
 }
 
 func (m shelfPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		// Don't handle keys when filtering
-		if m.list.FilterState() == list.Filtering {
-			break
+	cmd := m.base.Update(msg)
+
+	// Extract selection when quitting without error
+	if m.base.IsQuitting() && m.base.Error() == nil {
+		if item, ok := m.base.SelectedItem().(ShelfOption); ok {
+			m.selected = item.Name
 		}
-
-		switch {
-		case key.Matches(msg, shelfKeys.quit):
-			m.quitting = true
-			m.err = fmt.Errorf("canceled by user")
-			return m, tea.Quit
-
-		case key.Matches(msg, shelfKeys.selectItem):
-			if item, ok := m.list.SelectedItem().(ShelfOption); ok {
-				m.selected = item.Name
-				m.quitting = true
-				return m, tea.Quit
-			}
-		}
-
-	case tea.WindowSizeMsg:
-		h, v := StyleBorder.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
 	}
 
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
 
 func (m shelfPickerModel) View() string {
-	if m.quitting {
-		return ""
-	}
-	return StyleBorder.Render(m.list.View())
+	return m.base.View()
 }
 
 // RunShelfPicker launches an interactive shelf selector.
@@ -130,18 +82,31 @@ func RunShelfPicker(shelves []ShelfOption) (string, error) {
 		items[i] = s
 	}
 
-	// Create list
-	delegate := shelfDelegate{}
-	l := list.New(items, delegate, 0, 0)
+	// Create list with base delegate
+	d := delegate.New(renderShelfOption)
+	l := list.New(items, d, 0, 0)
 	l.Title = "Select Shelf"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.Styles.Title = StyleHeader
 	l.Styles.HelpStyle = StyleHelp
 
-	m := shelfPickerModel{
-		list: l,
-	}
+	// Use standard picker keys
+	keys := NewPickerKeys()
+
+	// Create base picker
+	base := picker.New(picker.Config{
+		List:        l,
+		QuitKeys:    keys.Quit,
+		SelectKeys:  keys.Select,
+		ShowBorder:  true,
+		BorderStyle: StyleBorder,
+		OnSelect: func(item list.Item) bool {
+			return true // Quit after selection
+		},
+	})
+
+	m := shelfPickerModel{base: base}
 
 	// Run the program
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -155,8 +120,8 @@ func RunShelfPicker(shelves []ShelfOption) (string, error) {
 		return "", fmt.Errorf("unexpected model type")
 	}
 
-	if fm.err != nil {
-		return "", fm.err
+	if fm.base.Error() != nil {
+		return "", fm.base.Error()
 	}
 
 	return fm.selected, nil

@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Multi-File Selection for Shelve Command (TUI Mode)**
+  - Select multiple files using checkboxes in the file picker
+  - Spacebar to toggle selection, enter to confirm
+  - Checkbox state persists across directory navigation
+  - Can select files from multiple directories in one session
+  - Progress indicators show `[2/5] filename.pdf` during batch processing
+  - Individual metadata forms for each file in the batch
+  - Batch commit optimization: single catalog commit + single README commit for all files
+  - Error isolation: one failed file doesn't abort the entire batch
+  - Summary output: "Successfully added 3 books, 1 failed"
+  - Backward compatible: CLI mode unchanged, single file selection still works
+- **Reusable TUI Components**
+  - New `multiselect` package: Generic multi-select wrapper for any bubbles list
+    - Checkbox UI with state persistence
+    - Customizable appearance
+    - Works with any `list.Item` implementation
+    - Can be used in other projects
+    - Fully documented in `internal/tui/multiselect/README.md`
+  - New `picker` package: Base picker component reduces boilerplate by 60-70%
+    - Standard key handling (quit, select)
+    - Window resize handling
+    - Border rendering
+    - Error handling
+    - Custom behavior via handlers
+    - Fully documented in `internal/tui/picker/README.md`
+  - Standard key bindings in `keys.go`:
+    - `PickerKeys` - Basic selection (quit, select)
+    - `NavigablePickerKeys` - Selection with navigation (quit, select, back)
+    - `MultiSelectPickerKeys` - Multi-selection (quit, select, toggle, back)
+    - `FormKeys` - Form input (quit, submit, next, prev)
+    - Consistent across all TUI components
+  - Architecture guide in `internal/tui/ARCHITECTURE.md`
 - **MkDocs Material Documentation Site**
   - Professional documentation site at https://blackwell-systems.github.io/shelfctl/
   - Material theme with search functionality, dark/light mode toggle, and mobile-responsive design
@@ -16,6 +48,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Navigation includes Getting Started, Reference, and Development sections
   - Searchable documentation with syntax highlighting for code blocks
   - Source editing links to GitHub for all pages
+
+### Changed
+- **Refactored TUI Pickers to Use Base Components**
+  - `shelf_picker.go` now uses `picker.Base` (reduced from 163 to 133 lines)
+  - `book_picker.go` now uses `picker.Base` (reduced from 143 to 138 lines)
+  - `file_picker.go` uses `multiselect` component and `MultiSelectPickerKeys`
+  - All pickers now share consistent key bindings and behavior
+  - Eliminated duplicate key handling, window resize, and border rendering code
+  - Easier to maintain and extend with future picker components
+- **Introduced Base Delegate Component**
+  - New `delegate/base.go` eliminates boilerplate in all list delegates
+  - All 5 delegates now use `delegate.New()` or `delegate.NewWithSpacing()`
+  - Reduced delegate code by ~75 lines across the codebase
+  - Only rendering logic needs to be specified, height/spacing/update are automatic
+- **Catalog Manager for Centralized Operations**
+  - New `catalog/manager.go` consolidates load → parse → modify → marshal → commit pattern
+  - Provides high-level operations: `Load()`, `Save()`, `Update()`, `Append()`, `Remove()`, `FindByID()`
+  - Used in 7+ files (shelve, delete_book, edit_book, move, import, migrate, browse)
+  - Eliminates ~105 lines of repetitive catalog loading/saving code
+  - Centralized error handling and consistent error messages
+- **README Updater for Shelf Documentation**
+  - New `readme/updater.go` consolidates README.md update operations
+  - Methods: `AddBook()`, `AddBooks()`, `RemoveBook()`, `UpdateStats()`, `UpdateWithStats()`
+  - Replaces 4 separate README functions with single consistent interface
+  - Saved ~80 lines of duplicate README update code
+  - Consistent commit messages and error handling
 
 ## [0.1.0] - 2026-02-21
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -50,16 +51,8 @@ var menuItems = []MenuItem{
 	{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},
 }
 
-// menuDelegate renders menu items
-type menuDelegate struct{}
-
-func (d menuDelegate) Height() int  { return 1 }
-func (d menuDelegate) Spacing() int { return 1 }
-func (d menuDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
-	return nil
-}
-
-func (d menuDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+// renderMenuItem renders a menu item in the hub
+func renderMenuItem(w io.Writer, m list.Model, index int, item list.Item) {
 	menuItem, ok := item.(MenuItem)
 	if !ok {
 		return
@@ -228,8 +221,8 @@ func RunHub(ctx HubContext) (string, error) {
 	}
 
 	// Create list
-	delegate := menuDelegate{}
-	l := list.New(items, delegate, 0, 0)
+	d := delegate.NewWithSpacing(renderMenuItem, 1)
+	l := list.New(items, d, 0, 0)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)

@@ -4,21 +4,15 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
+	"github.com/blackwell-systems/shelfctl/internal/tui/picker"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// bookPickerDelegate renders book items in picker mode
-type bookPickerDelegate struct{}
-
-func (d bookPickerDelegate) Height() int  { return 1 }
-func (d bookPickerDelegate) Spacing() int { return 0 }
-func (d bookPickerDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
-	return nil
-}
-
-func (d bookPickerDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+// renderBookPickerItem renders a book item in picker mode
+func renderBookPickerItem(w io.Writer, m list.Model, index int, item list.Item) {
 	bookItem, ok := item.(BookItem)
 	if !ok {
 		return
@@ -40,9 +34,8 @@ func (d bookPickerDelegate) Render(w io.Writer, m list.Model, index int, item li
 }
 
 type bookPickerModel struct {
-	list     list.Model
+	base     *picker.Base
 	selected *BookItem
-	quitting bool
 }
 
 func (m bookPickerModel) Init() tea.Cmd {
@@ -50,41 +43,20 @@ func (m bookPickerModel) Init() tea.Cmd {
 }
 
 func (m bookPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		// Don't handle keys when filtering
-		if m.list.FilterState() == list.Filtering {
-			break
+	cmd := m.base.Update(msg)
+
+	// Extract selection when quitting without error
+	if m.base.IsQuitting() && m.base.Error() == nil {
+		if item, ok := m.base.SelectedItem().(BookItem); ok {
+			m.selected = &item
 		}
-
-		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-
-		case "enter":
-			if item, ok := m.list.SelectedItem().(BookItem); ok {
-				m.selected = &item
-				m.quitting = true
-				return m, tea.Quit
-			}
-		}
-
-	case tea.WindowSizeMsg:
-		h, v := StyleBorder.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
 	}
 
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
 
 func (m bookPickerModel) View() string {
-	if m.quitting {
-		return ""
-	}
-	return StyleBorder.Render(m.list.View())
+	return m.base.View()
 }
 
 // RunBookPicker launches an interactive book picker.
@@ -100,9 +72,9 @@ func RunBookPicker(books []BookItem, title string) (BookItem, error) {
 		items[i] = b
 	}
 
-	// Create the list
-	delegate := bookPickerDelegate{}
-	l := list.New(items, delegate, 0, 0)
+	// Create the list with base delegate
+	d := delegate.New(renderBookPickerItem)
+	l := list.New(items, d, 0, 0)
 	if title != "" {
 		l.Title = title
 	} else {
@@ -123,7 +95,22 @@ func RunBookPicker(books []BookItem, title string) (BookItem, error) {
 		return []key.Binding{selectKey}
 	}
 
-	m := bookPickerModel{list: l}
+	// Use standard picker keys
+	keys := NewPickerKeys()
+
+	// Create base picker
+	base := picker.New(picker.Config{
+		List:        l,
+		QuitKeys:    keys.Quit,
+		SelectKeys:  keys.Select,
+		ShowBorder:  true,
+		BorderStyle: StyleBorder,
+		OnSelect: func(item list.Item) bool {
+			return true // Quit after selection
+		},
+	})
+
+	m := bookPickerModel{base: base}
 
 	// Run the program with alt screen
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -137,6 +124,10 @@ func RunBookPicker(books []BookItem, title string) (BookItem, error) {
 		if fm.selected != nil {
 			return *fm.selected, nil
 		}
+	}
+
+	if fm, ok := finalModel.(bookPickerModel); ok && fm.base.Error() != nil {
+		return BookItem{}, fm.base.Error()
 	}
 
 	return BookItem{}, fmt.Errorf("canceled")

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
+	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -30,16 +31,8 @@ func (b BookItem) FilterValue() string {
 	return fmt.Sprintf("%s %s %s %s", b.Book.ID, b.Book.Title, tags, b.ShelfName)
 }
 
-// Custom list item delegate for rendering books
-type bookDelegate struct{}
-
-func (d bookDelegate) Height() int  { return 1 }
-func (d bookDelegate) Spacing() int { return 0 }
-func (d bookDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd {
-	return nil
-}
-
-func (d bookDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+// renderBookItem renders a book in the browser list
+func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 	bookItem, ok := item.(BookItem)
 	if !ok {
 		return
@@ -426,8 +419,8 @@ func RunListBrowser(books []BookItem) (*BrowserResult, error) {
 	}
 
 	// Create the list
-	delegate := bookDelegate{}
-	l := list.New(items, delegate, 0, 0)
+	d := delegate.New(renderBookItem)
+	l := list.New(items, d, 0, 0)
 	l.Title = "Books"
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)

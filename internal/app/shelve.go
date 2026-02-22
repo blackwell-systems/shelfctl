@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
+	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/ingest"
+	"github.com/blackwell-systems/shelfctl/internal/readme"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
@@ -95,8 +97,8 @@ func runShelve(cmd *cobra.Command, args []string, params *shelveParams) error {
 		return fmt.Errorf("shelf %q not found in config", shelfName)
 	}
 
-	// Step 2: Select file
-	input, err := selectFile(args, useTUIWorkflow)
+	// Step 2: Select files (may be multiple in TUI mode)
+	inputs, err := selectFile(args, useTUIWorkflow)
 	if err != nil {
 		return err
 	}
@@ -106,59 +108,105 @@ func runShelve(cmd *cobra.Command, args []string, params *shelveParams) error {
 		params.releaseTag = shelf.EffectiveRelease(cfg.Defaults.Release)
 	}
 
-	// Step 3: Resolve and ingest source
-	src, err := ingest.Resolve(input, cfg.GitHub.Token, cfg.GitHub.APIBase)
-	if err != nil {
-		return err
-	}
-
-	ingested, err := ingestFile(src, input)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = os.Remove(ingested.tmpPath) }()
-
-	// Step 4: Collect metadata
-	metadata, err := collectMetadata(cmd, params, src.Name, ingested, useTUIWorkflow)
-	if err != nil {
-		return err
-	}
-
-	// Step 5: Load catalog and check duplicates
+	// Step 3: Create catalog manager
 	catalogPath := shelf.EffectiveCatalogPath()
-	existingBooks, err := loadCatalog(owner, shelf.Repo, catalogPath)
+	catalogMgr := catalog.NewManager(gh, owner, shelf.Repo, catalogPath)
+
+	existingBooks, err := catalogMgr.Load()
 	if err != nil {
 		return err
 	}
 
-	if err := checkDuplicates(existingBooks, ingested.sha256, params.force); err != nil {
-		return err
-	}
-
-	// Step 6: Ensure release and handle asset collisions
+	// Step 4: Ensure release once
 	rel, err := gh.EnsureRelease(owner, shelf.Repo, params.releaseTag)
 	if err != nil {
 		return fmt.Errorf("ensuring release: %w", err)
 	}
 
-	if err := handleAssetCollision(owner, shelf.Repo, rel.ID, metadata.assetName, params.releaseTag, params.force); err != nil {
-		return err
+	// Step 5: Process each file
+	var newBooks []catalog.Book
+	successCount := 0
+	failCount := 0
+
+	for i, input := range inputs {
+		book, err := processSingleFile(cmd, params, input, i+1, len(inputs), owner, shelf, rel, &existingBooks, useTUIWorkflow)
+		if err != nil {
+			warn("Failed to process %s: %v", input, err)
+			failCount++
+			continue
+		}
+
+		newBooks = append(newBooks, *book)
+		existingBooks = catalog.Append(existingBooks, *book)
+		successCount++
 	}
 
-	// Step 7: Upload asset
-	if err := uploadAsset(cmd, owner, shelf.Repo, rel.ID, metadata.assetName, ingested.tmpPath, ingested.size, params.releaseTag); err != nil {
-		return err
+	// Step 6: Batch commit catalog and README
+	if successCount > 0 {
+		if err := batchCommitCatalog(cmd, catalogMgr, owner, shelf.Repo, existingBooks, newBooks, params.noPush); err != nil {
+			return err
+		}
 	}
 
-	// Step 8: Update catalog
-	book := buildCatalogEntry(metadata, ingested, owner, shelf.Repo, params.releaseTag)
-	if err := updateCatalog(cmd, owner, shelf.Repo, catalogPath, existingBooks, book, params.noPush); err != nil {
-		return err
+	// Print summary
+	if len(inputs) > 1 {
+		fmt.Println()
+		if successCount > 0 {
+			ok("Successfully added %d books", successCount)
+		}
+		if failCount > 0 {
+			warn("%d books failed", failCount)
+		}
+	} else if successCount == 1 {
+		// Single file: print detailed summary
+		book := newBooks[0]
+		printBookSummary(cmd, book.ID, book.Title, book.Checksum.SHA256, book.SizeBytes, book.Source.Asset)
 	}
 
-	// Print summary (verbose for interactive, minimal for scripts)
-	printBookSummary(cmd, metadata.bookID, metadata.title, ingested.sha256, ingested.size, metadata.assetName)
 	return nil
+}
+
+// processSingleFile handles the complete workflow for one file in a batch.
+// Returns the catalog book entry or an error.
+func processSingleFile(cmd *cobra.Command, params *shelveParams, input string, fileNum, totalFiles int,
+	owner string, shelf *config.ShelfConfig, rel *github.Release, existingBooks *[]catalog.Book, useTUI bool) (*catalog.Book, error) {
+
+	// Resolve and ingest source
+	src, err := ingest.Resolve(input, cfg.GitHub.Token, cfg.GitHub.APIBase)
+	if err != nil {
+		return nil, fmt.Errorf("resolve: %w", err)
+	}
+
+	ingested, err := ingestFile(src, input)
+	if err != nil {
+		return nil, fmt.Errorf("ingest: %w", err)
+	}
+	defer func() { _ = os.Remove(ingested.tmpPath) }()
+
+	// Collect metadata with progress indicator
+	metadata, err := collectMetadata(cmd, params, src.Name, ingested, useTUI, fileNum, totalFiles)
+	if err != nil {
+		return nil, fmt.Errorf("metadata: %w", err)
+	}
+
+	// Check duplicates
+	if err := checkDuplicates(*existingBooks, ingested.sha256, params.force); err != nil {
+		return nil, err
+	}
+
+	// Handle asset collisions
+	if err := handleAssetCollision(owner, shelf.Repo, rel.ID, metadata.assetName, params.releaseTag, params.force); err != nil {
+		return nil, err
+	}
+
+	// Upload asset
+	if err := uploadAsset(cmd, owner, shelf.Repo, rel.ID, metadata.assetName, ingested.tmpPath, ingested.size, params.releaseTag); err != nil {
+		return nil, fmt.Errorf("upload: %w", err)
+	}
+
+	// Build catalog entry
+	book := buildCatalogEntry(metadata, ingested, owner, shelf.Repo, params.releaseTag)
+	return &book, nil
 }
 
 func selectShelf(shelfName string, useTUI bool) (string, error) {
@@ -185,9 +233,9 @@ func selectShelf(shelfName string, useTUI bool) (string, error) {
 	return "", fmt.Errorf("--shelf flag required in non-interactive mode")
 }
 
-func selectFile(args []string, useTUI bool) (string, error) {
+func selectFile(args []string, useTUI bool) ([]string, error) {
 	if len(args) > 0 {
-		return args[0], nil
+		return []string{args[0]}, nil
 	}
 
 	if useTUI {
@@ -203,10 +251,10 @@ func selectFile(args []string, useTUI bool) (string, error) {
 			}
 		}
 
-		return tui.RunFilePicker(startPath)
+		return tui.RunFilePickerMulti(startPath)
 	}
 
-	return "", fmt.Errorf("file path required in non-interactive mode")
+	return nil, fmt.Errorf("file path required in non-interactive mode")
 }
 
 func ingestFile(src *ingest.Source, input string) (*ingestedFile, error) {
@@ -265,7 +313,7 @@ type bookMetadata struct {
 	assetName string
 }
 
-func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, ingested *ingestedFile, useTUI bool) (*bookMetadata, error) {
+func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, ingested *ingestedFile, useTUI bool, fileNum, totalFiles int) (*bookMetadata, error) {
 	defaultTitle := strings.TrimSuffix(srcName, filepath.Ext(srcName))
 	defaultAuthor := ""
 
@@ -283,10 +331,16 @@ func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, i
 
 	useTUIForm := useTUI && params.title == "" && params.bookID == "" && !params.useSHA12
 
+	// Add progress indicator to filename for multi-file batches
+	displayName := srcName
+	if totalFiles > 1 {
+		displayName = fmt.Sprintf("[%d/%d] %s", fileNum, totalFiles, srcName)
+	}
+
 	var title, author, bookID, tagsCSV string
 	if useTUIForm {
 		formData, err := tui.RunShelveForm(tui.ShelveFormDefaults{
-			Filename: srcName,
+			Filename: displayName,
 			Title:    defaultTitle,
 			Author:   defaultAuthor,
 			ID:       defaultID,
@@ -357,13 +411,11 @@ func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, i
 	}, nil
 }
 
+// loadCatalog is deprecated - use catalog.Manager.Load() instead.
+// Kept for backward compatibility with other commands.
 func loadCatalog(owner, repo, catalogPath string) ([]catalog.Book, error) {
-	existingData, _, err := gh.GetFileContent(owner, repo, catalogPath, "")
-	if err != nil && err.Error() != "not found" {
-		return nil, fmt.Errorf("reading catalog: %w", err)
-	}
-	existingBooks, _ := catalog.Parse(existingData)
-	return existingBooks, nil
+	mgr := catalog.NewManager(gh, owner, repo, catalogPath)
+	return mgr.Load()
 }
 
 func checkDuplicates(existingBooks []catalog.Book, sha256 string, force bool) error {
@@ -513,6 +565,70 @@ func updateREADME(cmd *cobra.Command, owner, repo string, books []catalog.Book, 
 
 	readmeMsg := fmt.Sprintf("Update README: add %s", book.ID)
 	if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+		if tui.ShouldUseTUI(cmd) {
+			warn("Could not update README.md: %v", err)
+		}
+	} else {
+		if tui.ShouldUseTUI(cmd) {
+			ok("README.md updated")
+		}
+	}
+}
+
+// batchCommitCatalog commits the catalog with all new books in a single commit.
+func batchCommitCatalog(cmd *cobra.Command, catalogMgr *catalog.Manager, owner, repo string, allBooks []catalog.Book, newBooks []catalog.Book, noPush bool) error {
+	if noPush {
+		// Local-only mode - write to local file
+		data, err := catalog.Marshal(allBooks)
+		if err != nil {
+			return err
+		}
+		// Write to catalog.yml in current directory
+		if err := os.WriteFile("catalog.yml", data, 0600); err != nil {
+			return err
+		}
+		if tui.ShouldUseTUI(cmd) {
+			ok("Catalog updated locally (not pushed)")
+		}
+		return nil
+	}
+
+	// Create commit message based on count
+	var msg string
+	if len(newBooks) == 1 {
+		msg = fmt.Sprintf("add: %s — %s", newBooks[0].ID, newBooks[0].Title)
+	} else {
+		msg = fmt.Sprintf("add: %d books", len(newBooks))
+	}
+
+	// Save catalog using manager
+	if err := catalogMgr.Save(allBooks, msg); err != nil {
+		return err
+	}
+	if tui.ShouldUseTUI(cmd) {
+		ok("Catalog committed and pushed")
+	}
+
+	// Update README with all new books
+	readmeMgr := readme.NewUpdater(gh, owner, repo)
+	if err := readmeMgr.UpdateWithStats(len(allBooks), newBooks); err != nil {
+		if tui.ShouldUseTUI(cmd) {
+			warn("Could not update README.md: %v", err)
+		}
+	} else {
+		if tui.ShouldUseTUI(cmd) {
+			ok("README.md updated")
+		}
+	}
+
+	return nil
+}
+
+// updateREADMEBatch is deprecated - use readme.Updater.UpdateWithStats() instead.
+// Kept for backward compatibility.
+func updateREADMEBatch(cmd *cobra.Command, owner, repo string, allBooks []catalog.Book, newBooks []catalog.Book) {
+	readmeMgr := readme.NewUpdater(gh, owner, repo)
+	if err := readmeMgr.UpdateWithStats(len(allBooks), newBooks); err != nil {
 		if tui.ShouldUseTUI(cmd) {
 			warn("Could not update README.md: %v", err)
 		}

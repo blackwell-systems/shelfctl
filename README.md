@@ -41,9 +41,10 @@ Your GitHub account already gives you reliable distribution and storage primitiv
 > shelfctl migrate scan --source you/old-books-repo > queue.txt
 > ```
 
-**Two ways to use it:**
-- Interactive TUI - visual browser with keyboard navigation and search
-- Scriptable CLI - pipe, filter, automate, and integrate with shell workflows
+**Three ways to browse your library:**
+- **Interactive TUI** - visual browser with keyboard navigation and search
+- **Static HTML index** - web-based viewer with tag filters and search (works offline)
+- **Scriptable CLI** - pipe, filter, automate, and integrate with shell workflows
 
 Your library stays portable, backed by normal git repos. Free by default (only pay if you choose Git LFS or exceed GitHub plan limits).
 
@@ -86,6 +87,9 @@ Download and open a single book without cloning the entire repository. Your libr
 
 ### Migration tools: scan → split → migrate
 Built-in tools to scan existing repos, reorganize into topic-based shelves, and migrate files automatically. No manual re-uploads required.
+
+### Static HTML index
+Generate a web-based library viewer with cover thumbnails, tag filters, and live search. Works offline in any browser without running shelfctl.
 
 ### TUI + CLI
 Interactive visual browser with keyboard navigation, or scriptable command-line interface for automation and shell workflows.
@@ -278,6 +282,10 @@ shelfctl open sicp
 
 # On another machine? Same command fetches it on-demand from GitHub
 shelfctl open sicp
+
+# Generate static HTML index for web browsing
+shelfctl index
+open ~/.local/share/shelfctl/cache/index.html  # Opens in default browser
 ```
 
 ---

@@ -122,6 +122,12 @@ Interactive visual browser with keyboard navigation, or scriptable command-line 
 
 ## Install
 
+**Homebrew (macOS/Linux):**
+
+```bash
+brew install blackwell-systems/tap/shelfctl
+```
+
 **Download pre-built binary:**
 
 Download the appropriate binary for your platform from the [releases page](https://github.com/blackwell-systems/shelfctl/releases/latest), extract the archive, and run:
@@ -289,10 +295,11 @@ shelfctl open sicp
 | `delete-shelf` | Remove a shelf from configuration |
 | `browse` | Browse your library (interactive TUI or text) |
 | `index` | Generate local HTML index for web browsing |
+| `verify` | Detect catalog vs release mismatches, auto-fix with `--fix` |
 | `info <id>` | Show metadata and cache status |
 | `open <id>` | Open a book (auto-downloads if needed) |
 | `shelve <file\|url>` | Add a book to your library |
-| `edit-book <id>` | Update metadata for a book |
+| `edit-book [id]` | Update metadata for one or multiple books (batch mode) |
 | `delete-book <id>` | Remove a book from your library |
 | `move <id>` | Move between releases or shelves |
 | `split` | Interactive wizard to split a shelf |

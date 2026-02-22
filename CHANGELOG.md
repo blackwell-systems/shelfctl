@@ -123,6 +123,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consistent commit messages and error handling
 
 ### Fixed
+- **Progress UI Freezing on Slow Uploads/Downloads**
+  - Progress bar no longer freezes when network connection is slow or stuck
+  - Added 100ms timeout to progress channel receive to prevent indefinite blocking
+  - Ctrl+C now properly cancels uploads/downloads instead of hanging
+  - ShowProgress returns cancellation error to stop waiting for operation result
+  - Fixes hang when large uploads (6MB+) get stuck at 0% during network issues
+  - UI remains responsive even if upload hasn't started sending data yet
 - **Multi-Select Book Picker Only Showing One Item**
   - Multi-select book picker now properly handles window resize events
   - Previously displayed only one item at a time due to 0x0 list dimensions

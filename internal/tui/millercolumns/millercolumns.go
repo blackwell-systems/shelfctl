@@ -147,11 +147,20 @@ func (m *Model) SetSize(width, height int) {
 
 // UpdateFocusedColumn updates the model in the focused column.
 // This is a convenience method for updating the column model from the parent.
-// Returns the updated column model and command.
 func (m *Model) UpdateFocusedColumn(newModel any) {
 	if m.focusedCol >= 0 && m.focusedCol < len(m.columns) {
 		m.columns[m.focusedCol].List = newModel
 	}
+}
+
+// GetColumn returns a pointer to the column at the given index.
+// This allows the parent to modify the column's model in place.
+// Returns nil if index is out of bounds.
+func (m *Model) GetColumn(index int) *Column {
+	if index >= 0 && index < len(m.columns) {
+		return &m.columns[index]
+	}
+	return nil
 }
 
 // View renders the Miller columns.
@@ -206,15 +215,8 @@ func (m *Model) resizeColumns() {
 		numVisible = m.maxVisibleColumns
 	}
 
-	// Calculate column dimensions
-	h, v := m.borderStyle.GetFrameSize()
-	colWidth := (m.width / numVisible) - h - 1 // -1 for spacing between columns
-	colHeight := m.height - v
-
-	// Resize each column's model if it supports SetSize
-	for i := range m.columns {
-		if sizable, ok := m.columns[i].List.(interface{ SetSize(width, height int) }); ok {
-			sizable.SetSize(colWidth, colHeight)
-		}
-	}
+	// Note: Actual resizing of column models is handled by the parent
+	// via GetColumn() to access and resize each model's inner list.
+	// This is necessary because we store models as `any` and can't
+	// access their fields directly here.
 }

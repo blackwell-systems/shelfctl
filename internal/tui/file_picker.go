@@ -97,6 +97,8 @@ type filePickerModel struct {
 	quitting      bool
 	err           error
 	selectedMulti []string // Return value for multi-select
+	width         int
+	height        int
 }
 
 // filePickerKeys defines keyboard shortcuts
@@ -154,8 +156,11 @@ func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Handle window resize
+		// Store dimensions and handle resize
+		m.width = msg.Width
+		m.height = msg.Height
 		m.mc.SetSize(msg.Width, msg.Height)
+		m.resizeAllColumns()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -338,6 +343,10 @@ func (m filePickerModel) pushColumn(path string) (tea.Model, tea.Cmd) {
 	}
 
 	m.mc.PushColumn(path, listModel)
+
+	// Resize all columns after pushing
+	m.resizeAllColumns()
+
 	return m, nil
 }
 
@@ -349,6 +358,8 @@ func (m filePickerModel) replaceColumn(index int, path string) (tea.Model, tea.C
 	}
 
 	m.mc.ReplaceColumn(index, path, listModel)
+	m.resizeAllColumns()
+
 	return m, nil
 }
 
@@ -366,6 +377,36 @@ func (m *filePickerModel) collectSelectedFiles() []string {
 		}
 	}
 	return selected
+}
+
+// resizeAllColumns resizes all multiselect column lists to fit the terminal.
+// Should be called after pushing/replacing columns or on window resize.
+func (m *filePickerModel) resizeAllColumns() {
+	if m.width == 0 || m.height == 0 {
+		return // No size set yet, wait for WindowSizeMsg
+	}
+
+	numVisible := len(m.mc.Columns())
+	if numVisible > 3 {
+		numVisible = 3
+	}
+	if numVisible == 0 {
+		return
+	}
+
+	h, v := StyleBorder.GetFrameSize()
+	colWidth := (m.width / numVisible) - h - 1
+	colHeight := m.height - v
+
+	// Resize all multiselect models
+	for i := 0; i < len(m.mc.Columns()); i++ {
+		col := m.mc.GetColumn(i)
+		if col != nil {
+			if ms, ok := col.List.(*multiselect.Model); ok {
+				ms.List.SetSize(colWidth, colHeight)
+			}
+		}
+	}
 }
 
 // RunFilePicker launches an interactive file browser for selecting a single file.

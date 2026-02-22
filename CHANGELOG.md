@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works seamlessly with text search
   - Added sort dropdown with options: Recently Added, Title (A-Z), Author (A-Z), Year (Newest/Oldest)
   - Sorting works per-shelf and persists through filtering
+- **Cache on Add**
+  - New `--cache` flag for `shelve` command to cache book locally after upload
+  - TUI add form includes "Cache locally" checkbox (enabled by default)
+  - Book is immediately available to open without extra download step
+  - Extracts PDF cover during caching if poppler installed
+  - CLI: `shelfctl shelve book.pdf --shelf prog --title "..." --cache`
 - **Multi-Select Download in Browse**
   - Spacebar to toggle selection (checkboxes appear in list)
   - 'g' downloads all selected books to cache (or current if none selected)

@@ -72,7 +72,8 @@ The hub provides access to all core operations and loops continuously until you 
 - Shelf picker (if multiple shelves)
 - File browser starting in current directory
 - Filters for supported formats (.pdf, .epub, .mobi, .djvu)
-- Metadata form with smart defaults
+- Metadata form with smart defaults (auto-extracts title/author from PDFs)
+- "Cache locally" checkbox (enabled by default) - book available immediately after upload
 - Automatic upload and cataloging
 - Returns to hub menu after completion
 

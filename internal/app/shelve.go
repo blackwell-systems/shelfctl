@@ -35,6 +35,7 @@ type shelveParams struct {
 	noPush     bool
 	useSHA12   bool
 	force      bool
+	cache      bool
 }
 
 type ingestedFile struct {
@@ -79,6 +80,7 @@ Examples:
 	cmd.Flags().StringVar(&params.assetName, "asset-name", "", "Override asset filename")
 	cmd.Flags().BoolVar(&params.noPush, "no-push", false, "Update catalog locally only (do not push)")
 	cmd.Flags().BoolVar(&params.force, "force", false, "Skip duplicate checks and overwrite existing assets")
+	cmd.Flags().BoolVar(&params.cache, "cache", false, "Cache book locally after upload")
 
 	return cmd
 }
@@ -206,6 +208,21 @@ func processSingleFile(cmd *cobra.Command, params *shelveParams, input string, f
 
 	// Build catalog entry
 	book := buildCatalogEntry(metadata, ingested, owner, shelf.Repo, params.releaseTag)
+
+	// Cache locally if requested
+	if params.cache {
+		if err := cacheUploadedFile(cmd, ingested.tmpPath, owner, shelf.Repo, metadata.bookID, metadata.assetName, ingested.sha256, ingested.format); err != nil {
+			// Don't fail the entire operation if caching fails
+			if tui.ShouldUseTUI(cmd) {
+				warn("Failed to cache locally: %v", err)
+			}
+		} else {
+			if tui.ShouldUseTUI(cmd) {
+				ok("Cached locally")
+			}
+		}
+	}
+
 	return &book, nil
 }
 
@@ -353,6 +370,8 @@ func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, i
 		author = formData.Author
 		tagsCSV = formData.Tags
 		bookID = formData.ID
+		// Use form's cache checkbox value (defaults to true in TUI)
+		params.cache = formData.Cache
 	} else {
 		title = params.title
 		author = params.author
@@ -505,6 +524,29 @@ func uploadAsset(cmd *cobra.Command, owner, repo string, releaseID int64, assetN
 	if tui.ShouldUseTUI(cmd) {
 		ok("Uploaded: %s", asset.BrowserDownloadURL)
 	}
+	return nil
+}
+
+func cacheUploadedFile(cmd *cobra.Command, tmpPath, owner, repo, bookID, assetFilename, expectedSHA256, format string) error {
+	// Open the temp file
+	f, err := os.Open(tmpPath)
+	if err != nil {
+		return fmt.Errorf("opening temp file: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	// Store in cache
+	cachedPath, err := cacheMgr.Store(owner, repo, bookID, assetFilename, f, expectedSHA256)
+	if err != nil {
+		return fmt.Errorf("storing in cache: %w", err)
+	}
+
+	// Extract cover if it's a PDF
+	if format == "pdf" {
+		_ = cacheMgr.ExtractCover(repo, bookID, cachedPath)
+		// Silently ignore errors - cover extraction is optional
+	}
+
 	return nil
 }
 

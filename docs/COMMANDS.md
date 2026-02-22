@@ -22,13 +22,18 @@ shelfctl init --repo REPO --name NAME [flags]
 
 ### Flags
 
-- `--repo` (required): Repository name (e.g., `shelf-programming`)
-- `--name` (required): Shelf name for config (e.g., `programming`)
-- `--create-repo`: Create the GitHub repository if it doesn't exist
-- `--create-release`: Create the initial release tag (default: true)
-- `--private`: Make the repository private (default: true, only applies with `--create-repo`)
-- `--release`: Release tag name (default: from config, usually `library`)
-- `--owner`: Repository owner (default: from config)
+- `--shelf` (required for CLI): Target shelf name (interactive prompt if not provided)
+- `--release`: Target release tag (default: shelf's default_release)
+- `--id`: Book ID (default: slugified title)
+- `--id-sha12`: Use first 12 chars of SHA256 as ID
+- `--title`: Book title
+- `--author`: Author name
+- `--year`: Publication year
+- `--tags`: Comma-separated tags
+- `--asset-name`: Override asset filename
+- `--cache`: Cache book locally after upload (default: false in CLI, true in TUI)
+- `--no-push`: Update catalog locally only (do not push)
+- `--force`: Skip duplicate checks and overwrite existing assets
 
 ### Examples
 
@@ -139,6 +144,7 @@ Source can be:
 - `--id-sha12`: Use first 12 chars of SHA256 as ID
 - `--release`: Target release tag (default: shelf's default)
 - `--asset-name`: Override asset filename
+- `--cache`: Cache book locally after upload (default: false in CLI, checkbox in TUI defaults to true)
 - `--no-push`: Update catalog locally without pushing
 - `--force`: Skip duplicate checks and overwrite existing assets
 
@@ -171,6 +177,9 @@ shelfctl shelve github:user/books@main:pdfs/algo.pdf \
 
 # Use SHA-based ID for uniqueness
 shelfctl shelve book.pdf --shelf fiction --id-sha12 --title "Novel"
+
+# Cache locally after upload (ready to open immediately)
+shelfctl shelve book.pdf --shelf programming --title "..." --cache
 
 # Force overwrite existing asset
 shelfctl shelve ~/Downloads/sicp-v2.pdf \

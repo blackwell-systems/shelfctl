@@ -15,6 +15,7 @@ type ShelveFormData struct {
 	Author string
 	Tags   string // Comma-separated
 	ID     string
+	Cache  bool // Whether to cache locally after upload
 }
 
 // ShelveFormDefaults provides default values for form fields.
@@ -26,14 +27,15 @@ type ShelveFormDefaults struct {
 }
 
 type shelveFormModel struct {
-	inputs   []textinput.Model
-	focused  int
-	defaults ShelveFormDefaults
-	result   *ShelveFormData
-	err      error
-	canceled bool
-	width    int
-	height   int
+	inputs       []textinput.Model
+	focused      int
+	defaults     ShelveFormDefaults
+	result       *ShelveFormData
+	err          error
+	canceled     bool
+	width        int
+	height       int
+	cacheLocally bool // Checkbox state
 }
 
 const (
@@ -41,12 +43,14 @@ const (
 	fieldAuthor
 	fieldTags
 	fieldID
+	fieldCache // Checkbox position
 )
 
 func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 	m := shelveFormModel{
-		inputs:   make([]textinput.Model, 4),
-		defaults: defaults,
+		inputs:       make([]textinput.Model, 4), // Still 4 text inputs, checkbox is separate
+		defaults:     defaults,
+		cacheLocally: true, // Default to caching
 	}
 
 	const inputWidth = 50
@@ -120,25 +124,43 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Author: m.inputs[fieldAuthor].Value(),
 				Tags:   m.inputs[fieldTags].Value(),
 				ID:     m.getValue(fieldID),
+				Cache:  m.cacheLocally,
 			}
 			return m, tea.Quit
 
+		case " ":
+			// Toggle checkbox if focused on it
+			if m.focused == fieldCache {
+				m.cacheLocally = !m.cacheLocally
+				return m, nil
+			}
+
 		case "tab", "down":
-			// Move to next field
-			m.inputs[m.focused].Blur()
-			m.focused = (m.focused + 1) % len(m.inputs)
-			m.inputs[m.focused].Focus()
-			return m, m.inputs[m.focused].Focus()
+			// Move to next field (including checkbox)
+			if m.focused < fieldID {
+				m.inputs[m.focused].Blur()
+			}
+			m.focused = (m.focused + 1) % (fieldCache + 1)
+			if m.focused < fieldID+1 {
+				m.inputs[m.focused].Focus()
+				return m, m.inputs[m.focused].Focus()
+			}
+			return m, nil
 
 		case "shift+tab", "up":
-			// Move to previous field
-			m.inputs[m.focused].Blur()
+			// Move to previous field (including checkbox)
+			if m.focused < fieldID+1 && m.focused >= 0 {
+				m.inputs[m.focused].Blur()
+			}
 			m.focused--
 			if m.focused < 0 {
-				m.focused = len(m.inputs) - 1
+				m.focused = fieldCache
 			}
-			m.inputs[m.focused].Focus()
-			return m, m.inputs[m.focused].Focus()
+			if m.focused < fieldID+1 {
+				m.inputs[m.focused].Focus()
+				return m, m.inputs[m.focused].Focus()
+			}
+			return m, nil
 		}
 	}
 
@@ -185,9 +207,24 @@ func (m shelveFormModel) View() string {
 		b.WriteString("\n\n")
 	}
 
+	// Checkbox for caching
+	checkboxLabel := "Cache locally"
+	checkbox := "[ ]"
+	if m.cacheLocally {
+		checkbox = "[✓]"
+	}
+	if m.focused == fieldCache {
+		b.WriteString(StyleHighlight.Render("> " + checkboxLabel + ": " + checkbox))
+	} else {
+		b.WriteString(StyleNormal.Render("  " + checkboxLabel + ": " + checkbox))
+	}
+	b.WriteString("\n")
+	b.WriteString(StyleHelp.Render("  (Space to toggle)"))
+	b.WriteString("\n")
+
 	// Help text
 	b.WriteString("\n")
-	b.WriteString(StyleHelp.Render("Tab/↑↓: Navigate  Enter: Submit  Esc: Cancel"))
+	b.WriteString(StyleHelp.Render("Tab/↑↓: Navigate  Space: Toggle  Enter: Submit  Esc: Cancel"))
 	b.WriteString("\n")
 
 	content := b.String()

@@ -28,14 +28,16 @@ type EditFormDefaults struct {
 }
 
 type editFormModel struct {
-	inputs   []textinput.Model
-	focused  int
-	defaults EditFormDefaults
-	result   *EditFormData
-	err      error
-	canceled bool
-	width    int
-	height   int
+	inputs      []textinput.Model
+	focused     int
+	defaults    EditFormDefaults
+	result      *EditFormData
+	err         error
+	canceled    bool
+	width       int
+	height      int
+	confirming  bool
+	confirmResp string
 }
 
 const (
@@ -105,27 +107,74 @@ func (m editFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "enter":
-			// Parse year
-			yearVal := 0
-			if yearStr := m.inputs[editFieldYear].Value(); yearStr != "" {
-				year, err := strconv.Atoi(yearStr)
-				if err != nil || year < 0 || year > 9999 {
-					m.err = fmt.Errorf("invalid year (must be 0-9999)")
-					return m, nil
+			if m.confirming {
+				// Treat enter as "y" (yes)
+				m.confirmResp = "y"
+
+				// Parse year
+				yearVal := 0
+				if yearStr := m.inputs[editFieldYear].Value(); yearStr != "" {
+					year, err := strconv.Atoi(yearStr)
+					if err != nil || year < 0 || year > 9999 {
+						m.err = fmt.Errorf("invalid year (must be 0-9999)")
+						m.confirming = false
+						return m, nil
+					}
+					yearVal = year
 				}
-				yearVal = year
+
+				// Submit the form
+				m.result = &EditFormData{
+					Title:  m.inputs[editFieldTitle].Value(),
+					Author: m.inputs[editFieldAuthor].Value(),
+					Year:   yearVal,
+					Tags:   m.inputs[editFieldTags].Value(),
+				}
+				return m, tea.Quit
 			}
 
-			// Submit the form
-			m.result = &EditFormData{
-				Title:  m.inputs[editFieldTitle].Value(),
-				Author: m.inputs[editFieldAuthor].Value(),
-				Year:   yearVal,
-				Tags:   m.inputs[editFieldTags].Value(),
+			// Show confirmation prompt
+			m.confirming = true
+			return m, nil
+
+		case "y", "Y":
+			if m.confirming {
+				m.confirmResp = "y"
+
+				// Parse year
+				yearVal := 0
+				if yearStr := m.inputs[editFieldYear].Value(); yearStr != "" {
+					year, err := strconv.Atoi(yearStr)
+					if err != nil || year < 0 || year > 9999 {
+						m.err = fmt.Errorf("invalid year (must be 0-9999)")
+						m.confirming = false
+						return m, nil
+					}
+					yearVal = year
+				}
+
+				// Submit the form
+				m.result = &EditFormData{
+					Title:  m.inputs[editFieldTitle].Value(),
+					Author: m.inputs[editFieldAuthor].Value(),
+					Year:   yearVal,
+					Tags:   m.inputs[editFieldTags].Value(),
+				}
+				return m, tea.Quit
 			}
-			return m, tea.Quit
+
+		case "n", "N":
+			if m.confirming {
+				m.canceled = true
+				return m, tea.Quit
+			}
 
 		case "tab", "shift+tab", "up", "down":
+			// Don't allow navigation during confirmation
+			if m.confirming {
+				return m, nil
+			}
+
 			// Navigate between fields
 			if msg.String() == "up" || msg.String() == "shift+tab" {
 				m.focused--
@@ -199,9 +248,13 @@ func (m editFormModel) View() string {
 		b.WriteString("\n\n")
 	}
 
-	// Help text
+	// Help text or confirmation prompt
 	b.WriteString("\n")
-	b.WriteString(StyleHelp.Render("Tab/↑↓: Navigate  Enter: Submit  Esc: Cancel"))
+	if m.confirming {
+		b.WriteString(StyleHighlight.Render("Apply changes? (Y/n): "))
+	} else {
+		b.WriteString(StyleHelp.Render("Tab/↑↓: Navigate  Enter: Submit  Esc: Cancel"))
+	}
 	b.WriteString("\n")
 
 	content := b.String()

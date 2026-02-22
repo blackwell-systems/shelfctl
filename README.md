@@ -6,6 +6,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/blackwellsystems)
 
+---
+
+📚 **[Documentation](https://blackwell-systems.github.io/shelfctl/)** | 📦 **[Releases](https://github.com/blackwell-systems/shelfctl/releases)** | 🐛 **[Issues](https://github.com/blackwell-systems/shelfctl/issues)**
+
+---
+
 <p align="center">
   <img src="assets/shelby-padded.png" alt="Shelby the Shelf - shelfctl mascot holding a magnifying glass">
 </p>

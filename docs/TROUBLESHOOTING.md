@@ -43,7 +43,7 @@ echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.zshrc  # if using gh
 echo 'export GITHUB_TOKEN=ghp_...' >> ~/.zshrc           # if using manual token
 ```
 
-See the [Authentication section](../README.md#authentication) for more details.
+See the [Authentication section](https://github.com/blackwell-systems/shelfctl#authentication) for more details.
 
 ### "GitHub API error 401: Unauthorized"
 

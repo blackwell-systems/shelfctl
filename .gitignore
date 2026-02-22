@@ -42,3 +42,7 @@ dist/
 
 # Test cache
 .cache/
+
+# MkDocs
+site/
+.venv/

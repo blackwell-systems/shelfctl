@@ -1,0 +1,60 @@
+site_name: shelfctl
+site_description: Organize PDFs and books using GitHub Release assets
+site_url: https://blackwell-systems.github.io/shelfctl/
+repo_name: blackwell-systems/shelfctl
+repo_url: https://github.com/blackwell-systems/shelfctl
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Tutorial: TUTORIAL.md
+      - Hub Interface: HUB.md
+  - Reference:
+      - Commands: COMMANDS.md
+      - Architecture: ARCHITECTURE.md
+      - Troubleshooting: TROUBLESHOOTING.md
+  - Development:
+      - Contributing: contributing.md
+      - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true

@@ -12,6 +12,19 @@ Common issues and solutions for shelfctl.
 
 **Solution**:
 
+**Option A: Using gh CLI (easier)**
+
+```bash
+# If you have gh CLI installed and authenticated
+export GITHUB_TOKEN=$(gh auth token)
+
+# Or authenticate now
+gh auth login
+export GITHUB_TOKEN=$(gh auth token)
+```
+
+**Option B: Manual token**
+
 ```bash
 export GITHUB_TOKEN=ghp_your_token_here
 ```
@@ -19,12 +32,18 @@ export GITHUB_TOKEN=ghp_your_token_here
 Make it permanent by adding to your shell profile:
 
 ```bash
-# bash
-echo 'export GITHUB_TOKEN=ghp_...' >> ~/.bashrc
+# Bash
+echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.bashrc  # if using gh
+# or
+echo 'export GITHUB_TOKEN=ghp_...' >> ~/.bashrc          # if using manual token
 
-# zsh
-echo 'export GITHUB_TOKEN=ghp_...' >> ~/.zshrc
+# Zsh
+echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.zshrc  # if using gh
+# or
+echo 'export GITHUB_TOKEN=ghp_...' >> ~/.zshrc           # if using manual token
 ```
+
+See the [Authentication section](../README.md#authentication) for more details.
 
 ### "GitHub API error 401: Unauthorized"
 

@@ -18,9 +18,10 @@ Zero-infrastructure document library using GitHub repos and releases as storage.
 ## Quick Links
 
 ### First Time Setup
-1. [Install shelfctl](TUTORIAL.md#step-2-install-shelfctl)
-2. [Configure GitHub token](TUTORIAL.md#step-1-create-a-github-token)
-3. [Create your first shelf](TUTORIAL.md#step-5-create-your-first-shelf)
+1. [Authenticate with GitHub](TUTORIAL.md#step-1-authenticate-with-github)
+2. [Install shelfctl](TUTORIAL.md#step-2-install-shelfctl)
+3. [Configure shelfctl](TUTORIAL.md#step-3-set-up-configuration)
+4. [Create your first shelf](TUTORIAL.md#step-4-create-your-first-shelf)
 
 ### Common Tasks
 - [Add a book](COMMANDS.md#shelve) - `shelfctl shelve ~/book.pdf --shelf programming`

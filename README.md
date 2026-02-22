@@ -65,7 +65,7 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
 ## How it works
 
 - **One repo per topic shelf**
-  Create shelves like `shelf-programming`, `shelf-history`, etc.
+  Create shelf repos like `shelf-programming`, `shelf-history`, etc.
 
 - **Books live in Releases, not git history**
   PDFs/EPUBs are uploaded as **GitHub Release assets** (not committed to the repo).
@@ -74,7 +74,7 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
   Each shelf repo contains a `catalog.yml` that stores searchable metadata and maps book IDs to release assets.
 
 - **API-driven, no cloning required**
-  shelfctl interacts with GitHub via the API (via `gh`), so you can run commands from any machine without cloning repos.
+  All shelf operations use the GitHub REST API; no git clone is required for normal browsing, opening, or shelving. Your library can be accessed from any machine.
 
 - **On-demand, per-book downloads**
   `shelfctl open <book-id>` downloads *only that one file* from GitHub's CDN and opens it.
@@ -83,6 +83,11 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
   shelfctl supports the workflow end-to-end: **add**, **get**, **open**, **migrate**, **split**, and more.
 
 ---
+
+## Prerequisites
+
+- Go 1.21 or later
+- GitHub account with a personal access token
 
 ## Install
 
@@ -97,6 +102,45 @@ git clone https://github.com/blackwell-systems/shelfctl
 cd shelfctl
 make build
 ```
+
+## Authentication
+
+shelfctl authenticates using a GitHub personal access token (PAT). Set `GITHUB_TOKEN` in your environment.
+
+**Classic PAT scopes:**
+- `repo` - for private shelves
+- `public_repo` - for public-only shelves
+
+**Fine-grained PAT permissions:**
+Grant **Contents** (Read/Write) and **Releases** (Read/Write) on the shelf repos you manage.
+
+**Note**: GitHub CLI (`gh`) is not required - shelfctl uses the GitHub REST API directly.
+
+### Setup Options
+
+**Option A: Using gh CLI (optional convenience)**
+
+If you already have [GitHub CLI](https://cli.github.com/) installed and authenticated:
+
+```bash
+gh auth login
+export GITHUB_TOKEN=$(gh auth token)
+```
+
+**Option B: Manual token**
+
+1. Visit https://github.com/settings/tokens
+2. Generate new token (classic or fine-grained)
+3. Select required scopes/permissions (see above)
+4. Copy the token (starts with `ghp_` or `github_pat_`)
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+```
+
+Add to shell profile to persist (`~/.bashrc` or `~/.zshrc`).
+
+**API Rate Limits**: GitHub's authenticated API allows 5,000 requests/hour. shelfctl caches downloaded book files locally; metadata is fetched from GitHub as needed. For typical personal library usage, you're unlikely to hit rate limits.
 
 ### Optional: PDF Cover Thumbnails
 
@@ -122,6 +166,8 @@ Not required - shelfctl works fine without it. Covers are extracted automaticall
 
 ## Quick start
 
+**Note**: Complete the [Prerequisites](#prerequisites), [Install](#install), and [Authentication](#authentication) sections first.
+
 ### Interactive Mode (Easiest)
 
 Run `shelfctl` with no arguments to launch an interactive menu:
@@ -143,7 +189,7 @@ See [docs/HUB.md](docs/HUB.md) for full details.
 **Already have PDFs in GitHub repos?** Organize them:
 
 ```bash
-export GITHUB_TOKEN=ghp_...
+# (Ensure GITHUB_TOKEN is set - see Authentication section above)
 
 # Scan your existing repos for files
 shelfctl migrate scan --source you/old-books-repo > queue.txt
@@ -212,7 +258,7 @@ Default config path: `~/.config/shelfctl/config.yml`
 ```yaml
 github:
   owner: "you"
-  token_env: "GITHUB_TOKEN"
+  token_env: "GITHUB_TOKEN"  # Environment variable to read token from
 
 defaults:
   release: "library"
@@ -223,6 +269,8 @@ shelves:
   - name: "history"
     repo: "shelf-history"
 ```
+
+**Security**: The token itself is never stored in the config file - only the environment variable name. shelfctl reads the token from your environment at runtime.
 
 See [`config.example.yml`](config.example.yml) for a complete example.
 

@@ -6,18 +6,54 @@ A step-by-step guide to setting up and using shelfctl.
 
 - Go 1.21+ installed
 - GitHub account
-- GitHub personal access token with `repo` scope
+- GitHub personal access token (see Step 1 below)
 
-## Step 1: Create a GitHub token
+## Step 1: Authenticate with GitHub
 
-1. Go to https://github.com/settings/tokens
-2. Click "Generate new token (classic)"
-3. Give it a descriptive name: "shelfctl"
-4. Select scope: **repo** (Full control of private repositories)
-5. Click "Generate token"
-6. Copy the token (starts with `ghp_`)
+shelfctl requires a GitHub personal access token (PAT) set in the `GITHUB_TOKEN` environment variable.
 
-Save it securely. You won't be able to see it again.
+**Classic PAT scopes:**
+- `repo` - for private shelves
+- `public_repo` - for public-only shelves
+
+**Fine-grained PAT permissions:**
+Grant **Contents** (Read/Write) and **Releases** (Read/Write) on the shelf repos you manage.
+
+**Note**: GitHub CLI (`gh`) is not required - shelfctl uses the GitHub REST API directly.
+
+### Option A: Using gh CLI (optional convenience)
+
+If you already have [GitHub CLI](https://cli.github.com/) installed and authenticated:
+
+```bash
+gh auth login
+export GITHUB_TOKEN=$(gh auth token)
+```
+
+Add to shell profile to persist:
+
+```bash
+# Bash
+echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.bashrc
+
+# Zsh
+echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.zshrc
+```
+
+### Option B: Manual Token
+
+1. Visit https://github.com/settings/tokens
+2. Generate new token (classic or fine-grained)
+3. Select required scopes/permissions (see above)
+4. Copy the token (starts with `ghp_` or `github_pat_`)
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+```
+
+Add to shell profile to persist (`~/.bashrc` or `~/.zshrc`).
+
+**API Rate Limits**: GitHub's authenticated API allows 5,000 requests/hour. shelfctl caches downloaded book files locally; metadata is fetched from GitHub as needed. For typical personal library usage, you're unlikely to hit rate limits.
 
 ## Step 2: Install shelfctl
 
@@ -53,7 +89,7 @@ Edit `~/.config/shelfctl/config.yml`:
 ```yaml
 github:
   owner: "your-github-username"  # Change this!
-  token_env: "GITHUB_TOKEN"
+  token_env: "GITHUB_TOKEN"      # Environment variable to read token from
 
 defaults:
   release: "library"
@@ -63,23 +99,9 @@ defaults:
 shelves: []  # Will populate via init command
 ```
 
-## Step 4: Set your GitHub token
+**Security**: The token itself is never stored in the config file - only the environment variable name. shelfctl reads the token from your environment at runtime.
 
-```bash
-export GITHUB_TOKEN=ghp_your_token_here
-```
-
-Add to your shell profile to persist:
-
-```bash
-# For bash
-echo 'export GITHUB_TOKEN=ghp_your_token_here' >> ~/.bashrc
-
-# For zsh
-echo 'export GITHUB_TOKEN=ghp_your_token_here' >> ~/.zshrc
-```
-
-## Step 5: Create your first shelf
+## Step 4: Create your first shelf
 
 Let's create a shelf for programming books:
 
@@ -109,7 +131,7 @@ Output:
   catalog: catalog.yml (0 books)
 ```
 
-## Step 6: Add your first book
+## Step 5: Add your first book
 
 ### Interactive mode (easiest)
 
@@ -145,7 +167,7 @@ What happened:
 2. A catalog entry was created with metadata and SHA256 checksum
 3. The catalog was committed and pushed
 
-## Step 7: Browse your books
+## Step 6: Browse your books
 
 ### Interactive mode (TUI)
 
@@ -177,7 +199,7 @@ programming/introduction-to-algorithms
   format: pdf, 12.4 MB
 ```
 
-## Step 8: View book details
+## Step 7: View book details
 
 ```bash
 shelfctl info introduction-to-algorithms
@@ -185,7 +207,7 @@ shelfctl info introduction-to-algorithms
 
 This shows full metadata, source location, cache status, and checksum.
 
-## Step 9: Open a book
+## Step 8: Open a book
 
 ```bash
 shelfctl open introduction-to-algorithms
@@ -231,7 +253,7 @@ xdg-open ~/.local/share/shelfctl/cache/index.html
 
 The index shows only cached books, so download books first to include them.
 
-## Step 10: Add more shelves
+## Step 9: Add more shelves
 
 Create shelves for different topics:
 
@@ -252,7 +274,7 @@ Verify:
 shelfctl shelves
 ```
 
-## Step 11: Add books from URLs
+## Step 10: Add books from URLs
 
 You can add books directly from URLs:
 
@@ -264,7 +286,7 @@ shelfctl shelve https://example.com/paper.pdf \
   --year 2024
 ```
 
-## Step 12: Organize with tags
+## Step 11: Organize with tags
 
 Use tags to organize books within a shelf:
 
@@ -459,10 +481,18 @@ shelfctl works identically with private repos.
 ## Example: Complete setup from scratch
 
 ```bash
-# 1. Install
+# 1. Authenticate with GitHub (choose one)
+# Option A: Using gh CLI (easier)
+gh auth login
+export GITHUB_TOKEN=$(gh auth token)
+
+# Option B: Manual token
+# export GITHUB_TOKEN=ghp_your_token_here
+
+# 2. Install
 go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@latest
 
-# 2. Configure
+# 3. Configure
 mkdir -p ~/.config/shelfctl
 cat > ~/.config/shelfctl/config.yml <<EOF
 github:
@@ -474,9 +504,6 @@ defaults:
   asset_naming: "id"
 shelves: []
 EOF
-
-# 3. Set token
-export GITHUB_TOKEN=ghp_...
 
 # 4. Create shelf
 shelfctl init --repo shelf-books --name books --create-repo --create-release

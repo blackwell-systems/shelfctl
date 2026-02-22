@@ -14,16 +14,18 @@ Copyright (c) 2024-2026 Dayna Blackwell / Blackwell Systems™. All rights reser
 ## Usage Terms
 
 **PERMITTED:**
-- ✓ Use bundled with unmodified shelfctl distributions
+- ✓ Distribute unmodified shelfctl packages with these assets bundled
+- ✓ Redistribute shelfctl binaries and archives containing these assets
 - ✓ Display in documentation and promotional materials for shelfctl
 - ✓ Reference in articles, reviews, or tutorials about shelfctl
+- ✓ Package shelfctl for distribution (Homebrew, package managers, etc.)
 
 **NOT PERMITTED WITHOUT WRITTEN PERMISSION:**
-- ✗ Modifications, derivatives, or remixes of the mascot
-- ✗ Use in other projects, products, or services
-- ✗ Use in ways that imply endorsement
-- ✗ Commercial use outside of shelfctl distributions
-- ✗ Removal or alteration of branding
+- ✗ Modifications, derivatives, or remixes of the mascot images
+- ✗ Use in other projects, products, or services unrelated to shelfctl
+- ✗ Use in ways that imply endorsement by Blackwell Systems
+- ✗ Separation and standalone distribution of these assets
+- ✗ Removal or alteration of branding or copyright notices
 
 ## Contact
 

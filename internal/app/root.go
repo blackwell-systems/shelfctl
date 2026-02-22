@@ -578,7 +578,9 @@ func runHub() error {
 		case "browse":
 			cmdErr = newBrowseCmd().Execute()
 		case "shelves":
-			cmdErr = newShelvesCmd().Execute()
+			cmd := newShelvesCmd()
+			cmd.SetArgs([]string{"--table"})
+			cmdErr = cmd.Execute()
 		case "index":
 			cmdErr = newIndexCmd().Execute()
 		case "shelve":

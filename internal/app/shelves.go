@@ -11,16 +11,16 @@ import (
 )
 
 type shelfStatus struct {
-	name       string
-	repo       string
-	owner      string
-	bookCount  int
-	release    string
-	repoOK     bool
-	catalogOK  bool
-	releaseOK  bool
-	errorMsg   string
-	needsFix   bool
+	name      string
+	repo      string
+	owner     string
+	bookCount int
+	release   string
+	repoOK    bool
+	catalogOK bool
+	releaseOK bool
+	errorMsg  string
+	needsFix  bool
 }
 
 func newShelvesCmd() *cobra.Command {

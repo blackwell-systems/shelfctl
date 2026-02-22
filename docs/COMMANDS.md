@@ -798,39 +798,38 @@ The index uses `file://` protocol links to open books directly from your filesys
 Import books from another shelfctl shelf.
 
 ```bash
-shelfctl import --from-shelf SOURCE --to-shelf TARGET [flags]
+shelfctl import --from owner/repo --shelf TARGET [flags]
 ```
 
 ### Flags
 
-- `--from-shelf` (required): Source shelf name
-- `--to-shelf` (required): Target shelf name
-- `--from-owner`: Source owner (default: config)
-- `--from-repo`: Source repo (default: from shelf config)
-- `--filter-tag`: Only import books with this tag
+- `--from` (required): Source shelf as owner/repo
+- `--shelf` (required): Destination shelf name
+- `--release`: Destination release tag (default: shelf's default_release)
 - `--dry-run`: Show what would be imported without doing it
+- `-n`: Limit number of books to import
+- `--no-push`: Update catalog locally only
 
 ### Examples
 
 ```bash
-# Import all books from another shelf
-shelfctl import --from-shelf programming --to-shelf cs
+# Import all books from another user's shelf
+shelfctl import --from other-user/shelf-programming --shelf programming
 
-# Import only specific tag
-shelfctl import --from-shelf research --to-shelf ml --filter-tag machine-learning
+# Import to specific release
+shelfctl import --from other-user/shelf-research --shelf papers --release archive
 
-# Import from different owner
-shelfctl import --from-shelf programming --to-shelf my-prog --from-owner other-user
+# Preview import without executing
+shelfctl import --from other-user/shelf-books --shelf library --dry-run
 
-# Preview import
-shelfctl import --from-shelf prog --to-shelf cs --dry-run
+# Limit import batch size
+shelfctl import --from other-user/shelf-prog --shelf cs -n 20
 ```
 
 ### What it does
 
-1. Reads source catalog
-2. Filters books (if --filter-tag)
-3. For each book:
+1. Reads source catalog from owner/repo
+2. For each book:
    - Downloads from source
    - Uploads to target release
    - Adds to target catalog

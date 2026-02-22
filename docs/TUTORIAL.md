@@ -380,9 +380,8 @@ If a friend also uses shelfctl:
 ```bash
 # Import their programming shelf into yours
 shelfctl import \
-  --from-shelf programming \
-  --from-owner their-username \
-  --to-shelf imported-books
+  --from their-username/shelf-programming \
+  --shelf imported-books
 ```
 
 This copies books from their catalog to yours (requires their repos to be public or you to have access).

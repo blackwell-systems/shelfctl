@@ -285,8 +285,8 @@ If you have an existing `books` repo with 500+ PDFs:
 Use `shelfctl import` to consolidate:
 
 ```bash
-shelfctl import --from-shelf old-prog-books --to-shelf programming
-shelfctl import --from-shelf random-pdfs --to-shelf books --filter-tag cs
+shelfctl import --from you/old-prog-books --shelf programming
+shelfctl import --from you/random-pdfs --shelf books
 ```
 
 ## Best Practices

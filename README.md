@@ -35,21 +35,20 @@ Your GitHub account already gives you reliable distribution and storage primitiv
 - Migration tools to split bloated repos and reorganize existing collections
 
 > [!TIP]
-> **Already have PDFs committed in git?** shelfctl can scan and migrate them into shelves without manual re-uploads.
+> **Already have PDFs committed in git?** shelfctl can scan and migrate them into shelves without manual re-uploads:
+> ```bash
+> shelfctl migrate scan --source you/old-books-repo > queue.txt
+> ```
 
 **Two ways to use it:**
 - Interactive TUI - visual browser with keyboard navigation and search
 - Scriptable CLI - pipe, filter, automate, and integrate with shell workflows
 
-Your library stays portable, backed by normal git repos.
-
-Zero infrastructure. Free by default (only pay if you choose Git LFS or exceed GitHub plan limits). Works anywhere you can use GitHub.
+Your library stays portable, backed by normal git repos. Free by default (only pay if you choose Git LFS or exceed GitHub plan limits).
 
 ---
 
 ## Why not commit PDFs?
-
-### Git isn't a binary library (here's what to do instead)
 
 **The tradeoff:**
 
@@ -78,14 +77,17 @@ Fetch a single book without cloning a repo or pulling a whole archive.
 
 ## Features
 
-### No infrastructure to run
-No database, no server, no object storage config. GitHub already hosts and serves the files.
+### Release assets backend (no git history bloat)
+Files are stored as GitHub Release assets, not git commits. Your repository stays lightweight and git history never bloats.
 
-### Portable by design
-Everything is API-driven. No local repos required. The same config works on any machine where you can authenticate to GitHub. Your library remains normal GitHub repos.
+### On-demand open (per-file download)
+Download and open a single book without cloning the entire repository. Your library can be huge, but you only fetch what you need.
 
-### Scriptable
-CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your existing workflows.
+### Migration tools: scan → split → migrate
+Built-in tools to scan existing repos, reorganize into topic-based shelves, and migrate files automatically. No manual re-uploads required.
+
+### TUI + CLI
+Interactive visual browser with keyboard navigation, or scriptable command-line interface for automation and shell workflows.
 
 ---
 
@@ -99,9 +101,6 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
 
 - **`catalog.yml` is the source of truth**
   Each shelf repo contains a `catalog.yml` that stores searchable metadata and maps book IDs to release assets. Only metadata is versioned; the actual documents live outside git history.
-
-- **API-driven, no cloning required**
-  All shelf operations use the GitHub REST API; no git clone is required for normal browsing, opening, or shelving. Your library can be accessed from any machine.
 
 - **On-demand, per-book downloads**
   `shelfctl open <book-id>` downloads *only that one file* from GitHub's CDN and opens it.
@@ -138,6 +137,8 @@ Optionally move to your PATH: `mv shelfctl /usr/local/bin/`
 ```bash
 go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@latest
 ```
+
+This downloads the module at the latest version, builds shelfctl, and places it in `$(go env GOPATH)/bin` (or `$GOBIN` if set).
 
 **Build from source:**
 
@@ -384,9 +385,7 @@ Shelby the Shelf (our mascot) is a terminal wearing a bookshelf like a sweater, 
 
 **Software:** MIT License - See [LICENSE](LICENSE) for details
 
-**Shelby Mascot & Brand Assets:** Proprietary - See [assets/LICENSE](assets/LICENSE) for terms
-
-You're free to use, modify, and distribute the shelfctl software under MIT terms. The Shelby mascot and brand assets can be distributed with shelfctl but cannot be modified or used in other projects without permission.
+**Shelby Mascot & Brand Assets:** You may redistribute unmodified brand assets with shelfctl. Brand assets are not licensed for reuse outside shelfctl. See [assets/LICENSE](assets/LICENSE) for details.
 
 ---
 

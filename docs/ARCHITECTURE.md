@@ -23,6 +23,18 @@ shelf-programming/
         └── ...
 ```
 
+## Scope and Design Decisions
+
+shelfctl is intentionally narrow: it manages PDF/EPUB libraries using GitHub as storage, and that's it.
+
+**Why not generalize?**
+- Simpler code, easier to maintain
+- Domain-specific optimizations (checksums, metadata schemas, cover extraction)
+- Clear use case makes better documentation and UX
+- No temptation to become a generic "file manager" or "document store"
+
+This tool does one thing well rather than many things poorly. The lack of abstraction for "any storage backend" or "any file type" is a feature, not a limitation.
+
 ### README.md - Human-Readable Inventory
 
 Each shelf automatically gets a README.md that:

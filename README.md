@@ -16,18 +16,29 @@
 
 **Organize the PDFs and books you already have scattered across GitHub.**
 
-Most devs end up with a mess: one monolithic "books" repo with hundreds of PDFs, or files scattered across random repos and gists. Eventually you hit GitHub's 100MB limit, or you bolt on Git LFS and discover it's expensive and annoying for a personal library.
+If you use GitHub, you've probably hit this: one monolithic "books" repo with hundreds of PDFs, or files scattered across random repos and gists. Eventually you hit GitHub's 100MB limit, or you bolt on Git LFS and discover it's expensive and annoying for a personal library.
 
-shelfctl fixes this by storing files as GitHub Release assets (not Git commits) and keeping metadata in a simple `catalog.yml`. That means you can split a bloated repo into topic-based shelves, migrate books out of existing repos, and search + download on demand—without moving your library to a new service.
+Once PDFs land in git history, every clone stays heavy forever. Even after you delete the files, git history never forgets.
+
+shelfctl solves this by storing files as GitHub Release assets (not git commits) and keeping only metadata in a simple `catalog.yml`. That means you can split a bloated repo into topic-based shelves, migrate books out of existing repos, and search + download on demand (without moving your library to a new service).
+
+> **⚠️ Warning**: Deleting a PDF from a git repo doesn't remove it from git history. Clones still carry the weight. shelfctl avoids this entirely by storing documents as Release assets (only metadata is versioned).
 
 Your GitHub account already gives you reliable distribution and storage primitives. shelfctl turns them into a library:
 - Release assets for the PDFs/EPUBs
 - `catalog.yml` for searchable metadata
 - one repo per shelf (`shelf-programming`, `shelf-history`, …)
+- Migration tools to split bloated repos and reorganize existing collections
 
-Browse and search from the CLI, fetch only what you need, and open books immediately. Your library stays portable, backed by normal git repos.
+> **Already have PDFs committed in git?** shelfctl can scan and migrate them into shelves without manual re-uploads.
 
-Zero infrastructure. Free by default—only pay if you choose Git LFS or exceed GitHub plan limits. Works anywhere you can use GitHub.
+**Two ways to use it:**
+- Interactive TUI - visual browser with keyboard navigation and search
+- Scriptable CLI - pipe, filter, automate, and integrate with shell workflows
+
+Your library stays portable, backed by normal git repos.
+
+Zero infrastructure. Free by default (only pay if you choose Git LFS or exceed GitHub plan limits). Works anywhere you can use GitHub.
 
 ---
 
@@ -37,18 +48,25 @@ Zero infrastructure. Free by default—only pay if you choose Git LFS or exceed 
 Fetch a single book without cloning a repo or pulling a whole archive.
 `shelfctl open <book-id>` downloads *only that file* from GitHub's CDN and opens it. Your library can be huge, but you only download what you actually read.
 
-### Better than committing binaries (and often better than LFS)
-If you've hit GitHub's 100MB file limit, you've already felt the pain of storing PDFs in git history. Git LFS can work, but it adds cost and makes clones heavier.
+### Git isn't a binary library (here's what to do instead)
 
-shelfctl stores PDFs/EPUBs as **GitHub Release assets** instead of git commits:
-- avoids bloating git history
-- avoids repo clone overhead for large libraries
-- enables selective, per-file downloads
+**The tradeoff:**
 
-Free by default. You only pay if *you* choose LFS or exceed whatever limits apply to your GitHub plan.
+| Approach | Git History | Clone Weight | Per-File Download | Cost |
+|----------|-------------|--------------|-------------------|------|
+| **Git commit** | Bloats forever | Heavy (even after deleting files) | Possible, but awkward | Free |
+| **Git LFS** | Clean | Still heavier than needed | Possible, but awkward | Paid storage/bandwidth |
+| **Release asset** | Clean | Light | Yes (native) | Free* |
 
-### No ops burden
-No database, no object storage configuration, no servers. GitHub handles hosting, availability, and distribution.
+*Free by default. You only pay if you choose LFS or exceed GitHub plan limits.
+
+**Why Release assets:**
+- Git history stays clean (only metadata is versioned)
+- Documents live outside version control entirely
+- Download individual files on-demand from GitHub's CDN
+
+### No infrastructure to run
+No database, no server, no object storage config. GitHub already hosts and serves the files.
 
 ### Portable by design
 Everything is API-driven. No local repos required. The same config works on any machine where you can authenticate to GitHub. Your library remains normal GitHub repos.
@@ -71,7 +89,7 @@ CLI-first. Pipe output, write shell scripts, and integrate shelfctl into your ex
   PDFs/EPUBs are uploaded as **GitHub Release assets** (not committed to the repo).
 
 - **`catalog.yml` is the source of truth**
-  Each shelf repo contains a `catalog.yml` that stores searchable metadata and maps book IDs to release assets.
+  Each shelf repo contains a `catalog.yml` that stores searchable metadata and maps book IDs to release assets. Only metadata is versioned; the actual documents live outside git history.
 
 - **API-driven, no cloning required**
   All shelf operations use the GitHub REST API; no git clone is required for normal browsing, opening, or shelving. Your library can be accessed from any machine.
@@ -214,7 +232,7 @@ shelfctl shelve ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author
 # List books across all shelves
 shelfctl browse --shelf programming
 
-# Open a book — downloads just this one file (6MB), not the entire release
+# Open a book - downloads just this one file (6MB), not the entire release
 shelfctl open sicp
 
 # On another machine? Same command fetches it on-demand from GitHub
@@ -288,6 +306,12 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 - **[Commands Reference](docs/COMMANDS.md)** - Complete documentation for all commands
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Contributing](CONTRIBUTING.md)** - Development guidelines
+
+---
+
+## Design Philosophy
+
+shelfctl is domain-specific by design: it solves the PDF/EPUB library problem and nothing else. This narrow focus keeps it simple, maintainable, and excellent at what it does.
 
 ---
 

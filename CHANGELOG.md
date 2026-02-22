@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MkDocs Material Documentation Site**
+  - Professional documentation site at https://blackwell-systems.github.io/shelfctl/
+  - Material theme with search functionality, dark/light mode toggle, and mobile-responsive design
+  - Automatic deployment via GitHub Actions on pushes to main branch
+  - Symlinked CONTRIBUTING.md and CHANGELOG.md to avoid content duplication
+  - Navigation includes Getting Started, Reference, and Development sections
+  - Searchable documentation with syntax highlighting for code blocks
+  - Source editing links to GitHub for all pages
+
 ## [0.1.0] - 2026-02-21
 
 ### Added

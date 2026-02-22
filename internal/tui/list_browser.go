@@ -356,7 +356,8 @@ func (m model) View() string {
 	masterStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorGray).
-		Padding(0)
+		Padding(0).
+		PaddingTop(1)
 
 	// Apply responsive sizing based on terminal dimensions
 	if m.width > 0 && m.height > 0 {

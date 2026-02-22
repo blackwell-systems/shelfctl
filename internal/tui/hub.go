@@ -128,13 +128,14 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-		// Account for outer padding, border, and header content
-		const outerPaddingH = 4 * 2 // left/right padding
-		const outerPaddingV = 2 * 2 // top/bottom padding
+		// Account for outer padding, inner padding, border, and header content
+		const outerPaddingH = 4 * 2 // left/right outer padding
+		const outerPaddingV = 2 * 2 // top/bottom outer padding
+		const innerPaddingH = 1 + 2 // left (1) + right (2) inner padding
 		const headerLines = 4       // header + status + spacing
 		h, v := StyleBorder.GetFrameSize()
 
-		listWidth := msg.Width - outerPaddingH - h
+		listWidth := msg.Width - outerPaddingH - innerPaddingH - h
 		listHeight := msg.Height - outerPaddingV - v - headerLines
 
 		if listWidth < 40 {
@@ -191,8 +192,12 @@ func (m hubModel) View() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
-	// Apply border, then outer padding for floating effect
-	return outerStyle.Render(StyleBorder.Render(content))
+	// Add padding inside the border (more on right to prevent text bleeding to edge)
+	innerPadding := lipgloss.NewStyle().
+		Padding(0, 2, 0, 1) // top, right, bottom, left
+
+	// Apply inner padding, then border, then outer padding for floating effect
+	return outerStyle.Render(StyleBorder.Render(innerPadding.Render(content)))
 }
 
 // RunHub launches the interactive hub menu

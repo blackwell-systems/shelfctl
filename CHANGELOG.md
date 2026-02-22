@@ -12,13 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added official Homebrew tap: `brew install blackwell-systems/tap/shelfctl`
   - Pre-built binaries for macOS (Intel/ARM) and Linux (x86_64/ARM64)
   - Formula available at [homebrew-tap](https://github.com/blackwell-systems/homebrew-tap)
+- **Cache Management**
+  - New `cache` command with `clear` and `info` subcommands
+  - CLI: `shelfctl cache clear [book-id...]` to remove specific books from cache
+  - CLI: `shelfctl cache clear --shelf books` to clear entire shelf cache
+  - CLI: `shelfctl cache clear --all` to nuke entire cache (with confirmation)
+  - CLI: `shelfctl cache clear` for interactive picker (multi-select)
+  - CLI: `shelfctl cache info` shows cache statistics (total books, cached count, disk usage)
+  - TUI: 'x' key removes selected books from cache (supports multi-select)
+  - Books remain in catalog/release, only local cache cleared
+  - Useful for reclaiming disk space without affecting library
 - **Multi-Select Download in Browse**
   - Spacebar to toggle selection (checkboxes appear in list)
   - 'g' downloads all selected books to cache (or current if none selected)
   - 'c' to clear all selections
-  - Progress tracking: `[2/5] book-id`
+  - Downloads happen in background without exiting TUI
+  - Progress bar shows at bottom of screen
+  - Multiple downloads queue sequentially
+  - Books marked as cached when complete
   - Error isolation: failed downloads don't abort batch
-  - Summary output: "Successfully downloaded 5 books, 1 failed"
   - Useful for pre-caching books for offline reading
 
 ### Changed

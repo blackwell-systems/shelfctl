@@ -296,6 +296,8 @@ shelfctl open sicp
 | `browse` | Browse your library (interactive TUI or text) |
 | `index` | Generate local HTML index for web browsing |
 | `verify` | Detect catalog vs release mismatches, auto-fix with `--fix` |
+| `cache clear` | Remove books from local cache without deleting from shelves |
+| `cache info` | Show cache statistics and disk usage |
 | `info <id>` | Show metadata and cache status |
 | `open <id>` | Open a book (auto-downloads if needed) |
 | `shelve <file\|url>` | Add a book to your library |

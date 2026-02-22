@@ -214,10 +214,20 @@ When run in a terminal, `browse` shows an interactive browser with:
 - **Interactive actions:**
   - `enter` - Show detailed book information
   - `o` - Open book (downloads if needed, opens with system viewer)
-  - `g` - Download to cache only (for offline access)
+  - `space` - Toggle selection (checkboxes appear for multi-select)
+  - `g` - Download selected books to cache (or current if none selected)
+  - `x` - Remove selected books from cache (or current if none selected)
+  - `c` - Clear all selections
+  - `tab` - Toggle details panel
   - `q` - Quit browser
 
-The browser auto-downloads books when opening if not cached and shows progress.
+**Multi-select workflow:**
+- Press `space` to check books (downloads them in background with progress bar at bottom)
+- Press `g` to download all selected books (useful for pre-caching for offline)
+- Press `x` to remove selected books from cache (frees disk space without deleting from shelf)
+- Books stay in catalog/release, only local cache affected
+
+Downloads happen in background without exiting TUI - progress bar shows at bottom of screen.
 
 Use `--no-interactive` or pipe output to get text mode.
 
@@ -258,6 +268,86 @@ programming/taocp-vol1
   Donald Knuth
   tags: algorithms, cs
   format: pdf, 15.8 MB
+```
+
+---
+
+## cache
+
+Manage local book cache without affecting shelf metadata or release assets.
+
+```bash
+shelfctl cache [command]
+```
+
+### Subcommands
+
+#### cache clear
+
+Remove books from local cache. Books remain in catalog and release - only local copies deleted.
+
+```bash
+shelfctl cache clear [book-id...] [flags]
+```
+
+**Flags:**
+- `--shelf`: Clear cache for all books on this shelf
+- `--all`: Clear entire cache directory
+
+**Examples:**
+
+```bash
+# Interactive picker (multi-select with spacebar)
+shelfctl cache clear
+
+# Remove specific books
+shelfctl cache clear sicp taocp-vol1
+
+# Clear all books from a shelf
+shelfctl cache clear --shelf programming
+
+# Nuke entire cache (requires "CLEAR ALL CACHE" confirmation)
+shelfctl cache clear --all
+```
+
+**What it does:**
+1. Shows confirmation prompt for bulk operations
+2. Removes cached files from `~/.cache/shelfctl/`
+3. Books remain in catalog.yml and release assets
+4. Books will re-download when opened or browsed
+5. Useful for reclaiming disk space without affecting library
+
+#### cache info
+
+Show cache statistics and disk usage.
+
+```bash
+shelfctl cache info [--shelf NAME]
+```
+
+**Flags:**
+- `--shelf`: Show stats for specific shelf only
+
+**Examples:**
+
+```bash
+# Overall cache statistics
+shelfctl cache info
+
+# Stats for specific shelf
+shelfctl cache info --shelf programming
+```
+
+**Output:**
+
+```
+Cache Statistics
+  total_books: 50
+  cached_books: 32
+  cache_size: 2.3 GB
+  cache_dir: /Users/you/.cache/shelfctl
+
+⚠ 18 books not cached
 ```
 
 ---

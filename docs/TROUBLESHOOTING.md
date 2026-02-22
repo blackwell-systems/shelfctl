@@ -144,7 +144,7 @@ Files over ~500MB may hit timeouts. Consider:
 
 ```bash
 # Clear cache and re-download
-rm ~/.local/share/shelfctl/cache/book-id.pdf
+shelfctl cache clear book-id
 shelfctl open book-id
 ```
 
@@ -221,14 +221,28 @@ yq eval ~/.config/shelfctl/config.yml
 **Solution**:
 
 ```bash
-# See cache size
-du -sh ~/.local/share/shelfctl/cache
+# Check cache statistics
+shelfctl cache info
 
-# Clear entire cache
-rm -rf ~/.local/share/shelfctl/cache/*
+# Check specific shelf
+shelfctl cache info --shelf programming
 
-# Files will be re-downloaded on next open/get
+# Remove specific books from cache
+shelfctl cache clear book-id-1 book-id-2
+
+# Clear all books from a shelf
+shelfctl cache clear --shelf programming
+
+# Clear entire cache (requires confirmation)
+shelfctl cache clear --all
+
+# Files will be re-downloaded when opened or browsed
 ```
+
+**In browse TUI:**
+- Press `space` to select books
+- Press `x` to remove selected books from cache
+- Books remain in catalog, only local files deleted
 
 ### Can't find cached file
 

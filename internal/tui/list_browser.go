@@ -9,6 +9,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -135,13 +136,14 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 
 // keyMap defines keyboard shortcuts
 type keyMap struct {
-	quit        key.Binding
-	enter       key.Binding
-	open        key.Binding
-	get         key.Binding
-	edit        key.Binding
-	filter      key.Binding
-	togglePanel key.Binding
+	quit         key.Binding
+	enter        key.Binding
+	open         key.Binding
+	get          key.Binding
+	uncache      key.Binding
+	edit         key.Binding
+	filter       key.Binding
+	togglePanel  key.Binding
 	toggleSelect key.Binding
 	clearSelect  key.Binding
 }
@@ -162,6 +164,10 @@ var keys = keyMap{
 	get: key.NewBinding(
 		key.WithKeys("g"),
 		key.WithHelp("g", "download"),
+	),
+	uncache: key.NewBinding(
+		key.WithKeys("x"),
+		key.WithHelp("x", "remove cache"),
 	),
 	edit: key.NewBinding(
 		key.WithKeys("e"),
@@ -201,8 +207,23 @@ const (
 // BrowserResult holds the result of a browser session
 type BrowserResult struct {
 	Action    BrowserAction
-	BookItem  *BookItem   // Single book (for open, edit, details)
-	BookItems []BookItem  // Multiple books (for download)
+	BookItem  *BookItem  // Single book (for open, edit, details)
+	BookItems []BookItem // Multiple books (for download)
+}
+
+// downloadMsg contains download progress updates
+type downloadMsg struct {
+	bookID   string
+	progress float64 // 0.0 to 1.0
+	done     bool
+	err      error
+}
+
+// Downloader interface abstracts GitHub/cache operations
+type Downloader interface {
+	Download(owner, repo, bookID, release, asset, sha256 string) (downloaded bool, err error)
+	DownloadWithProgress(owner, repo, bookID, release, asset, sha256 string, progressCh chan<- float64) error
+	Uncache(owner, repo, bookID, asset string) error
 }
 
 // model holds the state for the list browser
@@ -215,6 +236,17 @@ type model struct {
 	showDetails   bool
 	width         int
 	height        int
+
+	// Download dependencies
+	downloader Downloader
+
+	// Download state
+	downloading     bool
+	downloadQueue   []BookItem
+	currentDownload *BookItem
+	downloadPct     float64
+	downloadErr     string
+	progress        progress.Model
 }
 
 func (m model) Init() tea.Cmd {
@@ -223,6 +255,52 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case downloadMsg:
+		// Handle download progress
+		if msg.err != nil {
+			m.downloadErr = fmt.Sprintf("Download failed: %v", msg.err)
+			m.downloading = false
+			m.currentDownload = nil
+			// Continue with next download if any
+			if len(m.downloadQueue) > 0 {
+				return m, m.startNextDownload()
+			}
+			return m, nil
+		}
+
+		if msg.done {
+			// Download complete - mark book as cached
+			items := m.list.Items()
+			for i, item := range items {
+				if bookItem, ok := item.(BookItem); ok {
+					if bookItem.Book.ID == msg.bookID {
+						bookItem.Cached = true
+						// Clear selection on downloaded book
+						bookItem.selected = false
+						items[i] = bookItem
+						break
+					}
+				}
+			}
+			m.list.SetItems(items)
+
+			m.downloadPct = 1.0
+			m.downloading = false
+			m.currentDownload = nil
+			m.downloadErr = ""
+
+			// Start next download if any
+			if len(m.downloadQueue) > 0 {
+				return m, m.startNextDownload()
+			}
+			return m, nil
+		}
+
+		// Progress update
+		m.downloadPct = msg.progress
+		cmd := m.progress.SetPercent(msg.progress)
+		return m, cmd
+
 	case tea.KeyMsg:
 		// Don't handle keys when filtering
 		if m.list.FilterState() == list.Filtering {
@@ -291,42 +369,94 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keys.get):
 			// Download book(s)
+			// Don't start new download if already downloading
+			if m.downloading {
+				return m, nil
+			}
+
 			// Check if any books are selected for batch download
 			items := m.list.Items()
+			var booksToDownload []BookItem
+
 			for _, item := range items {
 				if bookItem, ok := item.(BookItem); ok && bookItem.selected {
-					m.selectedBooks = append(m.selectedBooks, bookItem)
+					if !bookItem.Cached {
+						booksToDownload = append(booksToDownload, bookItem)
+					}
 				}
 			}
 
-			// If selections exist, check if any need downloading
-			if len(m.selectedBooks) > 0 {
-				// Check if any selected books are not cached
-				needsDownload := false
-				for _, bookItem := range m.selectedBooks {
-					if !bookItem.Cached {
-						needsDownload = true
-						break
+			// Download in background (requires downloader)
+			if m.downloader != nil {
+				// Batch download selected books
+				if len(booksToDownload) > 0 {
+					m.downloadQueue = booksToDownload
+					return m, m.startNextDownload()
+				}
+
+				// Single book download
+				if item, ok := m.list.SelectedItem().(BookItem); ok {
+					if !item.Cached {
+						m.downloadQueue = []BookItem{item}
+						return m, m.startNextDownload()
 					}
 				}
-				if needsDownload {
-					m.action = ActionDownload
-					m.quitting = true
-					return m, tea.Quit
-				}
-				// All selected books are already cached - do nothing
-				return m, nil
-			} else if item, ok := m.list.SelectedItem().(BookItem); ok {
-				// Single book - only download if not cached
-				if !item.Cached {
-					m.action = ActionDownload
-					m.selected = &item
-					m.quitting = true
-					return m, tea.Quit
-				}
-				// Already cached - do nothing
+			}
+			return m, nil
+
+		case key.Matches(msg, keys.uncache):
+			// Remove book(s) from cache
+			// Only works if downloader available
+			if m.downloader == nil {
 				return m, nil
 			}
+
+			// Check if any books are selected for batch uncache
+			items := m.list.Items()
+			var booksToUncache []BookItem
+
+			for _, item := range items {
+				if bookItem, ok := item.(BookItem); ok && bookItem.selected {
+					if bookItem.Cached {
+						booksToUncache = append(booksToUncache, bookItem)
+					}
+				}
+			}
+
+			// Batch uncache selected books
+			if len(booksToUncache) > 0 {
+				for _, bookItem := range booksToUncache {
+					_ = m.downloader.Uncache(bookItem.Owner, bookItem.Repo, bookItem.Book.ID, bookItem.Book.Source.Asset)
+					// Update item state
+					for i, item := range items {
+						if bi, ok := item.(BookItem); ok && bi.Book.ID == bookItem.Book.ID {
+							bi.Cached = false
+							bi.selected = false
+							items[i] = bi
+							break
+						}
+					}
+				}
+				m.list.SetItems(items)
+				return m, nil
+			}
+
+			// Single book uncache
+			if item, ok := m.list.SelectedItem().(BookItem); ok {
+				if item.Cached {
+					_ = m.downloader.Uncache(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset)
+					// Update item state
+					idx := m.list.Index()
+					if idx >= 0 && idx < len(items) {
+						if bookItem, ok := items[idx].(BookItem); ok {
+							bookItem.Cached = false
+							items[idx] = bookItem
+							m.list.SetItems(items)
+						}
+					}
+				}
+			}
+			return m, nil
 
 		case key.Matches(msg, keys.edit):
 			// Edit book
@@ -538,13 +668,106 @@ func (m model) View() string {
 		content = m.list.View()
 	}
 
-	// Apply inner box border, then outer container for floating effect
-	return outerStyle.Render(masterStyle.Render(content))
+	// Apply inner box border
+	boxed := masterStyle.Render(content)
+
+	// Add download progress if active
+	if m.downloading && m.currentDownload != nil {
+		progressBar := m.progress.ViewAs(m.downloadPct)
+		label := fmt.Sprintf("Downloading %s", m.currentDownload.Book.ID)
+		if len(m.downloadQueue) > 0 {
+			label = fmt.Sprintf("[%d remaining] %s", len(m.downloadQueue)+1, label)
+		}
+
+		progressView := lipgloss.NewStyle().
+			Foreground(ColorYellow).
+			Render(label + "\n" + progressBar)
+
+		boxed = lipgloss.JoinVertical(lipgloss.Left, boxed, "", progressView)
+	} else if m.downloadErr != "" {
+		errorView := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")).
+			Render(m.downloadErr)
+		boxed = lipgloss.JoinVertical(lipgloss.Left, boxed, "", errorView)
+	}
+
+	// Apply outer container for floating effect
+	return outerStyle.Render(boxed)
+}
+
+// startNextDownload pops the next book from queue and starts downloading
+func (m *model) startNextDownload() tea.Cmd {
+	if len(m.downloadQueue) == 0 {
+		m.downloading = false
+		m.currentDownload = nil
+		return nil
+	}
+
+	// Pop first book from queue
+	book := m.downloadQueue[0]
+	m.downloadQueue = m.downloadQueue[1:]
+
+	m.downloading = true
+	m.currentDownload = &book
+	m.downloadPct = 0.0
+	m.downloadErr = ""
+
+	// Start download in background and stream progress
+	return func() tea.Msg {
+		if m.downloader == nil {
+			return downloadMsg{
+				bookID: book.Book.ID,
+				done:   true,
+				err:    fmt.Errorf("downloader not configured"),
+			}
+		}
+
+		progressCh := make(chan float64, 100)
+
+		// Download in goroutine
+		go func() {
+			err := m.downloader.DownloadWithProgress(
+				book.Owner,
+				book.Repo,
+				book.Book.ID,
+				book.Book.Source.Release,
+				book.Book.Source.Asset,
+				book.Book.Checksum.SHA256,
+				progressCh,
+			)
+			close(progressCh)
+
+			// Send completion message
+			if err != nil {
+				progressCh <- -1.0 // Signal error
+			}
+		}()
+
+		// For now, just wait for completion and return final message
+		// TODO: Stream progress updates via subscription
+		for pct := range progressCh {
+			if pct < 0 {
+				// Error occurred
+				return downloadMsg{
+					bookID: book.Book.ID,
+					done:   true,
+					err:    fmt.Errorf("download failed"),
+				}
+			}
+		}
+
+		return downloadMsg{
+			bookID:   book.Book.ID,
+			progress: 1.0,
+			done:     true,
+		}
+	}
 }
 
 // RunListBrowser launches an interactive book browser.
 // Returns the action and selected book, or error if there was a problem.
-func RunListBrowser(books []BookItem) (*BrowserResult, error) {
+// Pass nil downloader to disable background downloads (downloads will exit TUI).
+func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, error) {
 	if len(books) == 0 {
 		return nil, fmt.Errorf("no books to display")
 	}
@@ -573,9 +796,14 @@ func RunListBrowser(books []BookItem) (*BrowserResult, error) {
 		return []key.Binding{keys.open, keys.get, keys.edit, keys.enter, keys.toggleSelect, keys.clearSelect, keys.togglePanel}
 	}
 
+	prog := progress.New(progress.WithDefaultGradient())
+	prog.Width = 60
+
 	m := model{
 		list:        l,
 		showDetails: true, // Show details pane by default
+		downloader:  downloader,
+		progress:    prog,
 	}
 
 	// Run the program with alt screen

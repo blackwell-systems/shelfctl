@@ -480,3 +480,33 @@ Downloaded books are stored locally:
 ```
 
 Layout: `<cache>/<shelf_repo>/<asset_filename>`
+
+### Cache Management
+
+shelfctl provides commands to manage local cache without affecting shelf metadata or release assets:
+
+**CLI Commands:**
+```bash
+# View statistics
+shelfctl cache info                    # Overall stats
+shelfctl cache info --shelf programming # Per-shelf stats
+
+# Clear cache
+shelfctl cache clear book-id-1 book-id-2  # Specific books
+shelfctl cache clear --shelf programming  # Entire shelf
+shelfctl cache clear --all                # Entire cache
+shelfctl cache clear                      # Interactive picker
+```
+
+**TUI (in browse):**
+- `space` - Toggle selection on books
+- `x` - Remove selected books from cache
+- Books remain in catalog/release, only local files deleted
+
+**Use cases:**
+- Reclaim disk space without affecting library
+- Clear corrupted downloads for re-fetch
+- Remove books you no longer need locally
+- Pre-cache books for offline access, then clear when done
+
+Books automatically re-download when opened or browsed.

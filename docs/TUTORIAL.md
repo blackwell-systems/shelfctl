@@ -253,6 +253,38 @@ xdg-open ~/.local/share/shelfctl/cache/index.html
 
 The index shows only cached books, so download books first to include them.
 
+### Managing cache
+
+Your local cache stores downloaded books at `~/.cache/shelfctl/` (or `~/.local/share/shelfctl/cache`). You can manage cache without affecting your shelf catalog or release assets:
+
+```bash
+# View cache statistics
+shelfctl cache info
+
+# View stats for specific shelf
+shelfctl cache info --shelf programming
+
+# Remove specific books from cache
+shelfctl cache clear introduction-to-algorithms sicp
+
+# Clear all cached books from a shelf
+shelfctl cache clear --shelf programming
+
+# Interactive picker (multi-select with spacebar)
+shelfctl cache clear
+
+# Clear entire cache (requires confirmation)
+shelfctl cache clear --all
+```
+
+**In browse TUI:**
+- Press `space` to select multiple books
+- Press `x` to remove selected books from cache
+- Books remain in your library, only local copies deleted
+- Useful for reclaiming disk space
+
+Books will automatically re-download when opened or browsed.
+
 ## Step 9: Add more shelves
 
 Create shelves for different topics:

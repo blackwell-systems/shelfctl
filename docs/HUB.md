@@ -37,10 +37,18 @@ The hub provides access to all core operations and loops continuously until you 
 - **Interactive Actions:**
   - `enter` - Show detailed book information with cover preview (Kitty/Ghostty/iTerm2)
   - `o` - Open book (downloads if needed, opens with system viewer)
-  - `g` - Download to cache only (for offline access)
+  - `space` - Toggle selection (checkboxes appear for multi-select)
+  - `g` - Download selected books to cache (or current if none selected)
+  - `x` - Remove selected books from cache (or current if none selected)
+  - `c` - Clear all selections
+  - `tab` - Toggle details panel
   - `q` - Return to hub menu
-- Auto-downloads books when opening if not cached
-- Shows download progress with file size
+- **Multi-select workflow:**
+  - Press `space` to check books for batch operations
+  - Press `g` to download all selected (useful for pre-caching for offline)
+  - Press `x` to remove selected from cache (frees disk space, keeps in library)
+- Downloads happen in background with progress bar at bottom
+- Books marked as cached when download complete
 - Extracts PDF cover thumbnails automatically during download
 
 **Generate HTML Index**

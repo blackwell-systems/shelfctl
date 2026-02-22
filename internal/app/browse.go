@@ -2,15 +2,97 @@ package app
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
+	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
+
+// browserDownloader implements tui.Downloader for background downloads
+type browserDownloader struct {
+	gh    *github.Client
+	cache *cache.Manager
+}
+
+func (d *browserDownloader) Download(owner, repo, bookID, release, asset, sha256 string) (bool, error) {
+	return d.DownloadWithProgress(owner, repo, bookID, release, asset, sha256, nil) == nil, nil
+}
+
+func (d *browserDownloader) DownloadWithProgress(owner, repo, bookID, release, asset, sha256 string, progressCh chan<- float64) error {
+	// Get release
+	rel, err := d.gh.GetReleaseByTag(owner, repo, release)
+	if err != nil {
+		return fmt.Errorf("release %q: %w", release, err)
+	}
+
+	// Find asset
+	assetObj, err := d.gh.FindAsset(owner, repo, rel.ID, asset)
+	if err != nil {
+		return fmt.Errorf("finding asset: %w", err)
+	}
+	if assetObj == nil {
+		return fmt.Errorf("asset %q not found", asset)
+	}
+
+	// Download
+	rc, err := d.gh.DownloadAsset(owner, repo, assetObj.ID)
+	if err != nil {
+		return fmt.Errorf("download: %w", err)
+	}
+	defer func() { _ = rc.Close() }()
+
+	// Wrap with progress tracking if channel provided
+	var reader io.Reader = rc
+	if progressCh != nil {
+		reader = &progressReader{
+			reader:     rc,
+			total:      assetObj.Size,
+			progressCh: progressCh,
+		}
+	}
+
+	// Store in cache
+	_, err = d.cache.Store(owner, repo, bookID, asset, reader, sha256)
+	if err != nil {
+		return fmt.Errorf("cache: %w", err)
+	}
+
+	return nil
+}
+
+func (d *browserDownloader) Uncache(owner, repo, bookID, asset string) error {
+	return d.cache.Remove(owner, repo, bookID, asset)
+}
+
+// progressReader wraps io.Reader to send progress updates
+type progressReader struct {
+	reader     io.Reader
+	total      int64
+	read       int64
+	progressCh chan<- float64
+}
+
+func (pr *progressReader) Read(p []byte) (int, error) {
+	n, err := pr.reader.Read(p)
+	pr.read += int64(n)
+
+	if pr.progressCh != nil && pr.total > 0 {
+		pct := float64(pr.read) / float64(pr.total)
+		select {
+		case pr.progressCh <- pct:
+		default:
+		}
+	}
+
+	return n, err
+}
 
 func newBrowseCmd() *cobra.Command {
 	var (
@@ -95,14 +177,23 @@ func newBrowseCmd() *cobra.Command {
 					return nil
 				}
 
-				result, err := tui.RunListBrowser(allItems)
+				// Create downloader for background downloads
+				dl := &browserDownloader{
+					gh:    gh,
+					cache: cacheMgr,
+				}
+
+				result, err := tui.RunListBrowser(allItems, dl)
 				if err != nil {
 					return err
 				}
 
 				// Handle browser actions
-				if result.Action != tui.ActionNone && (result.BookItem != nil || len(result.BookItems) > 0) {
-					return handleBrowserAction(cmd, result)
+				// Downloads are handled in background by TUI, other actions exit TUI
+				if result.Action != tui.ActionNone {
+					if result.BookItem != nil {
+						return handleBrowserAction(cmd, result)
+					}
 				}
 
 				return nil
@@ -168,16 +259,6 @@ func newBrowseCmd() *cobra.Command {
 
 // handleBrowserAction executes the action requested from the book browser
 func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
-	switch result.Action {
-	case tui.ActionDownload:
-		// Check for multi-select download
-		if len(result.BookItems) > 0 {
-			return handleMultiDownload(cmd, result.BookItems)
-		}
-		// Fall through to single book handling
-
-	}
-
 	// Single book actions require BookItem to be set
 	if result.BookItem == nil {
 		return fmt.Errorf("no book selected")
@@ -223,81 +304,6 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 			cacheStatus = color.GreenString("cached") + "  " + path
 		}
 		printField("cache", cacheStatus)
-		return nil
-
-	case tui.ActionDownload:
-		// Download to cache only (don't open)
-		if item.Cached {
-			fmt.Println(color.GreenString("✓") + " Already cached")
-			path := cacheMgr.Path(item.Owner, item.Repo, b.ID, b.Source.Asset)
-			fmt.Println("  " + path)
-			return nil
-		}
-
-		header("Downloading %s", b.ID)
-
-		// Get release and asset
-		rel, err := gh.GetReleaseByTag(item.Owner, item.Repo, b.Source.Release)
-		if err != nil {
-			return fmt.Errorf("release %q: %w", b.Source.Release, err)
-		}
-		asset, err := gh.FindAsset(item.Owner, item.Repo, rel.ID, b.Source.Asset)
-		if err != nil {
-			return fmt.Errorf("finding asset: %w", err)
-		}
-		if asset == nil {
-			return fmt.Errorf("asset %q not found in release %q", b.Source.Asset, b.Source.Release)
-		}
-
-		rc, err := gh.DownloadAsset(item.Owner, item.Repo, asset.ID)
-		if err != nil {
-			return fmt.Errorf("download: %w", err)
-		}
-		defer func() { _ = rc.Close() }()
-
-		// Use progress bar in TTY mode
-		var path string
-		if util.IsTTY() && tui.ShouldUseTUI(cmd) {
-			progressCh := make(chan int64, 50)
-			errCh := make(chan error, 1)
-
-			// Show connecting message
-			fmt.Printf("Connecting to GitHub...\n")
-
-			// Start download in goroutine
-			go func() {
-				pr := tui.NewProgressReader(rc, asset.Size, progressCh)
-				p, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, pr, b.Checksum.SHA256)
-				close(progressCh)
-				errCh <- err
-				if err == nil {
-					// Store path for later
-					path = p
-				}
-			}()
-
-			// Show progress UI
-			label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
-			if err := tui.ShowProgress(label, asset.Size, progressCh); err != nil {
-				return err // User cancelled
-			}
-
-			// Get result
-			if err := <-errCh; err != nil {
-				return fmt.Errorf("cache: %w", err)
-			}
-		} else {
-			// Non-interactive mode: just print and download
-			fmt.Printf("Downloading %s (%s) …\n", b.ID, humanBytes(asset.Size))
-			path, err = cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
-			if err != nil {
-				return fmt.Errorf("cache: %w", err)
-			}
-
-			// Show poppler hint if needed (one-time, PDF only)
-			showPopplerHintIfNeeded(b.Source.Asset)
-		}
-		ok("Cached: %s", path)
 		return nil
 
 	case tui.ActionOpen:
@@ -454,69 +460,4 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 	default:
 		return nil
 	}
-}
-
-// handleMultiDownload downloads multiple books to cache
-func handleMultiDownload(cmd *cobra.Command, items []tui.BookItem) error {
-	fmt.Printf("Downloading %d books...\n\n", len(items))
-
-	successCount := 0
-	failCount := 0
-
-	for i, item := range items {
-		b := &item.Book
-		fmt.Printf("[%d/%d] %s\n", i+1, len(items), b.ID)
-
-		// Skip if already cached
-		if item.Cached {
-			fmt.Println(color.GreenString("  ✓ Already cached"))
-			successCount++
-			continue
-		}
-
-		// Get release and asset
-		rel, err := gh.GetReleaseByTag(item.Owner, item.Repo, b.Source.Release)
-		if err != nil {
-			warn("  Failed to get release: %v", err)
-			failCount++
-			continue
-		}
-
-		asset, err := gh.FindAsset(item.Owner, item.Repo, rel.ID, b.Source.Asset)
-		if err != nil || asset == nil {
-			warn("  Failed to find asset: %v", err)
-			failCount++
-			continue
-		}
-
-		rc, err := gh.DownloadAsset(item.Owner, item.Repo, asset.ID)
-		if err != nil {
-			warn("  Failed to download: %v", err)
-			failCount++
-			continue
-		}
-
-		// Store in cache
-		path, err := cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
-		_ = rc.Close()
-		if err != nil {
-			warn("  Failed to cache: %v", err)
-			failCount++
-			continue
-		}
-
-		fmt.Println(color.GreenString("  ✓ Cached: ") + path)
-		successCount++
-	}
-
-	// Summary
-	fmt.Println()
-	if successCount > 0 {
-		ok("Successfully downloaded %d books", successCount)
-	}
-	if failCount > 0 {
-		warn("%d books failed to download", failCount)
-	}
-
-	return nil
 }

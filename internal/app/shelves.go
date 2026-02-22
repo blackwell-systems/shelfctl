@@ -27,6 +27,7 @@ type shelfStatus struct {
 
 func newShelvesCmd() *cobra.Command {
 	var fix bool
+	var tableMode bool
 
 	cmd := &cobra.Command{
 		Use:   "shelves",
@@ -51,8 +52,8 @@ func newShelvesCmd() *cobra.Command {
 			}
 
 			// Render based on mode
-			if tui.ShouldUseTUI(cmd) {
-				// Interactive mode: show formatted table
+			if tableMode {
+				// Table mode: show formatted table
 				renderShelfTable(statuses)
 
 				if anyFailed {
@@ -62,7 +63,7 @@ func newShelvesCmd() *cobra.Command {
 				fmt.Println()
 				ok("All shelves healthy")
 			} else {
-				// Script mode: simple list
+				// Default: simple list for scriptability
 				renderShelfList(statuses)
 
 				if anyFailed {
@@ -74,6 +75,7 @@ func newShelvesCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&fix, "fix", false, "Automatically repair missing catalog.yml or release")
+	cmd.Flags().BoolVar(&tableMode, "table", false, "Display as formatted table (default: simple list)")
 	return cmd
 }
 

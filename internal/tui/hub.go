@@ -128,13 +128,21 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-		// Account for outer padding and border (same as browse view)
-		const outerPaddingH = 4 * 2 // left/right padding
-		const outerPaddingV = 2 * 2 // top/bottom padding
+		// Account for outer padding, border, and header content
+		const outerPaddingH = 4 * 2  // left/right padding
+		const outerPaddingV = 2 * 2  // top/bottom padding
+		const headerLines = 4        // header + status + spacing
 		h, v := StyleBorder.GetFrameSize()
 
 		listWidth := msg.Width - outerPaddingH - h
-		listHeight := msg.Height - outerPaddingV - v
+		listHeight := msg.Height - outerPaddingV - v - headerLines
+
+		if listWidth < 40 {
+			listWidth = 40
+		}
+		if listHeight < 5 {
+			listHeight = 5
+		}
 
 		m.list.SetSize(listWidth, listHeight)
 	}
@@ -148,6 +156,10 @@ func (m hubModel) View() string {
 	if m.quitting {
 		return ""
 	}
+
+	// Outer container for centering - creates margin around the box
+	outerStyle := lipgloss.NewStyle().
+		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
 
 	// Create header
 	header := lipgloss.NewStyle().
@@ -170,10 +182,6 @@ func (m hubModel) View() string {
 		statusBar = status
 	}
 
-	// Outer container for centering - same as browse view
-	outerStyle := lipgloss.NewStyle().
-		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
-
 	// Combine header, status, and list
 	parts := []string{header}
 	if statusBar != "" {
@@ -183,7 +191,7 @@ func (m hubModel) View() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
-	// Apply border, then outer container for floating effect
+	// Apply border, then outer padding for floating effect
 	return outerStyle.Render(StyleBorder.Render(content))
 }
 

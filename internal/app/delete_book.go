@@ -1,7 +1,10 @@
 package app
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
@@ -197,8 +200,9 @@ Examples:
 					}
 				} else {
 					fmt.Printf("Type 'DELETE %d BOOKS' to confirm: ", len(booksToDelete))
-					var confirmation string
-					_, _ = fmt.Scanln(&confirmation)
+					reader := bufio.NewReader(os.Stdin)
+					confirmation, _ := reader.ReadString('\n')
+					confirmation = strings.TrimSpace(confirmation)
 
 					expected := fmt.Sprintf("DELETE %d BOOKS", len(booksToDelete))
 					if confirmation != expected {

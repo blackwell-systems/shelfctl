@@ -34,6 +34,7 @@ Your GitHub account already gives you reliable distribution and storage primitiv
 - one repo per shelf (`shelf-programming`, `shelf-history`, …)
 - Migration tools to split bloated repos and reorganize existing collections
 
+> [!TIP]
 > **Already have PDFs committed in git?** shelfctl can scan and migrate them into shelves without manual re-uploads.
 
 **Two ways to use it:**

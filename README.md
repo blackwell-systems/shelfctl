@@ -26,7 +26,8 @@ Once PDFs land in git history, every clone stays heavy forever. Even after you d
 
 shelfctl solves this by storing files as GitHub Release assets (not git commits) and keeping only metadata in a simple `catalog.yml`. That means you can split a bloated repo into topic-based shelves, migrate books out of existing repos, and search + download on demand (without moving your library to a new service).
 
-> **⚠️ Warning**: Deleting a PDF from a git repo doesn't remove it from git history. Clones still carry the weight. shelfctl avoids this entirely by storing documents as Release assets (only metadata is versioned).
+> [!WARNING]
+> Deleting a PDF from a git repo doesn't remove it from git history. Clones still carry the weight. shelfctl avoids this entirely by storing documents as Release assets (only metadata is versioned).
 
 Your GitHub account already gives you reliable distribution and storage primitives. shelfctl turns them into a library:
 - Release assets for the PDFs/EPUBs

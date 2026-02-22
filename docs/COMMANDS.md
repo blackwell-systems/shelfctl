@@ -353,11 +353,68 @@ shelfctl cache info --shelf programming
 Cache Statistics
   total_books: 50
   cached_books: 32
+  modified: 3 (annotations/highlights)
   cache_size: 2.3 GB
   cache_dir: /Users/you/.cache/shelfctl
 
 ⚠ 18 books not cached
+ℹ 3 books have local changes
+  Run 'shelfctl sync --all' to upload changes to GitHub
 ```
+
+---
+
+## sync
+
+Upload locally modified books back to GitHub. When you annotate or highlight cached PDFs, those changes only exist locally. This command detects modifications and re-uploads to keep GitHub in sync with your working copies.
+
+```bash
+shelfctl sync [book-id...] [flags]
+```
+
+### Flags
+
+- `--shelf`: Limit to specific shelf
+- `--all`: Sync all modified cached books
+
+### Examples
+
+```bash
+# Sync specific book
+shelfctl sync sicp
+
+# Sync multiple books
+shelfctl sync book-1 book-2 book-3
+
+# Sync all modified books
+shelfctl sync --all
+
+# Sync all modified books on a shelf
+shelfctl sync --all --shelf programming
+```
+
+### How it works
+
+1. Compares cached file SHA256 with catalog
+2. If different (annotations added), deletes old Release asset
+3. Uploads modified file to same asset name
+4. Updates catalog with new SHA256 and size
+5. **No versioning** - GitHub always has your latest annotated copy
+
+### When to use
+
+- After annotating/highlighting PDFs in your PDF reader
+- Before clearing cache (to preserve annotations on GitHub)
+- To share annotated versions with other machines
+- Shown in `cache info` output: "3 books have local changes"
+
+### Notes
+
+- Only processes cached books (skips uncached)
+- Replaces Release asset (no version history for annotations)
+- Safe: catalog SHA256 always matches Release asset after sync
+- Commits once per shelf: "sync: update 3 books with local changes"
+- Silent for unmodified books when using `--all`
 
 ---
 

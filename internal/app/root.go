@@ -112,6 +112,7 @@ func init() {
 		newImportCmd(),
 		newIndexCmd(),
 		newVerifyCmd(),
+		newSyncCmd(),
 		newCacheCmd(),
 	)
 
@@ -787,6 +788,7 @@ func buildHubContext() tui.HubContext {
 
 	// Calculate cache stats
 	cachedCount := 0
+	modifiedCount := 0
 	var cacheSize int64
 
 	for _, shelf := range cfg.Shelves {
@@ -810,11 +812,17 @@ func buildHubContext() tui.HubContext {
 				if info, err := os.Stat(path); err == nil {
 					cacheSize += info.Size()
 				}
+
+				// Check if modified
+				if cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+					modifiedCount++
+				}
 			}
 		}
 	}
 
 	ctx.CachedCount = cachedCount
+	ctx.ModifiedCount = modifiedCount
 	ctx.CacheSize = cacheSize
 	if ctx.BookCount > 0 {
 		// Get cache dir from any path

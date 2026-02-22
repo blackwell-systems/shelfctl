@@ -41,9 +41,10 @@ type HubContext struct {
 	HasCache     bool
 	ShelfDetails []ShelfStatus // for inline display
 	// Cache stats
-	CachedCount int
-	CacheSize   int64
-	CacheDir    string
+	CachedCount   int
+	ModifiedCount int
+	CacheSize     int64
+	CacheDir      string
 }
 
 // menuItems defines the menu in logical order
@@ -273,6 +274,14 @@ func (m hubModel) renderCacheDetails() string {
 	if uncached > 0 {
 		s.WriteString(StyleHighlight.Render("Not Cached: "))
 		fmt.Fprintf(&s, "%d\n", uncached)
+	}
+
+	// Modified count
+	if m.context.ModifiedCount > 0 {
+		s.WriteString(StyleHighlight.Render("Modified: "))
+		fmt.Fprintf(&s, "%d (annotations/highlights)\n", m.context.ModifiedCount)
+		s.WriteString(StyleHelp.Render("  Use 'sync' command to upload changes"))
+		s.WriteString("\n")
 	}
 
 	// Cache size

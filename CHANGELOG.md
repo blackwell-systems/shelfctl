@@ -40,6 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Book is immediately available to open without extra download step
   - Extracts PDF cover during caching if poppler installed
   - CLI: `shelfctl shelve book.pdf --shelf prog --title "..." --cache`
+- **Sync Command** (handle annotations/highlights)
+  - New `sync` command to upload locally modified books back to GitHub
+  - Detects when cached files differ from Release asset (annotations, highlights, etc.)
+  - Re-uploads modified file and updates catalog (replaces asset, no versioning)
+  - Supports `sync book-id`, `sync --all`, `sync --all --shelf name`
+  - `cache info` now shows modified count: "3 books have local changes"
+  - Hub Cache Info panel displays modified books with hint to run sync
+  - Keeps GitHub in sync with your working copies without version clutter
 - **Multi-Select Download in Browse**
   - Spacebar to toggle selection (checkboxes appear in list)
   - 'g' downloads all selected books to cache (or current if none selected)

@@ -71,6 +71,9 @@ Your library stays portable, backed by normal git repos. Free by default (only p
 Fetch a single book without cloning a repo or pulling a whole archive.
 `shelfctl open <book-id>` downloads *only that file* from GitHub's CDN and opens it. Your library can be huge, but you only download what you actually read.
 
+### Annotations and highlights sync
+When you annotate or highlight PDFs in your reader, those changes are saved to your local cache. Use `shelfctl sync` to upload your annotated version back to GitHub (replaces the original, no versioning). Your annotations stay with the book and sync across machines.
+
 ---
 
 <p align="center">
@@ -286,6 +289,10 @@ shelfctl open sicp
 # Generate static HTML index for web browsing
 shelfctl index
 open ~/.local/share/shelfctl/cache/index.html  # Opens in default browser
+
+# Add annotations/highlights, then sync back to GitHub
+open sicp  # Annotate in your PDF reader
+shelfctl sync sicp  # Upload annotated version (replaces original, no versioning)
 ```
 
 <p align="center">
@@ -308,6 +315,7 @@ open ~/.local/share/shelfctl/cache/index.html  # Opens in default browser
 | `browse` | Browse your library (interactive TUI or text) |
 | `index` | Generate local HTML index for web browsing |
 | `verify` | Detect catalog vs release mismatches, auto-fix with `--fix` |
+| `sync` | Upload locally modified books (annotations/highlights) to GitHub |
 | `cache clear` | Remove books from local cache without deleting from shelves |
 | `cache info` | Show cache statistics and disk usage |
 | `info <id>` | Show metadata and cache status |

@@ -308,6 +308,7 @@ func showAllCacheInfo() error {
 
 	totalBooks := len(allBooks)
 	cachedCount := 0
+	modifiedCount := 0
 	var totalSize int64
 
 	for _, item := range allBooks {
@@ -317,12 +318,20 @@ func showAllCacheInfo() error {
 			if info, err := os.Stat(path); err == nil {
 				totalSize += info.Size()
 			}
+
+			// Check if modified
+			if cacheMgr.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
+				modifiedCount++
+			}
 		}
 	}
 
 	header("Cache Statistics")
 	printField("total_books", fmt.Sprintf("%d", totalBooks))
 	printField("cached_books", fmt.Sprintf("%d", cachedCount))
+	if modifiedCount > 0 {
+		printField("modified", fmt.Sprintf("%d (annotations/highlights)", modifiedCount))
+	}
 	printField("cache_size", humanBytes(totalSize))
 	printField("cache_dir", filepath.Dir(cacheMgr.Path("", "", "", "")))
 
@@ -330,6 +339,12 @@ func showAllCacheInfo() error {
 	if uncachedCount > 0 {
 		fmt.Println()
 		fmt.Printf("%s %d books not cached\n", color.YellowString("⚠"), uncachedCount)
+	}
+
+	if modifiedCount > 0 {
+		fmt.Println()
+		fmt.Printf("%s %d books have local changes\n", color.CyanString("ℹ"), modifiedCount)
+		fmt.Printf("  Run 'shelfctl sync --all' to upload changes to GitHub\n")
 	}
 
 	return nil
@@ -354,6 +369,7 @@ func showShelfCacheInfo(shelfName string) error {
 
 	totalBooks := len(books)
 	cachedCount := 0
+	modifiedCount := 0
 	var totalSize int64
 
 	for i := range books {
@@ -364,12 +380,20 @@ func showShelfCacheInfo(shelfName string) error {
 			if info, err := os.Stat(path); err == nil {
 				totalSize += info.Size()
 			}
+
+			// Check if modified
+			if cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+				modifiedCount++
+			}
 		}
 	}
 
 	header("Cache Statistics: %s", shelfName)
 	printField("total_books", fmt.Sprintf("%d", totalBooks))
 	printField("cached_books", fmt.Sprintf("%d", cachedCount))
+	if modifiedCount > 0 {
+		printField("modified", fmt.Sprintf("%d (annotations/highlights)", modifiedCount))
+	}
 	printField("cache_size", humanBytes(totalSize))
 	printField("repository", fmt.Sprintf("%s/%s", owner, shelf.Repo))
 
@@ -377,6 +401,12 @@ func showShelfCacheInfo(shelfName string) error {
 	if uncachedCount > 0 {
 		fmt.Println()
 		fmt.Printf("%s %d books not cached\n", color.YellowString("⚠"), uncachedCount)
+	}
+
+	if modifiedCount > 0 {
+		fmt.Println()
+		fmt.Printf("%s %d books have local changes\n", color.CyanString("ℹ"), modifiedCount)
+		fmt.Printf("  Run 'shelfctl sync --shelf %s' to upload changes\n", shelfName)
 	}
 
 	return nil

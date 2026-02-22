@@ -57,3 +57,18 @@ func isPDF(filename string) bool {
 	ext := filepath.Ext(strings.ToLower(filename))
 	return ext == ".pdf"
 }
+
+// HasBeenModified checks if the cached file's SHA256 differs from the expected value.
+// Returns true if the file has been modified locally (e.g., annotations added).
+func (m *Manager) HasBeenModified(owner, repo, bookID, assetFilename, expectedSHA256 string) bool {
+	if !m.Exists(owner, repo, bookID, assetFilename) {
+		return false
+	}
+
+	path := m.Path(owner, repo, bookID, assetFilename)
+	if err := VerifyFile(path, expectedSHA256); err != nil {
+		return true // Checksum mismatch means modified
+	}
+
+	return false
+}

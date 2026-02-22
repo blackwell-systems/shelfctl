@@ -137,7 +137,7 @@ func collectShelfStatus(shelf config.ShelfConfig, fix bool) shelfStatus {
 func renderShelfTable(statuses []shelfStatus) {
 	gray := color.New(color.FgHiBlack).SprintFunc()
 	bold := color.New(color.Bold).SprintFunc()
-	headerBg := color.New(color.BgMagenta, color.FgWhite, color.Bold).SprintFunc()
+	headerBg := color.New(color.FgCyan, color.Bold).SprintFunc()
 
 	// Calculate column widths
 	maxNameLen := len("Shelf")

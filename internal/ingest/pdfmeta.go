@@ -95,7 +95,10 @@ func decodePDFString(s string) string {
 	s = strings.ReplaceAll(s, `\\`, "\\")
 
 	// Trim whitespace
-	return strings.TrimSpace(s)
+	s = strings.TrimSpace(s)
+
+	// Sanitize for terminal display
+	return sanitizeForTerminal(s)
 }
 
 // decodeHexString decodes UTF-16BE hex strings (common in PDFs)
@@ -117,7 +120,7 @@ func decodeHexString(hex string) string {
 	// Try to decode as UTF-16BE
 	if len(rawBytes)%2 != 0 {
 		// Odd number of bytes - might be ASCII
-		return string(rawBytes)
+		return sanitizeForTerminal(string(rawBytes))
 	}
 
 	u16 := make([]uint16, len(rawBytes)/2)
@@ -125,7 +128,7 @@ func decodeHexString(hex string) string {
 		u16[i] = uint16(rawBytes[i*2])<<8 | uint16(rawBytes[i*2+1])
 	}
 
-	return string(utf16.Decode(u16))
+	return sanitizeForTerminal(string(utf16.Decode(u16)))
 }
 
 func hexValue(c byte) byte {
@@ -138,4 +141,29 @@ func hexValue(c byte) byte {
 		return c - 'A' + 10
 	}
 	return 0
+}
+
+// sanitizeForTerminal replaces problematic Unicode characters with ASCII equivalents.
+// This prevents rendering issues in terminal UIs with special characters from PDFs.
+func sanitizeForTerminal(s string) string {
+	// Replace smart/curly quotes with ASCII quotes
+	s = strings.ReplaceAll(s, "\u201C", "\"") // Left double quotation mark
+	s = strings.ReplaceAll(s, "\u201D", "\"") // Right double quotation mark
+	s = strings.ReplaceAll(s, "\u2018", "'")  // Left single quotation mark
+	s = strings.ReplaceAll(s, "\u2019", "'")  // Right single quotation mark (smart apostrophe)
+
+	// Replace dashes with ASCII equivalents
+	s = strings.ReplaceAll(s, "\u2013", "-")  // En dash
+	s = strings.ReplaceAll(s, "\u2014", "--") // Em dash
+
+	// Replace ellipsis
+	s = strings.ReplaceAll(s, "\u2026", "...") // Horizontal ellipsis
+
+	// Replace other common problematic characters
+	s = strings.ReplaceAll(s, "\u00A0", " ")  // Non-breaking space
+	s = strings.ReplaceAll(s, "\u2022", "*")  // Bullet point
+	s = strings.ReplaceAll(s, "\u00AB", "<<") // Left guillemet
+	s = strings.ReplaceAll(s, "\u00BB", ">>") // Right guillemet
+
+	return s
 }

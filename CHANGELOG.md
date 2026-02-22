@@ -75,6 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Saved ~80 lines of duplicate README update code
   - Consistent commit messages and error handling
 
+### Fixed
+- **Unicode Character Rendering in Shelve Form**
+  - PDF metadata containing special Unicode characters (smart quotes, apostrophes, dashes) now display correctly in terminal
+  - Added `sanitizeForTerminal()` function to convert problematic Unicode to ASCII equivalents
+  - Fixes rendering issues like `��` appearing before book titles
+  - Affects titles extracted from PDFs like "Let's Go Further" (smart apostrophe U+2019)
+
 ## [0.1.0] - 2026-02-21
 
 ### Added

@@ -315,6 +315,12 @@ shelfctl is domain-specific by design: it solves the PDF/EPUB library problem an
 
 ---
 
+## Design Philosophy
+
+shelfctl is domain-specific by design: it solves the PDF/EPUB library problem and nothing else. This narrow focus keeps it simple, maintainable, and excellent at what it does.
+
+---
+
 ## ⚖️ Disclaimer
 
 shelfctl is a specialized management tool designed to help developers organize their personal document libraries using the GitHub API. By using this software, you agree to the following:

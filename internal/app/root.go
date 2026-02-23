@@ -577,6 +577,10 @@ func runHub() error {
 			return err
 		}
 
+		// Determine if this action is a TUI command (no "Press Enter" needed)
+		isTUIAction := action == "browse" || action == "shelve" || action == "edit-book" ||
+			action == "move" || action == "delete-book" || action == "cache-clear"
+
 		// Route to the appropriate command based on action
 		var cmdErr error
 
@@ -626,7 +630,12 @@ func runHub() error {
 				return fmt.Errorf("reloading config: %w", err)
 			}
 
-			// Show success message and return to hub
+			// For TUI actions, return directly to hub without "Press Enter" prompt
+			if isTUIAction {
+				continue
+			}
+
+			// For non-TUI actions, show success message and wait for Enter
 			fmt.Println()
 			fmt.Println(color.CyanString("Press Enter to return to menu..."))
 			var dummy string
@@ -634,7 +643,13 @@ func runHub() error {
 			continue
 		}
 
-		// Command failed/canceled - show error and return to hub
+		// Command failed/canceled
+		// For TUI actions, return directly to hub (user already quit from TUI)
+		if isTUIAction {
+			continue
+		}
+
+		// For non-TUI actions, show error and wait for Enter
 		fmt.Println()
 		fmt.Println(color.RedString("Operation failed or canceled: %v", cmdErr))
 		fmt.Println()

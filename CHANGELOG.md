@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Hub Menu Navigation Improvement**
+  - TUI commands (browse, shelve, edit-book, move, delete-book, cache-clear) now return directly to hub menu
+  - No more "Press Enter to return to menu..." prompt after using TUI commands
+  - Non-TUI commands (shelves, index, cache-info) still show the prompt as before
+  - Smoother workflow when using interactive commands from the hub
+
 ### Fixed
 - **File Picker Right Arrow Key Behavior**
   - Fixed right arrow key triggering file selection in Miller columns file picker

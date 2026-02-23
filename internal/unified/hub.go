@@ -15,18 +15,23 @@ import (
 
 // HubModel is the unified-mode version of the hub menu
 type HubModel struct {
-	list        list.Model
-	context     tui.HubContext
-	width       int
-	height      int
-	shelfData   string
-	showDetails bool
-	detailsType string
+	list           list.Model
+	context        tui.HubContext
+	width          int
+	height         int
+	shelfData      string
+	showDetails    bool
+	detailsType    string
+	detailsFocused bool // true when focus is on details panel
+	detailsScroll  int  // scroll offset for details panel (line number)
 }
 
 type hubKeys struct {
-	quit       key.Binding
-	selectItem key.Binding
+	quit         key.Binding
+	selectItem   key.Binding
+	switchFocus  key.Binding
+	scrollUp     key.Binding
+	scrollDown   key.Binding
 }
 
 var hubKeyMap = hubKeys{
@@ -37,6 +42,18 @@ var hubKeyMap = hubKeys{
 	selectItem: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "select"),
+	),
+	switchFocus: key.NewBinding(
+		key.WithKeys("tab", "right"),
+		key.WithHelp("tab/→", "focus details"),
+	),
+	scrollUp: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "scroll up"),
+	),
+	scrollDown: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "scroll down"),
 	),
 }
 
@@ -95,20 +112,75 @@ func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 
-		switch {
-		case key.Matches(msg, hubKeyMap.quit):
-			// In unified mode, quitting hub means quitting the app
-			return m, func() tea.Msg { return QuitAppMsg{} }
-
-		case key.Matches(msg, hubKeyMap.selectItem):
-			if item, ok := m.list.SelectedItem().(tui.MenuItem); ok {
-				itemKey := item.GetKey()
-				if itemKey == "quit" {
-					return m, func() tea.Msg { return QuitAppMsg{} }
+		// Handle focus switching and scrolling when details panel is shown
+		if m.showDetails {
+			switch {
+			case key.Matches(msg, hubKeyMap.switchFocus):
+				// Tab or right arrow switches focus
+				if m.detailsFocused {
+					// Return focus to menu
+					m.detailsFocused = false
+					m.detailsScroll = 0
+				} else {
+					// Move focus to details panel
+					m.detailsFocused = true
+					m.detailsScroll = 0
 				}
-				// Emit navigation message to switch views
-				return m, func() tea.Msg {
-					return NavigateMsg{Target: itemKey}
+				return m, nil
+
+			case msg.String() == "left":
+				// Left arrow returns focus from details to menu
+				if m.detailsFocused {
+					m.detailsFocused = false
+					m.detailsScroll = 0
+					return m, nil
+				}
+
+			case key.Matches(msg, hubKeyMap.scrollUp):
+				if m.detailsFocused {
+					// Scroll details up
+					if m.detailsScroll > 0 {
+						m.detailsScroll--
+					}
+					return m, nil
+				}
+
+			case key.Matches(msg, hubKeyMap.scrollDown):
+				if m.detailsFocused {
+					// Scroll details down (limit checked in render)
+					m.detailsScroll++
+					return m, nil
+				}
+
+			case key.Matches(msg, hubKeyMap.quit):
+				if m.detailsFocused {
+					// First escape returns focus to menu
+					m.detailsFocused = false
+					m.detailsScroll = 0
+					return m, nil
+				}
+				// Second escape quits app
+				return m, func() tea.Msg { return QuitAppMsg{} }
+			}
+		}
+
+		// Normal menu key handling (when not focused on details)
+		if !m.detailsFocused {
+			switch {
+			case key.Matches(msg, hubKeyMap.quit):
+				// In unified mode, quitting hub means quitting the app
+				return m, func() tea.Msg { return QuitAppMsg{} }
+
+			case key.Matches(msg, hubKeyMap.selectItem):
+				if item, ok := m.list.SelectedItem().(tui.MenuItem); ok {
+					itemKey := item.GetKey()
+					if itemKey == "quit" {
+						return m, func() tea.Msg { return QuitAppMsg{} }
+					}
+					// Emit navigation message to switch views
+					return m, func() tea.Msg {
+						return NavigateMsg{Target: itemKey}
+					}
 				}
 			}
 		}
@@ -119,18 +191,29 @@ func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateListSize()
 	}
 
+	// Only update list if not focused on details
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	if !m.detailsFocused {
+		m.list, cmd = m.list.Update(msg)
+	}
 
 	// Check if we should show details panel
 	if item, ok := m.list.SelectedItem().(tui.MenuItem); ok {
 		itemKey := item.GetKey()
+		prevDetailsType := m.detailsType
 		if itemKey == "shelves" || itemKey == "cache-info" {
 			m.showDetails = true
 			m.detailsType = itemKey
+			// Reset focus and scroll when switching between different detail types
+			if prevDetailsType != itemKey {
+				m.detailsFocused = false
+				m.detailsScroll = 0
+			}
 		} else {
 			m.showDetails = false
 			m.detailsType = ""
+			m.detailsFocused = false
+			m.detailsScroll = 0
 		}
 		m.updateListSize()
 	}
@@ -176,10 +259,15 @@ func (m HubModel) View() string {
 	var content string
 	if m.showDetails {
 		// Split-panel layout
+		listBorderColor := tui.ColorGray
+		if m.detailsFocused {
+			// Dim the menu when details panel is focused
+			listBorderColor = lipgloss.AdaptiveColor{Light: "#555555", Dark: "#555555"}
+		}
 		listStyle := lipgloss.NewStyle().
 			BorderRight(true).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(tui.ColorGray)
+			BorderForeground(listBorderColor)
 		listView := listStyle.Render(listContent)
 		detailsView := m.renderDetailsPane()
 
@@ -232,25 +320,100 @@ func (m *HubModel) updateListSize() {
 }
 
 func (m HubModel) renderDetailsPane() string {
+	var rawContent string
 	switch m.detailsType {
 	case "shelves":
-		return m.renderShelvesDetails()
+		rawContent = m.renderShelvesDetailsRaw()
 	case "cache-info":
-		return m.renderCacheDetails()
+		rawContent = m.renderCacheDetailsRaw()
 	default:
 		return ""
 	}
+
+	// Apply scrolling and viewport
+	return m.applyScrollViewport(rawContent)
 }
 
-func (m HubModel) renderShelvesDetails() string {
-	if len(m.context.ShelfDetails) == 0 {
-		return ""
+// applyScrollViewport takes raw content, applies scroll offset, and adds indicators
+func (m HubModel) applyScrollViewport(rawContent string) string {
+	const detailsWidth = 45
+
+	// Calculate available height for details
+	// Account for: outer padding (4), inner padding (2), border (2), header (3), status (1), help (1)
+	availableHeight := m.height - 13
+	if availableHeight < 10 {
+		availableHeight = 10
 	}
 
-	const detailsWidth = 45
+	// Split content into lines
+	lines := strings.Split(rawContent, "\n")
+	totalLines := len(lines)
+
+	// Clamp scroll position
+	maxScroll := totalLines - availableHeight
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if m.detailsScroll > maxScroll {
+		m.detailsScroll = maxScroll
+	}
+	if m.detailsScroll < 0 {
+		m.detailsScroll = 0
+	}
+
+	// Extract visible window
+	start := m.detailsScroll
+	end := start + availableHeight
+	if end > totalLines {
+		end = totalLines
+	}
+
+	visibleLines := lines[start:end]
+	visibleContent := strings.Join(visibleLines, "\n")
+
+	// Add scroll indicators
+	var header string
+	if m.detailsFocused {
+		header = tui.StyleHighlight.Render("◆ Details Panel (↑↓ scroll · tab/esc to exit)")
+	} else {
+		header = tui.StyleHelp.Render("◇ Details Panel (tab/→ to focus & scroll)")
+	}
+
+	var scrollInfo string
+	if totalLines > availableHeight {
+		scrollInfo = tui.StyleHelp.Render(
+			fmt.Sprintf("  Lines %d-%d of %d", start+1, end, totalLines),
+		)
+	}
+
+	// Build final content
+	parts := []string{header}
+	if scrollInfo != "" {
+		parts = append(parts, scrollInfo)
+	}
+	parts = append(parts, "", visibleContent)
+
+	content := strings.Join(parts, "\n")
+
 	detailsStyle := lipgloss.NewStyle().
 		Width(detailsWidth).
 		Padding(1, 1)
+
+	// Add left border when focused for visual distinction
+	if m.detailsFocused {
+		detailsStyle = detailsStyle.
+			BorderLeft(true).
+			BorderStyle(lipgloss.ThickBorder()).
+			BorderForeground(lipgloss.Color("86")) // Cyan to match header
+	}
+
+	return detailsStyle.Render(content)
+}
+
+func (m HubModel) renderShelvesDetailsRaw() string {
+	if len(m.context.ShelfDetails) == 0 {
+		return "No shelves configured"
+	}
 
 	var s strings.Builder
 	s.WriteString(tui.StyleHeader.Render("Configured Shelves"))
@@ -265,15 +428,10 @@ func (m HubModel) renderShelvesDetails() string {
 		s.WriteString("\n")
 	}
 
-	return detailsStyle.Render(s.String())
+	return s.String()
 }
 
-func (m HubModel) renderCacheDetails() string {
-	const detailsWidth = 45
-	detailsStyle := lipgloss.NewStyle().
-		Width(detailsWidth).
-		Padding(1, 1)
-
+func (m HubModel) renderCacheDetailsRaw() string {
 	var s strings.Builder
 	s.WriteString(tui.StyleHeader.Render("Cache Statistics"))
 	s.WriteString("\n\n")
@@ -305,19 +463,10 @@ func (m HubModel) renderCacheDetails() string {
 		s.WriteString(tui.StyleHelp.Render(fmt.Sprintf("  %d books with local changes", m.context.ModifiedCount)))
 		s.WriteString("\n\n")
 
-		displayCount := len(m.context.ModifiedBooks)
-		if displayCount > 10 {
-			displayCount = 10
-		}
-		for i := 0; i < displayCount; i++ {
-			book := m.context.ModifiedBooks[i]
+		// Show ALL modified books (not limited to 10) so scrolling is useful
+		for _, book := range m.context.ModifiedBooks {
 			s.WriteString("  • ")
 			s.WriteString(tui.StyleHighlight.Render(book.ID))
-			s.WriteString("\n")
-		}
-
-		if len(m.context.ModifiedBooks) > 10 {
-			s.WriteString(tui.StyleHelp.Render(fmt.Sprintf("  ... and %d more", len(m.context.ModifiedBooks)-10)))
 			s.WriteString("\n")
 		}
 
@@ -341,7 +490,7 @@ func (m HubModel) renderCacheDetails() string {
 		s.WriteString("\n")
 	}
 
-	return detailsStyle.Render(s.String())
+	return s.String()
 }
 
 func formatBytes(b int64) string {

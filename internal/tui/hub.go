@@ -54,24 +54,23 @@ type HubContext struct {
 	CacheDir      string
 }
 
-// menuItems defines the menu in logical order
+// menuItems defines the menu in frequency-of-use order
 var menuItems = []MenuItem{
-	// Browse & View
+	// Most frequent
 	{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
-	{Key: "shelves", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
-	{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
-	// Cache
+	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
+	{Key: "edit-book", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
+	// Fairly frequent
 	{Key: "cache-info", Label: "Cache Info", Description: "View cache statistics and disk usage", Available: true},
 	{Key: "cache-clear", Label: "Clear Cache", Description: "Remove books from local cache", Available: true},
-	// Add & Import
-	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
+	// Occasional
+	{Key: "shelves", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
+	{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
 	{Key: "shelve-url", Label: "Add from URL", Description: "Download and add a book from URL", Available: true},
-	{Key: "import-repo", Label: "Import from Repository", Description: "Migrate books from another repo", Available: true},
-	// Manage
-	{Key: "edit-book", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
+	// Rare
 	{Key: "move", Label: "Move Book", Description: "Transfer a book to another shelf or release", Available: true},
-	// Remove
 	{Key: "delete-book", Label: "Delete Book", Description: "Remove a book from your library", Available: true},
+	{Key: "import-repo", Label: "Import from Repository", Description: "Migrate books from another repo", Available: true},
 	{Key: "delete-shelf", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
 	// Exit
 	{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},

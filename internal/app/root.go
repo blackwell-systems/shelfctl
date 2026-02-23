@@ -499,11 +499,43 @@ func runUnifiedTUI() error {
 		return nil
 	}
 
-	// Create and run unified model
-	m := unified.New(ctx, gh, cfg, cacheMgr)
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	_, err := p.Run()
-	return err
+	// Run unified TUI in a loop to handle actions that need to exit/restart
+	startView := unified.ViewHub
+	for {
+		// Create and run unified model
+		m := unified.NewAtView(ctx, gh, cfg, cacheMgr, startView)
+		p := tea.NewProgram(m, tea.WithAltScreen())
+		finalModel, err := p.Run()
+		if err != nil {
+			return err
+		}
+
+		// Check if there's a pending action
+		if unifiedModel, ok := finalModel.(unified.Model); ok {
+			if unifiedModel.HasPendingAction() {
+				// Get the action (need to make a copy since unifiedModel is not a pointer)
+				action := *unifiedModel.GetPendingAction()
+
+				// Perform the action (TUI has exited, we're back in normal terminal)
+				if err := unified.PerformPendingAction(&action, gh, cfg, cacheMgr); err != nil {
+					warn("Action failed: %v", err)
+				}
+
+				// Check if we should restart
+				if unifiedModel.ShouldRestart() {
+					// Rebuild context and restart at the specified view
+					ctx = buildHubContext()
+					startView = unifiedModel.GetRestartView()
+					continue
+				}
+			}
+		}
+
+		// No pending action or no restart needed, exit
+		break
+	}
+
+	return nil
 }
 
 // runHub launches the interactive hub menu and routes to selected action

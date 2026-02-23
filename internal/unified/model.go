@@ -44,22 +44,54 @@ type Model struct {
 	gh       *github.Client
 	cfg      *config.Config
 	cacheMgr *cache.Manager
+
+	// Pending action (used when TUI needs to exit to perform action)
+	pendingAction   *ActionRequestMsg
+	shouldRestart   bool
+	restartAtView   View
 }
 
 // New creates a new unified model starting at the hub
 func New(ctx tui.HubContext, gh *github.Client, cfg *config.Config, cacheMgr *cache.Manager) Model {
-	return Model{
-		currentView: ViewHub,
+	return NewAtView(ctx, gh, cfg, cacheMgr, ViewHub)
+}
+
+// NewAtView creates a new unified model starting at a specific view
+func NewAtView(ctx tui.HubContext, gh *github.Client, cfg *config.Config, cacheMgr *cache.Manager, startView View) Model {
+	m := Model{
+		currentView: startView,
 		hubContext:  ctx,
-		hub:         NewHubModel(ctx),
 		gh:          gh,
 		cfg:         cfg,
 		cacheMgr:    cacheMgr,
 	}
+
+	// Initialize the starting view
+	switch startView {
+	case ViewHub:
+		m.hub = NewHubModel(ctx)
+	case ViewBrowse:
+		books := m.collectBooks()
+		m.browse = NewBrowseModel(books, gh, cacheMgr)
+	// Add other views as they're implemented
+	default:
+		// Default to hub
+		m.currentView = ViewHub
+		m.hub = NewHubModel(ctx)
+	}
+
+	return m
 }
 
 func (m Model) Init() tea.Cmd {
-	return m.hub.Init()
+	switch m.currentView {
+	case ViewHub:
+		return m.hub.Init()
+	case ViewBrowse:
+		return m.browse.Init()
+	default:
+		return m.hub.Init()
+	}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -77,18 +109,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case ActionRequestMsg:
-		// Handle action that requires suspending TUI
-		return m, m.handleAction(msg)
-
-	case actionCompleteMsg:
-		// Action completed, navigate back to specified view
-		if msg.err != nil {
-			// TODO: Show error message
-			// For now, just return to the view
+		// Store action and exit TUI to perform it
+		m.pendingAction = &msg
+		m.shouldRestart = true
+		// Map ReturnTo string to View
+		switch msg.ReturnTo {
+		case "hub":
+			m.restartAtView = ViewHub
+		case "browse":
+			m.restartAtView = ViewBrowse
+		case "shelve":
+			m.restartAtView = ViewShelve
+		case "edit":
+			m.restartAtView = ViewEdit
+		default:
+			m.restartAtView = ViewHub
 		}
-		return m, func() tea.Msg {
-			return NavigateMsg{Target: msg.returnTo}
-		}
+		return m, tea.Quit
 
 	default:
 		// Forward to current view
@@ -288,42 +325,6 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// actionCompleteMsg is sent when an action completes
-type actionCompleteMsg struct {
-	err      error
-	returnTo string
-}
-
-// handleAction performs an action
-// Note: For now, actions run in a goroutine. Downloads happen silently.
-// TODO: Implement in-TUI progress indicators for better UX
-func (m Model) handleAction(msg ActionRequestMsg) tea.Cmd {
-	returnTarget := msg.ReturnTo
-	if returnTarget == "" {
-		returnTarget = "hub"
-	}
-
-	// For ActionOpen, if already cached, we can open immediately
-	// If not cached, download will happen silently in background (not ideal UX)
-	// For ActionEdit, we need terminal access, so this won't work well yet
-	// TODO: Implement proper suspend/resume or in-TUI forms
-
-	return func() tea.Msg {
-		var err error
-		switch msg.Action {
-		case tui.ActionOpen:
-			err = m.handleOpenBook(msg.BookItem)
-		case tui.ActionEdit:
-			err = m.handleEditBook(msg.BookItem)
-		}
-
-		return actionCompleteMsg{
-			err:      err,
-			returnTo: returnTarget,
-		}
-	}
-}
-
 // handleOpenBook downloads (if needed) and opens a book file
 func (m Model) handleOpenBook(item *tui.BookItem) error {
 	if item == nil {
@@ -445,6 +446,28 @@ func (m Model) handleEditBook(item *tui.BookItem) error {
 	return nil
 }
 
+// HasPendingAction returns true if there's a pending action to perform
+func (m Model) HasPendingAction() bool {
+	return m.pendingAction != nil
+}
+
+// GetPendingAction returns the pending action and clears it
+func (m *Model) GetPendingAction() *ActionRequestMsg {
+	action := m.pendingAction
+	m.pendingAction = nil
+	return action
+}
+
+// ShouldRestart returns true if the TUI should restart after an action
+func (m Model) ShouldRestart() bool {
+	return m.shouldRestart
+}
+
+// GetRestartView returns the view to restart at
+func (m Model) GetRestartView() View {
+	return m.restartAtView
+}
+
 // openFile opens a file with the system default application
 func openFile(path, app string) error {
 	var cmdName string
@@ -472,4 +495,24 @@ func openFile(path, app string) error {
 		return fmt.Errorf("opening file with %q: %w", cmdName, err)
 	}
 	return nil
+}
+
+// PerformPendingAction executes a pending action outside the TUI
+// This should be called after the TUI has exited
+func PerformPendingAction(action *ActionRequestMsg, gh *github.Client, cfg *config.Config, cacheMgr *cache.Manager) error {
+	// Create a temporary model with dependencies
+	m := Model{
+		gh:       gh,
+		cfg:      cfg,
+		cacheMgr: cacheMgr,
+	}
+
+	switch action.Action {
+	case tui.ActionOpen:
+		return m.handleOpenBook(action.BookItem)
+	case tui.ActionEdit:
+		return m.handleEditBook(action.BookItem)
+	default:
+		return nil
+	}
 }

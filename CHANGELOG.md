@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No more "Press Enter to return to menu..." prompt after using TUI commands
   - Non-TUI commands (shelves, index, cache-info) still show the prompt as before
   - Smoother workflow when using interactive commands from the hub
+  - Reduced screen flicker when transitioning between TUI commands by clearing screen
 - **Hub Menu Reordered by Frequency of Use**
   - Most-used commands now at top: Browse, Add Book, Edit Book
   - Cache commands grouped together: Cache Info, Clear Cache

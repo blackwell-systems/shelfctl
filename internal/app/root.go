@@ -632,6 +632,8 @@ func runHub() error {
 
 			// For TUI actions, return directly to hub without "Press Enter" prompt
 			if isTUIAction {
+				// Clear screen to reduce flicker between TUI transitions
+				fmt.Print("\033[2J\033[H")
 				continue
 			}
 
@@ -646,6 +648,8 @@ func runHub() error {
 		// Command failed/canceled
 		// For TUI actions, return directly to hub (user already quit from TUI)
 		if isTUIAction {
+			// Clear screen to reduce flicker between TUI transitions
+			fmt.Print("\033[2J\033[H")
 			continue
 		}
 

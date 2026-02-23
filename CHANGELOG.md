@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-02-22
+
+### Added
+- **Enhanced Cache Info Display**
+  - Cache info now lists which specific books are NOT cached
+  - Shows both book ID and title for easy identification
+  - Previously only showed count: "⚠ 3 books not cached"
+  - Now shows detailed list:
+    ```
+    ⚠ 3 books not cached:
+      - book-one (Book One Title)
+      - book-two (Book Two Title)
+      - book-three (Book Three Title)
+    ```
+  - Applies to both `cache info` (all shelves) and `cache info --shelf <name>`
+
+### Fixed
+- **Shelve Form Index Out of Range Panic**
+  - Fixed crash when navigating to "Cache locally" checkbox in add book form
+  - Root cause: Code tried to update `m.inputs[4]` but array only had 4 elements (0-3)
+  - Checkbox is not a text input field and should be skipped during input updates
+  - Affected all users adding books via TUI - pressing tab/arrow keys would crash
+  - Now safely navigates and toggles checkbox without panic
+
 ## [0.1.3] - 2026-02-22
 
 ### Added
@@ -729,7 +753,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `init.go`: 22 → ~8 (6 helpers)
   - `migrate.go`: 22 & 19 → ~10 & ~8 (9 helpers)
 
-[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.4
+[0.1.3]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.3
 [0.1.2]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.2
 [0.1.1]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.1
 [0.1.0]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.0

@@ -18,10 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CLI: `shelfctl cache clear --shelf books` to clear entire shelf cache
   - CLI: `shelfctl cache clear --all` to nuke entire cache (with confirmation)
   - CLI: `shelfctl cache clear` for interactive picker (multi-select)
-  - CLI: `shelfctl cache info` shows cache statistics (total books, cached count, disk usage)
+  - CLI: `shelfctl cache info` shows cache statistics and lists which books have local changes
   - TUI: 'x' key removes selected books from cache (supports multi-select)
   - Hub menu: Added "Cache Info" and "Clear Cache" options
-  - Cache Info shows details panel with stats when highlighted (like View Shelves)
+  - Cache Info shows details panel with modified book list when highlighted
   - Books remain in catalog/release, only local cache cleared
   - Useful for reclaiming disk space without affecting library
 - **HTML Index Enhancements**
@@ -48,8 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CLI: Progress indicators with "[2/5]" counter and upload progress bar for each book
   - TUI: Press 's' in browse view to sync selected books (or current if none selected)
   - TUI: Shows progress message during sync operation
-  - `cache info` now shows modified count: "3 books have local changes"
-  - Hub Cache Info panel displays modified books with hint to run sync
+  - `cache info` lists modified books by ID and title: "sicp (Structure and Interpretation...)"
+  - Hub Cache Info panel displays modified books with hint to press 's' in browse or run sync
   - Keeps GitHub in sync with your working copies without version clutter
 - **Cache Clear Protection**
   - Modified files (with annotations/highlights) are now protected by default

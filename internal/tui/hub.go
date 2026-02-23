@@ -34,6 +34,12 @@ type ShelfStatus struct {
 	Status    string // "✓ Healthy", "⚠ Warning", "✗ Error"
 }
 
+// ModifiedBook represents a book with local changes
+type ModifiedBook struct {
+	ID    string
+	Title string
+}
+
 // HubContext holds optional context info to display in the hub
 type HubContext struct {
 	ShelfCount   int
@@ -43,6 +49,7 @@ type HubContext struct {
 	// Cache stats
 	CachedCount   int
 	ModifiedCount int
+	ModifiedBooks []ModifiedBook
 	CacheSize     int64
 	CacheDir      string
 }
@@ -276,11 +283,33 @@ func (m hubModel) renderCacheDetails() string {
 		fmt.Fprintf(&s, "%d\n", uncached)
 	}
 
-	// Modified count
+	// Modified count and list
 	if m.context.ModifiedCount > 0 {
-		s.WriteString(StyleHighlight.Render("Modified: "))
-		fmt.Fprintf(&s, "%d (annotations/highlights)\n", m.context.ModifiedCount)
-		s.WriteString(StyleHelp.Render("  Use 'sync' command to upload changes"))
+		s.WriteString("\n")
+		s.WriteString(StyleHighlight.Render("Modified Books:"))
+		s.WriteString("\n")
+		s.WriteString(StyleHelp.Render(fmt.Sprintf("  %d books with local changes", m.context.ModifiedCount)))
+		s.WriteString("\n\n")
+
+		// List modified books (limit to avoid overflow)
+		displayCount := len(m.context.ModifiedBooks)
+		if displayCount > 10 {
+			displayCount = 10
+		}
+		for i := 0; i < displayCount; i++ {
+			book := m.context.ModifiedBooks[i]
+			s.WriteString("  • ")
+			s.WriteString(StyleHighlight.Render(book.ID))
+			s.WriteString("\n")
+		}
+
+		if len(m.context.ModifiedBooks) > 10 {
+			s.WriteString(StyleHelp.Render(fmt.Sprintf("  ... and %d more", len(m.context.ModifiedBooks)-10)))
+			s.WriteString("\n")
+		}
+
+		s.WriteString("\n")
+		s.WriteString(StyleHelp.Render("  Press 's' in browse or run 'sync --all'"))
 		s.WriteString("\n")
 	}
 

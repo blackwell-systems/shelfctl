@@ -790,6 +790,7 @@ func buildHubContext() tui.HubContext {
 	cachedCount := 0
 	modifiedCount := 0
 	var cacheSize int64
+	var modifiedBooks []tui.ModifiedBook
 
 	for _, shelf := range cfg.Shelves {
 		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
@@ -816,6 +817,10 @@ func buildHubContext() tui.HubContext {
 				// Check if modified
 				if cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
 					modifiedCount++
+					modifiedBooks = append(modifiedBooks, tui.ModifiedBook{
+						ID:    b.ID,
+						Title: b.Title,
+					})
 				}
 			}
 		}
@@ -823,6 +828,7 @@ func buildHubContext() tui.HubContext {
 
 	ctx.CachedCount = cachedCount
 	ctx.ModifiedCount = modifiedCount
+	ctx.ModifiedBooks = modifiedBooks
 	ctx.CacheSize = cacheSize
 	if ctx.BookCount > 0 {
 		// Get cache dir from any path

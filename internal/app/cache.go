@@ -413,6 +413,7 @@ func showAllCacheInfo() error {
 	cachedCount := 0
 	modifiedCount := 0
 	var totalSize int64
+	var modifiedBooks []tui.BookItem
 
 	for _, item := range allBooks {
 		if item.Cached {
@@ -425,6 +426,7 @@ func showAllCacheInfo() error {
 			// Check if modified
 			if cacheMgr.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
 				modifiedCount++
+				modifiedBooks = append(modifiedBooks, item)
 			}
 		}
 	}
@@ -446,8 +448,11 @@ func showAllCacheInfo() error {
 
 	if modifiedCount > 0 {
 		fmt.Println()
-		fmt.Printf("%s %d books have local changes\n", color.CyanString("ℹ"), modifiedCount)
-		fmt.Printf("  Run 'shelfctl sync --all' to upload changes to GitHub\n")
+		fmt.Printf("%s %d books have local changes:\n", color.CyanString("ℹ"), modifiedCount)
+		for _, item := range modifiedBooks {
+			fmt.Printf("  - %s (%s)\n", item.Book.ID, item.Book.Title)
+		}
+		fmt.Printf("\n  Run 'shelfctl sync --all' to upload changes to GitHub\n")
 	}
 
 	return nil
@@ -474,6 +479,7 @@ func showShelfCacheInfo(shelfName string) error {
 	cachedCount := 0
 	modifiedCount := 0
 	var totalSize int64
+	var modifiedBooks []*catalog.Book
 
 	for i := range books {
 		b := &books[i]
@@ -487,6 +493,7 @@ func showShelfCacheInfo(shelfName string) error {
 			// Check if modified
 			if cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
 				modifiedCount++
+				modifiedBooks = append(modifiedBooks, b)
 			}
 		}
 	}
@@ -508,8 +515,11 @@ func showShelfCacheInfo(shelfName string) error {
 
 	if modifiedCount > 0 {
 		fmt.Println()
-		fmt.Printf("%s %d books have local changes\n", color.CyanString("ℹ"), modifiedCount)
-		fmt.Printf("  Run 'shelfctl sync --shelf %s' to upload changes\n", shelfName)
+		fmt.Printf("%s %d books have local changes:\n", color.CyanString("ℹ"), modifiedCount)
+		for _, b := range modifiedBooks {
+			fmt.Printf("  - %s (%s)\n", b.ID, b.Title)
+		}
+		fmt.Printf("\n  Run 'shelfctl sync --shelf %s' to upload changes\n", shelfName)
 	}
 
 	return nil

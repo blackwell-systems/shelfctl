@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **File Picker Right Arrow Key Behavior**
+  - Fixed right arrow key triggering file selection in Miller columns file picker
+  - Right arrow and 'l' now only navigate into directories, not select files
+  - Enter key continues to work for both opening directories and selecting files
+  - Prevents accidental navigation to add screen when browsing PDFs
+
 ## [0.1.4] - 2026-02-22
 
 ### Added

@@ -106,6 +106,7 @@ type filePickerModel struct {
 type filePickerKeys struct {
 	quit       key.Binding
 	selectItem key.Binding
+	openDir    key.Binding
 	parent     key.Binding
 	toggle     key.Binding
 	navRight   key.Binding
@@ -118,8 +119,12 @@ var fileKeys = filePickerKeys{
 		key.WithHelp("q", "cancel"),
 	),
 	selectItem: key.NewBinding(
-		key.WithKeys("enter", "right", "l"),
+		key.WithKeys("enter"),
 		key.WithHelp("enter", "select/open"),
+	),
+	openDir: key.NewBinding(
+		key.WithKeys("right", "l"),
+		key.WithHelp("right", "open dir"),
 	),
 	parent: key.NewBinding(
 		key.WithKeys("backspace", "left", "h"),
@@ -181,7 +186,19 @@ func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ms.Toggle()
 			return m, nil
 
+		case key.Matches(msg, fileKeys.openDir):
+			// Right arrow / 'l' - only navigates into directories
+			if item, ok := ms.List.SelectedItem().(*FileItem); ok {
+				if item.IsDir {
+					// Navigate into directory - push new column
+					return m.pushColumn(item.Path)
+				}
+				// Ignore if not a directory
+			}
+			return m, nil
+
 		case key.Matches(msg, fileKeys.selectItem):
+			// Enter - selects files or opens directories
 			if item, ok := ms.List.SelectedItem().(*FileItem); ok {
 				if item.IsDir {
 					// Navigate into directory - push new column

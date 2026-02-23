@@ -4,11 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
-	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	ghclient "github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
@@ -986,104 +984,5 @@ func runImportFromRepo() error {
 }
 
 func buildHubContext() tui.HubContext {
-	ctx := tui.HubContext{
-		ShelfCount: len(cfg.Shelves),
-	}
-
-	// Collect shelf details for inline display
-	var shelfDetails []tui.ShelfStatus
-	for _, shelf := range cfg.Shelves {
-		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
-		catalogPath := shelf.EffectiveCatalogPath()
-		release := shelf.EffectiveRelease(cfg.Defaults.Release)
-
-		status := tui.ShelfStatus{
-			Name:      shelf.Name,
-			Repo:      shelf.Repo,
-			Owner:     owner,
-			BookCount: 0,
-			Status:    "✓ Healthy",
-		}
-
-		// Check repo exists
-		exists, err := gh.RepoExists(owner, shelf.Repo)
-		if err != nil || !exists {
-			status.Status = "✗ Repo not found"
-			shelfDetails = append(shelfDetails, status)
-			continue
-		}
-
-		// Load catalog and count books
-		if data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, ""); err == nil {
-			if books, err := catalog.Parse(data); err == nil {
-				status.BookCount = len(books)
-				ctx.BookCount += len(books)
-			}
-		} else {
-			status.Status = "⚠ Catalog missing"
-		}
-
-		// Check release exists
-		if _, err := gh.GetReleaseByTag(owner, shelf.Repo, release); err != nil {
-			status.Status = "⚠ Release missing"
-		}
-
-		shelfDetails = append(shelfDetails, status)
-	}
-
-	ctx.ShelfDetails = shelfDetails
-
-	// Calculate cache stats
-	cachedCount := 0
-	modifiedCount := 0
-	var cacheSize int64
-	var modifiedBooks []tui.ModifiedBook
-
-	for _, shelf := range cfg.Shelves {
-		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
-		catalogPath := shelf.EffectiveCatalogPath()
-
-		data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
-		if err != nil {
-			continue
-		}
-		books, err := catalog.Parse(data)
-		if err != nil {
-			continue
-		}
-
-		for i := range books {
-			b := &books[i]
-			if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
-				cachedCount++
-				path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
-				if info, err := os.Stat(path); err == nil {
-					cacheSize += info.Size()
-				}
-
-				// Check if modified
-				if cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
-					modifiedCount++
-					modifiedBooks = append(modifiedBooks, tui.ModifiedBook{
-						ID:    b.ID,
-						Title: b.Title,
-					})
-				}
-			}
-		}
-	}
-
-	ctx.CachedCount = cachedCount
-	ctx.ModifiedCount = modifiedCount
-	ctx.ModifiedBooks = modifiedBooks
-	ctx.CacheSize = cacheSize
-	if ctx.BookCount > 0 {
-		// Get cache dir from any path
-		ctx.CacheDir = cacheMgr.Path("", "", "", "")
-		if ctx.CacheDir != "" {
-			ctx.CacheDir = filepath.Dir(ctx.CacheDir)
-		}
-	}
-
-	return ctx
+	return unified.BuildContext(gh, cfg, cacheMgr)
 }

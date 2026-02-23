@@ -118,7 +118,10 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 	case "browse":
 		m.currentView = ViewBrowse
 		m.browse = NewBrowseModel()
-		return m, m.browse.Init()
+		// Send window size to properly initialize the browse view
+		return m, func() tea.Msg {
+			return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+		}
 
 	case "shelve":
 		m.currentView = ViewShelve
@@ -150,7 +153,10 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		m.currentView = ViewHub
 		// TODO: refresh hub context from app state
 		m.hub = NewHubModel(m.hubContext)
-		return m, m.hub.Init()
+		// Send window size to properly initialize the hub list
+		return m, func() tea.Msg {
+			return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+		}
 
 	case "shelves":
 		// Non-TUI command - these still need to run outside unified mode

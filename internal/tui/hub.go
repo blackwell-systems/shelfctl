@@ -25,6 +25,11 @@ func (m MenuItem) FilterValue() string {
 	return m.Label + " " + m.Description
 }
 
+// Getters for unified mode
+func (m MenuItem) GetKey() string         { return m.Key }
+func (m MenuItem) GetLabel() string       { return m.Label }
+func (m MenuItem) GetDescription() string { return m.Description }
+
 // ShelfStatus represents the status of a single shelf
 type ShelfStatus struct {
 	Name      string
@@ -52,6 +57,11 @@ type HubContext struct {
 	ModifiedBooks []ModifiedBook
 	CacheSize     int64
 	CacheDir      string
+}
+
+// GetMenuItems returns the menu items for use in unified mode
+func GetMenuItems() []MenuItem {
+	return menuItems
 }
 
 // menuItems defines the menu in frequency-of-use order

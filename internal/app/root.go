@@ -12,8 +12,10 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	ghclient "github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/unified"
 	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -39,9 +41,9 @@ Run 'shelfctl' with no arguments to launch the interactive menu.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// If no subcommand provided and in TUI mode, launch hub
+		// If no subcommand provided and in TUI mode, launch unified TUI
 		if tui.ShouldUseTUI(cmd) {
-			return runHub()
+			return runUnifiedTUI()
 		}
 		// Otherwise show help
 		return cmd.Help()
@@ -467,7 +469,45 @@ func runInteractiveInit() error {
 	return nil
 }
 
+// runUnifiedTUI launches the unified TUI with seamless view switching
+func runUnifiedTUI() error {
+	// Check configuration status
+	hasToken := cfg != nil && cfg.GitHub.Token != ""
+	hasShelves := cfg != nil && len(cfg.Shelves) > 0
+
+	// If not fully configured, show welcome/setup message
+	if !hasToken || !hasShelves {
+		// Same setup flow as runHub()
+		// For now, fall back to legacy runHub() for setup
+		return runHub()
+	}
+
+	// Build hub context
+	ctx := buildHubContext()
+
+	// If all shelves were deleted, exit gracefully
+	if ctx.ShelfCount == 0 {
+		fmt.Println()
+		fmt.Println(color.YellowString("No shelves configured."))
+		fmt.Println()
+		fmt.Println("To use shelfctl, you need at least one shelf.")
+		fmt.Println()
+		fmt.Println("Run this to create your first shelf:")
+		fmt.Printf("  %s\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
+		fmt.Println()
+		fmt.Println("Or run 'shelfctl' to use the interactive setup wizard.")
+		return nil
+	}
+
+	// Create and run unified model
+	m := unified.New(ctx)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	_, err := p.Run()
+	return err
+}
+
 // runHub launches the interactive hub menu and routes to selected action
+// DEPRECATED: This is the legacy implementation. Use runUnifiedTUI() for new code.
 func runHub() error {
 	// Check configuration status
 	hasToken := cfg != nil && cfg.GitHub.Token != ""

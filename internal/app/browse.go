@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
@@ -71,6 +72,60 @@ func (d *browserDownloader) Uncache(owner, repo, bookID, asset string) error {
 	return d.cache.Remove(owner, repo, bookID, asset)
 }
 
+func (d *browserDownloader) Sync(owner, repo, bookID, release, asset, catalogSHA256 string) (bool, error) {
+	// Check if cached and modified
+	if !d.cache.Exists(owner, repo, bookID, asset) {
+		return false, fmt.Errorf("not cached")
+	}
+
+	if !d.cache.HasBeenModified(owner, repo, bookID, asset, catalogSHA256) {
+		return false, nil // No changes
+	}
+
+	// Get cached file path and size
+	cachedPath := d.cache.Path(owner, repo, bookID, asset)
+	info, err := os.Stat(cachedPath)
+	if err != nil {
+		return false, fmt.Errorf("stat cached file: %w", err)
+	}
+	cachedSize := info.Size()
+
+	// Get release
+	rel, err := d.gh.GetReleaseByTag(owner, repo, release)
+	if err != nil {
+		return false, fmt.Errorf("release %q: %w", release, err)
+	}
+
+	// Find and delete old asset
+	oldAsset, err := d.gh.FindAsset(owner, repo, rel.ID, asset)
+	if err != nil {
+		return false, fmt.Errorf("finding asset: %w", err)
+	}
+	if oldAsset != nil {
+		if err := d.gh.DeleteAsset(owner, repo, oldAsset.ID); err != nil {
+			return false, fmt.Errorf("deleting old asset: %w", err)
+		}
+	}
+
+	// Upload modified file
+	f, err := os.Open(cachedPath)
+	if err != nil {
+		return false, fmt.Errorf("opening cached file: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	_, err = d.gh.UploadAsset(owner, repo, rel.ID, asset, f, cachedSize, "application/octet-stream")
+	if err != nil {
+		return false, fmt.Errorf("uploading: %w", err)
+	}
+
+	return true, nil
+}
+
+func (d *browserDownloader) HasBeenModified(owner, repo, bookID, asset, catalogSHA256 string) bool {
+	return d.cache.HasBeenModified(owner, repo, bookID, asset, catalogSHA256)
+}
+
 // progressReader wraps io.Reader to send progress updates
 type progressReader struct {
 	reader     io.Reader
@@ -133,6 +188,7 @@ func newBrowseCmd() *cobra.Command {
 					shelf := &shelves[i]
 					owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 					catalogPath := shelf.EffectiveCatalogPath()
+					releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
 
 					data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
 					if err != nil {
@@ -168,6 +224,7 @@ func newBrowseCmd() *cobra.Command {
 							CoverPath: coverPath,
 							Owner:     owner,
 							Repo:      shelf.Repo,
+							Release:   releaseTag,
 						})
 					}
 				}

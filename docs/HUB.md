@@ -39,6 +39,7 @@ The hub provides access to all core operations and loops continuously until you 
   - `space` - Toggle selection (checkboxes appear for multi-select)
   - `g` - Download selected books to cache (or current if none selected)
   - `x` - Remove selected books from cache (or current if none selected)
+  - `s` - Sync modified books to GitHub (uploads annotations/highlights)
   - `c` - Clear all selections
   - `tab` - Toggle details panel
   - `q` - Return to hub menu
@@ -46,6 +47,7 @@ The hub provides access to all core operations and loops continuously until you 
   - Press `space` to check books for batch operations
   - Press `g` to download all selected (useful for pre-caching for offline)
   - Press `x` to remove selected from cache (frees disk space, keeps in library)
+  - Press `s` to sync modified books back to GitHub (replaces release assets)
 - Downloads happen in background with progress bar at bottom
 - Books marked as cached when download complete
 - Extracts PDF cover thumbnails automatically during download

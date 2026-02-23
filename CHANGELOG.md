@@ -44,8 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `sync` command to upload locally modified books back to GitHub
   - Detects when cached files differ from Release asset (annotations, highlights, etc.)
   - Re-uploads modified file and updates catalog (replaces asset, no versioning)
-  - Supports `sync book-id`, `sync --all`, `sync --all --shelf name`
-  - Progress indicators: "[2/5]" counter and upload progress bar for each book
+  - CLI: Supports `sync book-id`, `sync --all`, `sync --all --shelf name`
+  - CLI: Progress indicators with "[2/5]" counter and upload progress bar for each book
+  - TUI: Press 's' in browse view to sync selected books (or current if none selected)
+  - TUI: Shows progress message during sync operation
   - `cache info` now shows modified count: "3 books have local changes"
   - Hub Cache Info panel displays modified books with hint to run sync
   - Keeps GitHub in sync with your working copies without version clutter
@@ -55,9 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `--force` flag to delete modified files if absolutely needed
   - Applies to all clear operations: specific books, shelf, all, interactive
   - Prevents accidental loss of annotations when reclaiming disk space
-- **Multi-Select Download in Browse**
+- **Multi-Select Operations in Browse**
   - Spacebar to toggle selection (checkboxes appear in list)
   - 'g' downloads all selected books to cache (or current if none selected)
+  - 'x' removes selected books from cache (or current if none selected)
+  - 's' syncs selected modified books to GitHub (or current if none selected)
   - 'c' to clear all selections
   - Downloads happen in background without exiting TUI
   - Progress bar shows at bottom of screen

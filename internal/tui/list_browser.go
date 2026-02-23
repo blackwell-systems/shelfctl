@@ -23,7 +23,8 @@ type BookItem struct {
 	CoverPath string
 	Owner     string
 	Repo      string
-	selected  bool // For multi-select mode
+	Release   string // Release tag for this book
+	selected  bool   // For multi-select mode
 }
 
 // FilterValue returns a string used for filtering in the list
@@ -135,6 +136,7 @@ type keyMap struct {
 	open         key.Binding
 	get          key.Binding
 	uncache      key.Binding
+	sync         key.Binding
 	edit         key.Binding
 	filter       key.Binding
 	togglePanel  key.Binding
@@ -162,6 +164,10 @@ var keys = keyMap{
 	uncache: key.NewBinding(
 		key.WithKeys("x"),
 		key.WithHelp("x", "remove cache"),
+	),
+	sync: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "sync"),
 	),
 	edit: key.NewBinding(
 		key.WithKeys("e"),
@@ -218,6 +224,8 @@ type Downloader interface {
 	Download(owner, repo, bookID, release, asset, sha256 string) (downloaded bool, err error)
 	DownloadWithProgress(owner, repo, bookID, release, asset, sha256 string, progressCh chan<- float64) error
 	Uncache(owner, repo, bookID, asset string) error
+	Sync(owner, repo, bookID, release, asset, catalogSHA256 string) (synced bool, err error)
+	HasBeenModified(owner, repo, bookID, asset, catalogSHA256 string) bool
 }
 
 // model holds the state for the list browser
@@ -452,6 +460,56 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case key.Matches(msg, keys.sync):
+			// Sync modified cached books back to GitHub
+			// Only works if downloader available
+			if m.downloader == nil {
+				return m, nil
+			}
+
+			// Check if any books are selected for batch sync
+			items := m.list.Items()
+			var booksToSync []BookItem
+
+			for _, item := range items {
+				if bookItem, ok := item.(BookItem); ok && bookItem.selected {
+					if bookItem.Cached && m.downloader.HasBeenModified(bookItem.Owner, bookItem.Repo, bookItem.Book.ID, bookItem.Book.Source.Asset, bookItem.Book.Checksum.SHA256) {
+						booksToSync = append(booksToSync, bookItem)
+					}
+				}
+			}
+
+			// Batch sync selected books
+			if len(booksToSync) > 0 {
+				for i, bookItem := range booksToSync {
+					progressLabel := fmt.Sprintf("[%d/%d] %s", i+1, len(booksToSync), bookItem.Book.ID)
+					m.list.NewStatusMessage(progressLabel)
+					_, _ = m.downloader.Sync(bookItem.Owner, bookItem.Repo, bookItem.Book.ID, bookItem.Release, bookItem.Book.Source.Asset, bookItem.Book.Checksum.SHA256)
+				}
+				m.list.NewStatusMessage(fmt.Sprintf("Synced %d books", len(booksToSync)))
+				// Clear selections after sync
+				for i, item := range items {
+					if bi, ok := item.(BookItem); ok {
+						bi.selected = false
+						items[i] = bi
+					}
+				}
+				m.list.SetItems(items)
+				return m, nil
+			}
+
+			// Single book sync
+			if item, ok := m.list.SelectedItem().(BookItem); ok {
+				if item.Cached && m.downloader.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
+					m.list.NewStatusMessage(fmt.Sprintf("Syncing %s...", item.Book.ID))
+					_, _ = m.downloader.Sync(item.Owner, item.Repo, item.Book.ID, item.Release, item.Book.Source.Asset, item.Book.Checksum.SHA256)
+					m.list.NewStatusMessage(fmt.Sprintf("Synced %s", item.Book.ID))
+				} else {
+					m.list.NewStatusMessage(fmt.Sprintf("%s: no changes", item.Book.ID))
+				}
+			}
+			return m, nil
+
 		case key.Matches(msg, keys.edit):
 			// Edit book
 			if item, ok := m.list.SelectedItem().(BookItem); ok {
@@ -620,6 +678,7 @@ func (m model) renderFooter() string {
 		"o open",
 		"g download",
 		"x uncache",
+		"s sync",
 		"e edit",
 		"space select",
 		"c clear",

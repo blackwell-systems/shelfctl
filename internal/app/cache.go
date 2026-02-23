@@ -414,6 +414,7 @@ func showAllCacheInfo() error {
 	modifiedCount := 0
 	var totalSize int64
 	var modifiedBooks []tui.BookItem
+	var uncachedBooks []tui.BookItem
 
 	for _, item := range allBooks {
 		if item.Cached {
@@ -428,6 +429,8 @@ func showAllCacheInfo() error {
 				modifiedCount++
 				modifiedBooks = append(modifiedBooks, item)
 			}
+		} else {
+			uncachedBooks = append(uncachedBooks, item)
 		}
 	}
 
@@ -443,7 +446,10 @@ func showAllCacheInfo() error {
 	uncachedCount := totalBooks - cachedCount
 	if uncachedCount > 0 {
 		fmt.Println()
-		fmt.Printf("%s %d books not cached\n", color.YellowString("⚠"), uncachedCount)
+		fmt.Printf("%s %d books not cached:\n", color.YellowString("⚠"), uncachedCount)
+		for _, item := range uncachedBooks {
+			fmt.Printf("  - %s (%s)\n", item.Book.ID, item.Book.Title)
+		}
 	}
 
 	if modifiedCount > 0 {
@@ -480,6 +486,7 @@ func showShelfCacheInfo(shelfName string) error {
 	modifiedCount := 0
 	var totalSize int64
 	var modifiedBooks []*catalog.Book
+	var uncachedBooks []*catalog.Book
 
 	for i := range books {
 		b := &books[i]
@@ -495,6 +502,8 @@ func showShelfCacheInfo(shelfName string) error {
 				modifiedCount++
 				modifiedBooks = append(modifiedBooks, b)
 			}
+		} else {
+			uncachedBooks = append(uncachedBooks, b)
 		}
 	}
 
@@ -510,7 +519,10 @@ func showShelfCacheInfo(shelfName string) error {
 	uncachedCount := totalBooks - cachedCount
 	if uncachedCount > 0 {
 		fmt.Println()
-		fmt.Printf("%s %d books not cached\n", color.YellowString("⚠"), uncachedCount)
+		fmt.Printf("%s %d books not cached:\n", color.YellowString("⚠"), uncachedCount)
+		for _, b := range uncachedBooks {
+			fmt.Printf("  - %s (%s)\n", b.ID, b.Title)
+		}
 	}
 
 	if modifiedCount > 0 {

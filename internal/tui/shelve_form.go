@@ -164,9 +164,11 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Update the focused input
+	// Update the focused input (only if it's a text input field, not the checkbox)
 	var cmd tea.Cmd
-	m.inputs[m.focused], cmd = m.inputs[m.focused].Update(msg)
+	if m.focused < fieldID+1 {
+		m.inputs[m.focused], cmd = m.inputs[m.focused].Update(msg)
+	}
 	return m, cmd
 }
 

@@ -356,8 +356,6 @@ func (m Model) handleOpenBook(item *tui.BookItem) error {
 
 	// Download if not cached
 	if !item.Cached {
-		fmt.Printf("Downloading %s...\n", b.ID)
-
 		// Get release
 		rel, err := m.gh.GetReleaseByTag(item.Owner, item.Repo, b.Source.Release)
 		if err != nil {
@@ -380,13 +378,33 @@ func (m Model) handleOpenBook(item *tui.BookItem) error {
 		}
 		defer func() { _ = rc.Close() }()
 
-		// Store in cache
-		_, err = m.cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
-		if err != nil {
+		// Use progress bar with TUI
+		progressCh := make(chan int64, 50)
+		errCh := make(chan error, 1)
+
+		// Show connecting message
+		fmt.Printf("Connecting to GitHub...\n")
+
+		// Start download in goroutine
+		go func() {
+			pr := tui.NewProgressReader(rc, asset.Size, progressCh)
+			_, err := m.cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, pr, b.Checksum.SHA256)
+			close(progressCh)
+			errCh <- err
+		}()
+
+		// Show progress UI (TUI-based progress bar)
+		label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
+		if err := tui.ShowProgress(label, asset.Size, progressCh); err != nil {
+			return err // User cancelled
+		}
+
+		// Get result
+		if err := <-errCh; err != nil {
 			return fmt.Errorf("cache: %w", err)
 		}
 
-		fmt.Printf("Downloaded %s\n", b.ID)
+		fmt.Println("✓ Cached")
 	}
 
 	// Open the file
@@ -499,6 +517,20 @@ func (m Model) ShouldRestart() bool {
 // GetRestartView returns the view to restart at
 func (m Model) GetRestartView() View {
 	return m.restartAtView
+}
+
+// humanBytes formats bytes as human-readable size
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for n := n / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
 // openFile opens a file with the system default application

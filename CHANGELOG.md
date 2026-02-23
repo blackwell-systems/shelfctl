@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       - book-three (Book Three Title)
     ```
   - Applies to both `cache info` (all shelves) and `cache info --shelf <name>`
+- **Sticky Header Navigation in HTML Index**
+  - Header, search/sort controls, and tag filters now stick to top when scrolling
+  - Navigation controls remain accessible while browsing large book collections
+  - Visual separation with background color, border, and shadow
 
 ### Fixed
 - **Shelve Form Index Out of Range Panic**
@@ -30,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Checkbox is not a text input field and should be skipped during input updates
   - Affected all users adding books via TUI - pressing tab/arrow keys would crash
   - Now safely navigates and toggles checkbox without panic
+- **Cover Image Not Generated for Auto-Cached Books**
+  - Fixed redundant ExtractCover() call that was deleting successfully generated covers
+  - Books cached during upload (via --cache flag or TUI checkbox) now properly get covers
+  - Store() already handles cover extraction, redundant second call was problematic
+- **Cover Extraction Compatibility with pdftoppm 26.x**
+  - Fixed cover generation for newer pdftoppm versions (26.x) that use 4-digit padding
+  - ExtractCover() now tries all formats: -0001.jpg, -001.jpg, -1.jpg
+  - Previously failed silently when pdftoppm created -0001.jpg but code expected -001.jpg
+  - Fixes cover extraction for all PDFs when using recent poppler installations
 
 ## [0.1.3] - 2026-02-22
 

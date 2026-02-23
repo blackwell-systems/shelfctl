@@ -17,3 +17,9 @@ type ActionRequestMsg struct {
 	BookItem *tui.BookItem
 	ReturnTo string // Which view to return to after action completes
 }
+
+// ShelveRequestMsg is emitted when user wants to add books
+type ShelveRequestMsg struct {
+	ShelfName string // Optional: pre-selected shelf
+	ReturnTo  string // Which view to return to after completion
+}

@@ -512,8 +512,8 @@ func runUnifiedTUI() error {
 
 		// Check if there's a pending action
 		if unifiedModel, ok := finalModel.(unified.Model); ok {
-			if unifiedModel.HasPendingAction() {
-				// Get the action (need to make a copy since unifiedModel is not a pointer)
+			// Handle book actions (open, edit)
+			if unifiedModel.GetPendingAction() != nil {
 				action := *unifiedModel.GetPendingAction()
 
 				// Perform the action (TUI has exited, we're back in normal terminal)
@@ -522,6 +522,28 @@ func runUnifiedTUI() error {
 					errMsg := err.Error()
 					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
 						warn("Action failed: %v", err)
+					}
+				}
+
+				// Check if we should restart
+				if unifiedModel.ShouldRestart() {
+					// Rebuild context and restart at the specified view
+					ctx = buildHubContext()
+					startView = unifiedModel.GetRestartView()
+					continue
+				}
+			}
+
+			// Handle shelve request (add books)
+			if unifiedModel.HasPendingShelve() {
+				shelveReq := *unifiedModel.GetPendingShelve()
+
+				// Run shelve workflow (TUI has exited, we're back in normal terminal)
+				if err := runShelveFromUnified(shelveReq.ShelfName); err != nil {
+					// Suppress cancellation errors
+					errMsg := err.Error()
+					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
+						warn("Shelve failed: %v", err)
 					}
 				}
 

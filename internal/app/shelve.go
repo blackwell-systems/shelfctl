@@ -168,6 +168,105 @@ func runShelve(cmd *cobra.Command, args []string, params *shelveParams) error {
 	return nil
 }
 
+// runShelveFromUnified runs the shelve workflow from within unified TUI mode
+// This is called after the unified TUI has exited to avoid nested TUI conflicts
+func runShelveFromUnified(shelfName string) error {
+	params := &shelveParams{
+		shelfName: shelfName,
+	}
+	// Pass nil for cmd since we're not in cobra context
+	// Force TUI workflow (interactive file picker and forms)
+	return runShelveInteractive(params)
+}
+
+// runShelveInteractive runs shelve with interactive TUI workflow
+func runShelveInteractive(params *shelveParams) error {
+	// This is essentially runShelve but with useTUIWorkflow always true
+	// and no dependency on cobra.Command
+
+	// Step 1: Select shelf
+	shelfName, err := selectShelf(params.shelfName, true)
+	if err != nil {
+		return err
+	}
+
+	shelf := cfg.ShelfByName(shelfName)
+	if shelf == nil {
+		return fmt.Errorf("shelf %q not found in config", shelfName)
+	}
+
+	// Step 2: Select files (interactive)
+	inputs, err := selectFile([]string{}, true)
+	if err != nil {
+		return err
+	}
+
+	owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+	if params.releaseTag == "" {
+		params.releaseTag = shelf.EffectiveRelease(cfg.Defaults.Release)
+	}
+
+	// Step 3: Create catalog manager
+	catalogPath := shelf.EffectiveCatalogPath()
+	catalogMgr := catalog.NewManager(gh, owner, shelf.Repo, catalogPath)
+
+	existingBooks, err := catalogMgr.Load()
+	if err != nil {
+		return err
+	}
+
+	// Step 4: Ensure release once
+	rel, err := gh.EnsureRelease(owner, shelf.Repo, params.releaseTag)
+	if err != nil {
+		return fmt.Errorf("ensuring release: %w", err)
+	}
+
+	// Step 5: Process each file
+	var newBooks []catalog.Book
+	successCount := 0
+	failCount := 0
+
+	for i, input := range inputs {
+		book, err := processSingleFile(nil, params, input, i+1, len(inputs), owner, shelf, rel, &existingBooks, true)
+		if err != nil {
+			warn("Failed to process %s: %v", input, err)
+			failCount++
+			continue
+		}
+
+		newBooks = append(newBooks, *book)
+		existingBooks = catalog.Append(existingBooks, *book)
+		successCount++
+	}
+
+	// Step 6: Batch commit catalog and README
+	if successCount > 0 {
+		if err := batchCommitCatalog(nil, catalogMgr, owner, shelf.Repo, existingBooks, newBooks, params.noPush); err != nil {
+			return err
+		}
+	}
+
+	// Print summary
+	if len(inputs) > 1 {
+		fmt.Println()
+		if successCount > 0 {
+			ok("Successfully added %d books", successCount)
+		}
+		if failCount > 0 {
+			warn("%d books failed", failCount)
+		}
+	} else if successCount == 1 {
+		// Single file: print detailed summary
+		book := newBooks[0]
+		printBookSummary(nil, book.ID, book.Title, book.Checksum.SHA256, book.SizeBytes, book.Source.Asset)
+	}
+
+	fmt.Println("\nPress Enter to return to menu...")
+	fmt.Scanln()
+
+	return nil
+}
+
 // processSingleFile handles the complete workflow for one file in a batch.
 // Returns the catalog book entry or an error.
 func processSingleFile(cmd *cobra.Command, params *shelveParams, input string, fileNum, totalFiles int,

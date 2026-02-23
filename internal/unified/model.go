@@ -46,9 +46,10 @@ type Model struct {
 	cacheMgr *cache.Manager
 
 	// Pending action (used when TUI needs to exit to perform action)
-	pendingAction   *ActionRequestMsg
-	shouldRestart   bool
-	restartAtView   View
+	pendingAction      *ActionRequestMsg
+	pendingShelve      *ShelveRequestMsg
+	shouldRestart      bool
+	restartAtView      View
 }
 
 // New creates a new unified model starting at the hub
@@ -122,6 +123,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.restartAtView = ViewShelve
 		case "edit":
 			m.restartAtView = ViewEdit
+		default:
+			m.restartAtView = ViewHub
+		}
+		return m, tea.Quit
+
+	case ShelveRequestMsg:
+		// Store shelve request and exit TUI to perform it
+		m.pendingShelve = &msg
+		m.shouldRestart = true
+		// Map ReturnTo string to View
+		switch msg.ReturnTo {
+		case "browse":
+			m.restartAtView = ViewBrowse
+		case "hub":
+			m.restartAtView = ViewHub
 		default:
 			m.restartAtView = ViewHub
 		}
@@ -251,9 +267,14 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		)
 
 	case "shelve":
-		m.currentView = ViewShelve
-		// TODO: initialize shelve model
-		return m, nil
+		// Shelve requires file picker and forms (separate TUI programs)
+		// Exit unified TUI and run shelve workflow
+		return m, func() tea.Msg {
+			return ShelveRequestMsg{
+				ShelfName: "", // Will prompt user
+				ReturnTo:  "hub",
+			}
+		}
 
 	case "edit-book":
 		m.currentView = ViewEdit
@@ -448,7 +469,7 @@ func (m Model) handleEditBook(item *tui.BookItem) error {
 
 // HasPendingAction returns true if there's a pending action to perform
 func (m Model) HasPendingAction() bool {
-	return m.pendingAction != nil
+	return m.pendingAction != nil || m.pendingShelve != nil
 }
 
 // GetPendingAction returns the pending action and clears it
@@ -456,6 +477,18 @@ func (m *Model) GetPendingAction() *ActionRequestMsg {
 	action := m.pendingAction
 	m.pendingAction = nil
 	return action
+}
+
+// HasPendingShelve returns true if there's a pending shelve request
+func (m Model) HasPendingShelve() bool {
+	return m.pendingShelve != nil
+}
+
+// GetPendingShelve returns the pending shelve request and clears it
+func (m *Model) GetPendingShelve() *ShelveRequestMsg {
+	shelve := m.pendingShelve
+	m.pendingShelve = nil
+	return shelve
 }
 
 // ShouldRestart returns true if the TUI should restart after an action

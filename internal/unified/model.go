@@ -25,7 +25,8 @@ type Model struct {
 	height      int
 
 	// View models
-	hub HubModel
+	hub    HubModel
+	browse BrowseModel
 
 	// Context passed between views
 	hubContext tui.HubContext
@@ -69,7 +70,7 @@ func (m Model) View() string {
 	case ViewHub:
 		return m.hub.View()
 	case ViewBrowse:
-		return "Browse view (not yet implemented)"
+		return m.browse.View()
 	case ViewShelve:
 		return "Shelve view (not yet implemented)"
 	case ViewEdit:
@@ -94,7 +95,9 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		hubModel, cmd = m.hub.Update(msg)
 		m.hub = hubModel.(HubModel)
 	case ViewBrowse:
-		// TODO: forward to browse model
+		var browseModel tea.Model
+		browseModel, cmd = m.browse.Update(msg)
+		m.browse = browseModel.(BrowseModel)
 	case ViewShelve:
 		// TODO: forward to shelve model
 	case ViewEdit:
@@ -114,8 +117,8 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 	switch msg.Target {
 	case "browse":
 		m.currentView = ViewBrowse
-		// TODO: initialize browse model
-		return m, nil
+		m.browse = NewBrowseModel()
+		return m, m.browse.Init()
 
 	case "shelve":
 		m.currentView = ViewShelve

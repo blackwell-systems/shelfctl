@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-02-22
+
 ### Added
 - **Homebrew Installation Support**
   - Added official Homebrew tap: `brew install blackwell-systems/tap/shelfctl`

@@ -513,11 +513,9 @@ func runUnifiedTUI() error {
 		// Check if there's a pending action
 		if unifiedModel, ok := finalModel.(unified.Model); ok {
 			// Handle book actions (open, edit)
-			if unifiedModel.GetPendingAction() != nil {
-				action := *unifiedModel.GetPendingAction()
-
+			if action := unifiedModel.GetPendingAction(); action != nil {
 				// Perform the action (TUI has exited, we're back in normal terminal)
-				if err := unified.PerformPendingAction(&action, gh, cfg, cacheMgr); err != nil {
+				if err := unified.PerformPendingAction(action, gh, cfg, cacheMgr); err != nil {
 					// Suppress cancellation errors (user canceled is not a failure)
 					errMsg := err.Error()
 					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
@@ -535,8 +533,7 @@ func runUnifiedTUI() error {
 			}
 
 			// Handle shelve request (add books)
-			if unifiedModel.HasPendingShelve() {
-				shelveReq := *unifiedModel.GetPendingShelve()
+			if shelveReq := unifiedModel.GetPendingShelve(); shelveReq != nil {
 
 				// Run shelve workflow (TUI has exited, we're back in normal terminal)
 				if err := runShelveFromUnified(shelveReq.ShelfName); err != nil {
@@ -557,9 +554,7 @@ func runUnifiedTUI() error {
 			}
 
 			// Handle move request
-			if unifiedModel.HasPendingMove() {
-				_ = unifiedModel.GetPendingMove()
-
+			if moveReq := unifiedModel.GetPendingMove(); moveReq != nil {
 				// Run move workflow (TUI has exited, we're back in normal terminal)
 				if err := runMoveFromUnified(); err != nil {
 					// Suppress cancellation errors
@@ -579,9 +574,7 @@ func runUnifiedTUI() error {
 			}
 
 			// Handle delete request
-			if unifiedModel.HasPendingDelete() {
-				_ = unifiedModel.GetPendingDelete()
-
+			if deleteReq := unifiedModel.GetPendingDelete(); deleteReq != nil {
 				// Run delete workflow (TUI has exited, we're back in normal terminal)
 				if err := runDeleteFromUnified(); err != nil {
 					// Suppress cancellation errors
@@ -601,9 +594,7 @@ func runUnifiedTUI() error {
 			}
 
 			// Handle cache clear request
-			if unifiedModel.HasPendingCacheClear() {
-				_ = unifiedModel.GetPendingCacheClear()
-
+			if cacheReq := unifiedModel.GetPendingCacheClear(); cacheReq != nil {
 				// Run cache clear workflow (TUI has exited, we're back in normal terminal)
 				if err := runCacheClearFromUnified(); err != nil {
 					// Suppress cancellation errors
@@ -623,8 +614,7 @@ func runUnifiedTUI() error {
 			}
 
 			// Handle command request (non-TUI commands)
-			if unifiedModel.HasPendingCommand() {
-				cmdReq := *unifiedModel.GetPendingCommand()
+			if cmdReq := unifiedModel.GetPendingCommand(); cmdReq != nil {
 
 				// Run the command (TUI has exited, we're back in normal terminal)
 				var cmdErr error

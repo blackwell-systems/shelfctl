@@ -518,7 +518,11 @@ func runUnifiedTUI() error {
 
 				// Perform the action (TUI has exited, we're back in normal terminal)
 				if err := unified.PerformPendingAction(&action, gh, cfg, cacheMgr); err != nil {
-					warn("Action failed: %v", err)
+					// Suppress cancellation errors (user canceled is not a failure)
+					errMsg := err.Error()
+					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
+						warn("Action failed: %v", err)
+					}
 				}
 
 				// Check if we should restart

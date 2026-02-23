@@ -369,7 +369,7 @@ func renderHubMenuItem(w io.Writer, m list.Model, index int, item list.Item) {
 	label := menuItem.GetLabel()
 	desc := tui.StyleHelp.Render(menuItem.GetDescription())
 
-	display := fmt.Sprintf("%-20s %s", label, desc)
+	display := fmt.Sprintf("%-20s   %s", label, desc)
 
 	if isSelected {
 		_, _ = fmt.Fprint(w, tui.StyleHighlight.Render("› "+display))

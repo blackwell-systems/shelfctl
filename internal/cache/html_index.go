@@ -60,12 +60,21 @@ func generateHTML(books []IndexBook) string {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: #1a1a1a;
             color: #e0e0e0;
-            padding: 20px;
             line-height: 1.6;
+            padding-top: 0;
+        }
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: #1a1a1a;
+            padding: 20px 20px 10px;
+            border-bottom: 2px solid #333;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
         header {
             max-width: 1200px;
-            margin: 0 auto 30px;
+            margin: 0 auto 20px;
         }
         h1 {
             font-size: 2rem;
@@ -78,7 +87,7 @@ func generateHTML(books []IndexBook) string {
         }
         .controls {
             max-width: 1200px;
-            margin: 0 auto 20px;
+            margin: 0 auto 15px;
             display: flex;
             gap: 15px;
             align-items: center;
@@ -118,7 +127,10 @@ func generateHTML(books []IndexBook) string {
         }
         .tag-filters {
             max-width: 1200px;
-            margin: 0 auto 30px;
+            margin: 0 auto 20px;
+        }
+        .content-wrapper {
+            padding: 20px;
         }
         .tag-filters-title {
             font-size: 0.9rem;
@@ -283,37 +295,38 @@ func generateHTML(books []IndexBook) string {
     </style>
 </head>
 <body>
-    <header>
-        <h1>📚 shelfctl Library</h1>
-        <div class="subtitle">` + fmt.Sprintf("%d books", len(books)) + `</div>
-    </header>
+    <div class="sticky-nav">
+        <header>
+            <h1>📚 shelfctl Library</h1>
+            <div class="subtitle">` + fmt.Sprintf("%d books", len(books)) + `</div>
+        </header>
 
-    <div class="controls">
-        <div class="search-box">
-            <input type="text" id="search" placeholder="Search books by title, author, or tags...">
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="search" placeholder="Search books by title, author, or tags...">
+            </div>
+            <div class="sort-box">
+                <select id="sort-by">
+                    <option value="recent">Recently Added</option>
+                    <option value="title">Title (A-Z)</option>
+                    <option value="author">Author (A-Z)</option>
+                    <option value="year-desc">Year (Newest First)</option>
+                    <option value="year-asc">Year (Oldest First)</option>
+                </select>
+            </div>
         </div>
-        <div class="sort-box">
-            <select id="sort-by">
-                <option value="recent">Recently Added</option>
-                <option value="title">Title (A-Z)</option>
-                <option value="author">Author (A-Z)</option>
-                <option value="year-desc">Year (Newest First)</option>
-                <option value="year-asc">Year (Oldest First)</option>
-            </select>
-        </div>
-    </div>
 `)
 
 	// Only show tag filters if we have tags
 	if len(tagSet) > 0 {
 		s.WriteString(`
-    <div class="tag-filters">
-        <div class="tag-filters-title">
-            Filter by tag:
-            <button class="clear-filters" id="clear-filters">Clear filters</button>
-            <span class="filter-count" id="filter-count"></span>
-        </div>
-        <div class="tag-cloud" id="tag-cloud">
+        <div class="tag-filters">
+            <div class="tag-filters-title">
+                Filter by tag:
+                <button class="clear-filters" id="clear-filters">Clear filters</button>
+                <span class="filter-count" id="filter-count"></span>
+            </div>
+            <div class="tag-cloud" id="tag-cloud">
 `)
 
 		// Render tag filter buttons (sorted alphabetically)
@@ -333,17 +346,20 @@ func generateHTML(books []IndexBook) string {
 
 		for _, tag := range sortedTags {
 			count := tagSet[tag]
-			fmt.Fprintf(&s, `            <button class="tag-filter" data-tag="%s">%s <span class="tag-count">%d</span></button>
+			fmt.Fprintf(&s, `                <button class="tag-filter" data-tag="%s">%s <span class="tag-count">%d</span></button>
 `, html.EscapeString(tag), html.EscapeString(tag), count)
 		}
 
-		s.WriteString(`        </div>
-    </div>
+		s.WriteString(`            </div>
+        </div>
 `)
 	}
 
 	s.WriteString(`
-    <div id="library">
+    </div>
+
+    <div class="content-wrapper">
+        <div id="library">
 `)
 
 	// Group books by shelf
@@ -356,9 +372,9 @@ func generateHTML(books []IndexBook) string {
 	bookIndex := 0
 	for shelfName, shelfBookList := range shelfBooks {
 		fmt.Fprintf(&s, `
-        <div class="shelf-section" data-shelf="%s">
-            <h2 class="shelf-title">%s (%d)</h2>
-            <div class="book-grid">
+            <div class="shelf-section" data-shelf="%s">
+                <h2 class="shelf-title">%s (%d)</h2>
+                <div class="book-grid">
 `, html.EscapeString(shelfName), html.EscapeString(shelfName), len(shelfBookList))
 
 		for _, book := range shelfBookList {
@@ -367,16 +383,17 @@ func generateHTML(books []IndexBook) string {
 		}
 
 		s.WriteString(`
+                </div>
             </div>
-        </div>
 `)
 	}
 
 	s.WriteString(`
-    </div>
+        </div>
 
-    <div id="no-results" class="no-results" style="display:none;">
-        No books match your search.
+        <div id="no-results" class="no-results" style="display:none;">
+            No books match your search.
+        </div>
     </div>
 
     <script>

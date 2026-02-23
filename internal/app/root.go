@@ -621,6 +621,60 @@ func runUnifiedTUI() error {
 					continue
 				}
 			}
+
+			// Handle command request (non-TUI commands)
+			if unifiedModel.HasPendingCommand() {
+				cmdReq := *unifiedModel.GetPendingCommand()
+
+				// Run the command (TUI has exited, we're back in normal terminal)
+				var cmdErr error
+				switch cmdReq.Command {
+				case "shelves":
+					cmd := newShelvesCmd()
+					cmd.SetArgs([]string{"--table"})
+					cmdErr = cmd.Execute()
+
+				case "index":
+					cmdErr = newIndexCmd().Execute()
+
+				case "cache-info":
+					cmd := newCacheCmd()
+					cmd.SetArgs([]string{"info"})
+					cmdErr = cmd.Execute()
+
+				case "shelve-url":
+					cmdErr = runShelveFromURL()
+
+				case "import-repo":
+					cmdErr = runImportFromRepo()
+
+				case "delete-shelf":
+					cmdErr = newDeleteShelfCmd().Execute()
+
+				default:
+					warn("Unknown command: %s", cmdReq.Command)
+				}
+
+				// Show result (suppress cancellations)
+				if cmdErr != nil {
+					errMsg := cmdErr.Error()
+					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
+						warn("Command failed: %v", cmdErr)
+					}
+				}
+
+				// Wait for user to press Enter
+				fmt.Println("\nPress Enter to return to menu...")
+				fmt.Scanln()
+
+				// Check if we should restart
+				if unifiedModel.ShouldRestart() {
+					// Rebuild context and restart at the specified view
+					ctx = buildHubContext()
+					startView = unifiedModel.GetRestartView()
+					continue
+				}
+			}
 		}
 
 		// No pending action or no restart needed, exit

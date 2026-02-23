@@ -51,6 +51,7 @@ type Model struct {
 	pendingMove        *MoveRequestMsg
 	pendingDelete      *DeleteRequestMsg
 	pendingCacheClear  *CacheClearRequestMsg
+	pendingCommand     *CommandRequestMsg
 	shouldRestart      bool
 	restartAtView      View
 }
@@ -177,6 +178,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case CacheClearRequestMsg:
 		// Store cache clear request and exit TUI to perform it
 		m.pendingCacheClear = &msg
+		m.shouldRestart = true
+		switch msg.ReturnTo {
+		case "browse":
+			m.restartAtView = ViewBrowse
+		case "hub":
+			m.restartAtView = ViewHub
+		default:
+			m.restartAtView = ViewHub
+		}
+		return m, tea.Quit
+
+	case CommandRequestMsg:
+		// Store command request and exit TUI to perform it
+		m.pendingCommand = &msg
 		m.shouldRestart = true
 		switch msg.ReturnTo {
 		case "browse":
@@ -367,35 +382,58 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		)
 
 	case "shelves":
-		// Non-TUI command - these still need to run outside unified mode
-		// For now, just stay on hub
-		// TODO: handle non-TUI commands
-		return m, nil
+		// Non-TUI command - just run command and return
+		return m, func() tea.Msg {
+			return CommandRequestMsg{
+				Command:  "shelves",
+				ReturnTo: "hub",
+			}
+		}
 
 	case "index":
-		// Non-TUI command
-		// TODO: handle non-TUI commands
-		return m, nil
+		// Non-TUI command - just run command and return
+		return m, func() tea.Msg {
+			return CommandRequestMsg{
+				Command:  "index",
+				ReturnTo: "hub",
+			}
+		}
 
 	case "cache-info":
-		// Non-TUI command
-		// TODO: handle non-TUI commands
-		return m, nil
+		// Non-TUI command - just run command and return
+		return m, func() tea.Msg {
+			return CommandRequestMsg{
+				Command:  "cache-info",
+				ReturnTo: "hub",
+			}
+		}
 
 	case "shelve-url":
-		// Non-TUI command
-		// TODO: handle non-TUI commands
-		return m, nil
+		// Non-TUI command - just run command and return
+		return m, func() tea.Msg {
+			return CommandRequestMsg{
+				Command:  "shelve-url",
+				ReturnTo: "hub",
+			}
+		}
 
 	case "import-repo":
-		// Non-TUI command
-		// TODO: handle non-TUI commands
-		return m, nil
+		// Non-TUI command - just run command and return
+		return m, func() tea.Msg {
+			return CommandRequestMsg{
+				Command:  "import-repo",
+				ReturnTo: "hub",
+			}
+		}
 
 	case "delete-shelf":
-		// Non-TUI command
-		// TODO: handle non-TUI commands
-		return m, nil
+		// Non-TUI command - just run command and return
+		return m, func() tea.Msg {
+			return CommandRequestMsg{
+				Command:  "delete-shelf",
+				ReturnTo: "hub",
+			}
+		}
 
 	default:
 		// Unknown target, stay on current view
@@ -600,6 +638,18 @@ func (m *Model) GetPendingCacheClear() *CacheClearRequestMsg {
 	clear := m.pendingCacheClear
 	m.pendingCacheClear = nil
 	return clear
+}
+
+// HasPendingCommand returns true if there's a pending command request
+func (m Model) HasPendingCommand() bool {
+	return m.pendingCommand != nil
+}
+
+// GetPendingCommand returns the pending command request and clears it
+func (m *Model) GetPendingCommand() *CommandRequestMsg {
+	cmd := m.pendingCommand
+	m.pendingCommand = nil
+	return cmd
 }
 
 // ShouldRestart returns true if the TUI should restart after an action

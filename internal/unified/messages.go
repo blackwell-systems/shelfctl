@@ -23,3 +23,18 @@ type ShelveRequestMsg struct {
 	ShelfName string // Optional: pre-selected shelf
 	ReturnTo  string // Which view to return to after completion
 }
+
+// MoveRequestMsg is emitted when user wants to move books
+type MoveRequestMsg struct {
+	ReturnTo string // Which view to return to after completion
+}
+
+// DeleteRequestMsg is emitted when user wants to delete books
+type DeleteRequestMsg struct {
+	ReturnTo string // Which view to return to after completion
+}
+
+// CacheClearRequestMsg is emitted when user wants to clear cache
+type CacheClearRequestMsg struct {
+	ReturnTo string // Which view to return to after completion
+}

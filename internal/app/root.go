@@ -555,6 +555,72 @@ func runUnifiedTUI() error {
 					continue
 				}
 			}
+
+			// Handle move request
+			if unifiedModel.HasPendingMove() {
+				_ = unifiedModel.GetPendingMove()
+
+				// Run move workflow (TUI has exited, we're back in normal terminal)
+				if err := runMoveFromUnified(); err != nil {
+					// Suppress cancellation errors
+					errMsg := err.Error()
+					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
+						warn("Move failed: %v", err)
+					}
+				}
+
+				// Check if we should restart
+				if unifiedModel.ShouldRestart() {
+					// Rebuild context and restart at the specified view
+					ctx = buildHubContext()
+					startView = unifiedModel.GetRestartView()
+					continue
+				}
+			}
+
+			// Handle delete request
+			if unifiedModel.HasPendingDelete() {
+				_ = unifiedModel.GetPendingDelete()
+
+				// Run delete workflow (TUI has exited, we're back in normal terminal)
+				if err := runDeleteFromUnified(); err != nil {
+					// Suppress cancellation errors
+					errMsg := err.Error()
+					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
+						warn("Delete failed: %v", err)
+					}
+				}
+
+				// Check if we should restart
+				if unifiedModel.ShouldRestart() {
+					// Rebuild context and restart at the specified view
+					ctx = buildHubContext()
+					startView = unifiedModel.GetRestartView()
+					continue
+				}
+			}
+
+			// Handle cache clear request
+			if unifiedModel.HasPendingCacheClear() {
+				_ = unifiedModel.GetPendingCacheClear()
+
+				// Run cache clear workflow (TUI has exited, we're back in normal terminal)
+				if err := runCacheClearFromUnified(); err != nil {
+					// Suppress cancellation errors
+					errMsg := err.Error()
+					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
+						warn("Cache clear failed: %v", err)
+					}
+				}
+
+				// Check if we should restart
+				if unifiedModel.ShouldRestart() {
+					// Rebuild context and restart at the specified view
+					ctx = buildHubContext()
+					startView = unifiedModel.GetRestartView()
+					continue
+				}
+			}
 		}
 
 		// No pending action or no restart needed, exit

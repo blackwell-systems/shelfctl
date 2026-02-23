@@ -48,6 +48,9 @@ type Model struct {
 	// Pending action (used when TUI needs to exit to perform action)
 	pendingAction      *ActionRequestMsg
 	pendingShelve      *ShelveRequestMsg
+	pendingMove        *MoveRequestMsg
+	pendingDelete      *DeleteRequestMsg
+	pendingCacheClear  *CacheClearRequestMsg
 	shouldRestart      bool
 	restartAtView      View
 }
@@ -133,6 +136,48 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pendingShelve = &msg
 		m.shouldRestart = true
 		// Map ReturnTo string to View
+		switch msg.ReturnTo {
+		case "browse":
+			m.restartAtView = ViewBrowse
+		case "hub":
+			m.restartAtView = ViewHub
+		default:
+			m.restartAtView = ViewHub
+		}
+		return m, tea.Quit
+
+	case MoveRequestMsg:
+		// Store move request and exit TUI to perform it
+		m.pendingMove = &msg
+		m.shouldRestart = true
+		switch msg.ReturnTo {
+		case "browse":
+			m.restartAtView = ViewBrowse
+		case "hub":
+			m.restartAtView = ViewHub
+		default:
+			m.restartAtView = ViewHub
+		}
+		return m, tea.Quit
+
+	case DeleteRequestMsg:
+		// Store delete request and exit TUI to perform it
+		m.pendingDelete = &msg
+		m.shouldRestart = true
+		switch msg.ReturnTo {
+		case "browse":
+			m.restartAtView = ViewBrowse
+		case "hub":
+			m.restartAtView = ViewHub
+		default:
+			m.restartAtView = ViewHub
+		}
+		return m, tea.Quit
+
+	case CacheClearRequestMsg:
+		// Store cache clear request and exit TUI to perform it
+		m.pendingCacheClear = &msg
+		m.shouldRestart = true
 		switch msg.ReturnTo {
 		case "browse":
 			m.restartAtView = ViewBrowse
@@ -282,19 +327,31 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "move":
-		m.currentView = ViewMove
-		// TODO: initialize move model
-		return m, nil
+		// Move requires book picker (separate TUI program)
+		// Exit unified TUI and run move workflow
+		return m, func() tea.Msg {
+			return MoveRequestMsg{
+				ReturnTo: "hub",
+			}
+		}
 
 	case "delete-book":
-		m.currentView = ViewDelete
-		// TODO: initialize delete model
-		return m, nil
+		// Delete requires book picker and confirmation (separate TUI program)
+		// Exit unified TUI and run delete workflow
+		return m, func() tea.Msg {
+			return DeleteRequestMsg{
+				ReturnTo: "hub",
+			}
+		}
 
 	case "cache-clear":
-		m.currentView = ViewCacheClear
-		// TODO: initialize cache clear model
-		return m, nil
+		// Cache clear requires book picker (separate TUI program)
+		// Exit unified TUI and run cache clear workflow
+		return m, func() tea.Msg {
+			return CacheClearRequestMsg{
+				ReturnTo: "hub",
+			}
+		}
 
 	case "hub":
 		// Refresh hub context and return to hub
@@ -507,6 +564,42 @@ func (m *Model) GetPendingShelve() *ShelveRequestMsg {
 	shelve := m.pendingShelve
 	m.pendingShelve = nil
 	return shelve
+}
+
+// HasPendingMove returns true if there's a pending move request
+func (m Model) HasPendingMove() bool {
+	return m.pendingMove != nil
+}
+
+// GetPendingMove returns the pending move request and clears it
+func (m *Model) GetPendingMove() *MoveRequestMsg {
+	move := m.pendingMove
+	m.pendingMove = nil
+	return move
+}
+
+// HasPendingDelete returns true if there's a pending delete request
+func (m Model) HasPendingDelete() bool {
+	return m.pendingDelete != nil
+}
+
+// GetPendingDelete returns the pending delete request and clears it
+func (m *Model) GetPendingDelete() *DeleteRequestMsg {
+	del := m.pendingDelete
+	m.pendingDelete = nil
+	return del
+}
+
+// HasPendingCacheClear returns true if there's a pending cache clear request
+func (m Model) HasPendingCacheClear() bool {
+	return m.pendingCacheClear != nil
+}
+
+// GetPendingCacheClear returns the pending cache clear request and clears it
+func (m *Model) GetPendingCacheClear() *CacheClearRequestMsg {
+	clear := m.pendingCacheClear
+	m.pendingCacheClear = nil
+	return clear
 }
 
 // ShouldRestart returns true if the TUI should restart after an action

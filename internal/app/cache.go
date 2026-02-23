@@ -606,3 +606,125 @@ func loadAllBooksAcrossShelves() []tui.BookItem {
 
 	return allItems
 }
+
+// runCacheClearFromUnified runs the cache clear workflow from within unified TUI mode
+// This is called after the unified TUI has exited
+func runCacheClearFromUnified() error {
+	// Run interactive cache clear (book picker with modified protection)
+	force := false // Don't force by default
+
+	// Load all cached books
+	allBooks := loadAllBooksAcrossShelves()
+
+	// Filter to only cached books
+	var cachedBooks []tui.BookItem
+	modifiedCount := 0
+	for _, item := range allBooks {
+		if item.Cached {
+			cachedBooks = append(cachedBooks, item)
+			// Check if modified
+			if cacheMgr.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
+				modifiedCount++
+			}
+		}
+	}
+
+	if len(cachedBooks) == 0 {
+		ok("No books in cache")
+		fmt.Println("\nPress Enter to return to menu...")
+		fmt.Scanln()
+		return nil
+	}
+
+	// Warn about modified files
+	if modifiedCount > 0 && !force {
+		fmt.Printf("\n%s %d books have local changes (annotations/highlights)\n", color.YellowString("⚠"), modifiedCount)
+		fmt.Printf("Modified books will be protected from removal\n\n")
+	}
+
+	// Launch multi-select picker
+	selected, err := tui.RunBookPickerMulti(cachedBooks, "Select books to remove from cache")
+	if err != nil {
+		return err
+	}
+
+	if len(selected) == 0 {
+		return fmt.Errorf("canceled")
+	}
+
+	// Check for modified files in selection
+	var toRemove []tui.BookItem
+	var skipped []tui.BookItem
+	var totalSize int64
+
+	for _, item := range selected {
+		path := cacheMgr.Path(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset)
+		if info, err := os.Stat(path); err == nil {
+			totalSize += info.Size()
+		}
+
+		// Check if modified
+		if !force && cacheMgr.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
+			skipped = append(skipped, item)
+		} else {
+			toRemove = append(toRemove, item)
+		}
+	}
+
+	// Warn about skipped files
+	if len(skipped) > 0 {
+		fmt.Printf("\n%s The following books have local changes and will be skipped:\n", color.YellowString("⚠"))
+		for _, item := range skipped {
+			fmt.Printf("  - %s (%s)\n", item.Book.ID, item.Book.Title)
+		}
+		fmt.Printf("\nRun 'shelfctl sync --all' to upload changes\n")
+	}
+
+	if len(toRemove) == 0 {
+		fmt.Printf("\nNo unmodified books selected. Nothing to remove.\n")
+		fmt.Println("\nPress Enter to return to menu...")
+		fmt.Scanln()
+		return nil
+	}
+
+	// Confirm
+	if len(toRemove) > 1 {
+		fmt.Printf("\nYou are about to remove %d books from cache:\n", len(toRemove))
+		for _, item := range toRemove {
+			fmt.Printf("  - %s (%s)\n", item.Book.ID, item.Book.Title)
+		}
+		fmt.Printf("\nType 'CLEAR %d BOOKS' to confirm: ", len(toRemove))
+		var confirmation string
+		_, _ = fmt.Scanln(&confirmation)
+		expected := fmt.Sprintf("CLEAR %d BOOKS", len(toRemove))
+		if confirmation != expected {
+			return fmt.Errorf("canceled")
+		}
+	}
+
+	// Remove books
+	successCount := 0
+	failCount := 0
+	for _, item := range toRemove {
+		err := cacheMgr.Remove(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset)
+		if err != nil {
+			warn("Failed to remove %s: %v", item.Book.ID, err)
+			failCount++
+		} else {
+			successCount++
+		}
+	}
+
+	// Print summary
+	fmt.Println()
+	if successCount > 0 {
+		ok("Removed %d books from cache (%s freed)", successCount, humanBytes(totalSize))
+	}
+	if failCount > 0 {
+		warn("%d books failed to remove", failCount)
+	}
+
+	fmt.Println("\nPress Enter to return to menu...")
+	fmt.Scanln()
+	return nil
+}

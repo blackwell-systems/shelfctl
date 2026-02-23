@@ -285,6 +285,26 @@ shelfctl cache clear --all
 
 Books will automatically re-download when opened or browsed.
 
+### Syncing annotations and highlights
+
+When you annotate or highlight PDFs in your reader, those changes are saved to your local cache. Sync them back to GitHub to preserve your work:
+
+```bash
+# Sync specific book (CLI)
+shelfctl sync sicp
+
+# Sync all modified books (CLI)
+shelfctl sync --all
+```
+
+**In browse TUI:**
+- Press `s` on a modified book to sync it
+- Or press `space` to select multiple modified books, then press `s` to sync all
+- Status messages show progress during upload
+- Books marked with modified indicator in cache info
+
+Modified files are protected by default when clearing cache - you'll get a warning to sync first or use `--force` to delete anyway.
+
 ## Step 9: Add more shelves
 
 Create shelves for different topics:

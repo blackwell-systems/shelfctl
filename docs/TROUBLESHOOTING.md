@@ -241,8 +241,10 @@ shelfctl cache clear --all
 
 **In browse TUI:**
 - Press `space` to select books
+- Press `g` to download selected books to cache
 - Press `x` to remove selected books from cache
-- Books remain in catalog, only local files deleted
+- Press `s` to sync modified books to GitHub
+- Books remain in catalog, only local files affected
 
 ### Can't find cached file
 

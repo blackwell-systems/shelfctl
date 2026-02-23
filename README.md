@@ -72,7 +72,7 @@ Fetch a single book without cloning a repo or pulling a whole archive.
 `shelfctl open <book-id>` downloads *only that file* from GitHub's CDN and opens it. Your library can be huge, but you only download what you actually read.
 
 ### Annotations and highlights sync
-When you annotate or highlight PDFs in your reader, those changes are saved to your local cache. Use `shelfctl sync` to upload your annotated version back to GitHub (replaces the original, no versioning). Your annotations stay with the book and sync across machines.
+When you annotate or highlight PDFs in your reader, those changes are saved to your local cache. Use `shelfctl sync` to upload your annotated version back to GitHub (replaces the original, no versioning). From the TUI, press `s` to sync selected books. Your annotations stay with the book and sync across machines.
 
 ---
 

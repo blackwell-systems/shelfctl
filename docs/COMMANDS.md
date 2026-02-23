@@ -226,15 +226,18 @@ When run in a terminal, `browse` shows an interactive browser with:
   - `space` - Toggle selection (checkboxes appear for multi-select)
   - `g` - Download selected books to cache (or current if none selected)
   - `x` - Remove selected books from cache (or current if none selected)
+  - `s` - Sync modified books to GitHub (uploads annotations/highlights)
+  - `e` - Edit book metadata
   - `c` - Clear all selections
   - `tab` - Toggle details panel
   - `q` - Quit browser
 
 **Multi-select workflow:**
-- Press `space` to check books (downloads them in background with progress bar at bottom)
+- Press `space` to check books for batch operations
 - Press `g` to download all selected books (useful for pre-caching for offline)
 - Press `x` to remove selected books from cache (frees disk space without deleting from shelf)
-- Books stay in catalog/release, only local cache affected
+- Press `s` to sync modified books to GitHub (replaces release assets with annotated versions)
+- Books stay in catalog/release, only local cache affected by download/uncache
 
 Downloads happen in background without exiting TUI - progress bar shows at bottom of screen.
 
@@ -396,6 +399,15 @@ Upload locally modified books back to GitHub. When you annotate or highlight cac
 shelfctl sync [book-id...] [flags]
 ```
 
+### TUI Mode
+
+Press `s` in the `browse` view to sync books directly from the TUI:
+- **Single book**: Navigate to a modified book and press `s` to sync it
+- **Batch sync**: Press `space` to select multiple modified books, then press `s` to sync all selected
+- Shows progress messages during sync operation
+- Displays "[N/M]" counter when syncing multiple books
+- Returns to browse view after completion
+
 ### Flags
 
 - `--shelf`: Limit to specific shelf
@@ -410,7 +422,7 @@ shelfctl sync sicp
 # Sync multiple books
 shelfctl sync book-1 book-2 book-3
 
-# Sync all modified books
+# Sync all modified books (with progress indicators)
 shelfctl sync --all
 
 # Sync all modified books on a shelf
@@ -419,11 +431,14 @@ shelfctl sync --all --shelf programming
 
 ### How it works
 
-1. Compares cached file SHA256 with catalog
-2. If different (annotations added), deletes old Release asset
-3. Uploads modified file to same asset name
-4. Updates catalog with new SHA256 and size
-5. **No versioning** - GitHub always has your latest annotated copy
+1. Scans for modified books (compares cached file SHA256 with catalog)
+2. Shows progress counter: "[2/5] Syncing book-id"
+3. For each modified book:
+   - Deletes old Release asset
+   - Uploads modified file with progress bar
+   - Updates catalog with new SHA256 and size
+4. **No versioning** - GitHub always has your latest annotated copy
+5. Single catalog commit per shelf with all updates
 
 ### When to use
 

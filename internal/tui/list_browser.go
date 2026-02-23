@@ -229,8 +229,9 @@ type Downloader interface {
 	HasBeenModified(owner, repo, bookID, asset, catalogSHA256 string) bool
 }
 
-// model holds the state for the list browser
-type model struct {
+// BrowserModel holds the state for the list browser
+// Exported for unified TUI integration
+type BrowserModel struct {
 	list          list.Model
 	quitting      bool
 	action        BrowserAction
@@ -250,13 +251,17 @@ type model struct {
 	downloadPct     float64
 	downloadErr     string
 	progress        progress.Model
+
+	// Unified mode flag - when true, never returns tea.Quit
+	// Instead, sets quitting flag for wrapper to handle
+	unifiedMode bool
 }
 
-func (m model) Init() tea.Cmd {
+func (m BrowserModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case downloadMsg:
 		// Handle download progress
@@ -313,6 +318,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, keys.quit):
 			m.quitting = true
+			if m.unifiedMode {
+				return m, nil
+			}
 			return m, tea.Quit
 
 		case key.Matches(msg, keys.togglePanel):
@@ -328,6 +336,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.action = ActionShowDetails
 					m.selected = &item
 					m.quitting = true
+					if m.unifiedMode {
+						return m, nil
+					}
 					return m, tea.Quit
 				}
 			} else {
@@ -342,6 +353,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.action = ActionOpen
 				m.selected = &item
 				m.quitting = true
+				if m.unifiedMode {
+					return m, nil
+				}
 				return m, tea.Quit
 			}
 
@@ -517,6 +531,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.action = ActionEdit
 				m.selected = &item
 				m.quitting = true
+				if m.unifiedMode {
+					return m, nil
+				}
 				return m, tea.Quit
 			}
 		}
@@ -532,7 +549,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *model) updateListSize() {
+func (m *BrowserModel) updateListSize() {
 	// Account for outer container padding, master wrapper border, and footer
 	const outerPaddingH = 4 * 2 // left/right padding from outer container
 	const outerPaddingV = 2 * 2 // top/bottom padding from outer container
@@ -556,7 +573,7 @@ func (m *model) updateListSize() {
 	}
 }
 
-func (m model) renderDetailsPane() string {
+func (m BrowserModel) renderDetailsPane() string {
 	selectedItem := m.list.SelectedItem()
 	if selectedItem == nil {
 		return ""
@@ -667,7 +684,7 @@ func (m model) renderDetailsPane() string {
 }
 
 // renderFooter creates a footer with all available keyboard shortcuts
-func (m model) renderFooter() string {
+func (m BrowserModel) renderFooter() string {
 	helpStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Padding(0, 1)
@@ -690,7 +707,7 @@ func (m model) renderFooter() string {
 	return helpStyle.Render(strings.Join(shortcuts, " • "))
 }
 
-func (m model) View() string {
+func (m BrowserModel) View() string {
 	if m.quitting {
 		return ""
 	}
@@ -789,7 +806,7 @@ func (m model) View() string {
 }
 
 // startNextDownload pops the next book from queue and starts downloading
-func (m *model) startNextDownload() tea.Cmd {
+func (m *BrowserModel) startNextDownload() tea.Cmd {
 	if len(m.downloadQueue) == 0 {
 		m.downloading = false
 		m.currentDownload = nil
@@ -885,7 +902,7 @@ func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, er
 	prog := progress.New(progress.WithDefaultGradient())
 	prog.Width = 60
 
-	m := model{
+	m := BrowserModel{
 		list:        l,
 		showDetails: true, // Show details pane by default
 		downloader:  downloader,
@@ -900,7 +917,7 @@ func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, er
 	}
 
 	// Return the action result
-	if fm, ok := finalModel.(model); ok {
+	if fm, ok := finalModel.(BrowserModel); ok {
 		return &BrowserResult{
 			Action:    fm.action,
 			BookItem:  fm.selected,
@@ -909,4 +926,55 @@ func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, er
 	}
 
 	return &BrowserResult{Action: ActionNone}, nil
+}
+
+// NewBrowserModel creates a BrowserModel for use in unified TUI mode
+func NewBrowserModel(books []BookItem, downloader Downloader, unifiedMode bool) BrowserModel {
+	// Convert BookItems to list.Items
+	items := make([]list.Item, len(books))
+	for i, b := range books {
+		items[i] = b
+	}
+
+	// Create the list
+	d := delegate.New(renderBookItem)
+	l := list.New(items, d, 0, 0)
+	l.Title = "Books"
+	l.SetShowStatusBar(true)
+	l.SetFilteringEnabled(true)
+	l.SetShowHelp(false) // Disable built-in help, we'll render custom footer
+	l.Styles.Title = StyleHeader
+	l.Styles.PaginationStyle = StyleHelp
+	l.Styles.HelpStyle = StyleHelp
+
+	prog := progress.New(progress.WithDefaultGradient())
+	prog.Width = 60
+
+	return BrowserModel{
+		list:        l,
+		showDetails: true, // Show details pane by default
+		downloader:  downloader,
+		progress:    prog,
+		unifiedMode: unifiedMode,
+	}
+}
+
+// IsQuitting returns true if the browser wants to quit
+func (m BrowserModel) IsQuitting() bool {
+	return m.quitting
+}
+
+// GetAction returns the action that was requested
+func (m BrowserModel) GetAction() BrowserAction {
+	return m.action
+}
+
+// GetSelected returns the selected book item
+func (m BrowserModel) GetSelected() *BookItem {
+	return m.selected
+}
+
+// GetSelectedBooks returns the list of selected books (for multi-select)
+func (m BrowserModel) GetSelectedBooks() []BookItem {
+	return m.selectedBooks
 }

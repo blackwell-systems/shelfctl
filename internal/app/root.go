@@ -500,7 +500,7 @@ func runUnifiedTUI() error {
 	}
 
 	// Create and run unified model
-	m := unified.New(ctx)
+	m := unified.New(ctx, gh, cfg, cacheMgr)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	_, err := p.Run()
 	return err

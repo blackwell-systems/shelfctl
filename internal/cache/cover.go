@@ -55,17 +55,31 @@ func (m *Manager) ExtractCover(repo, bookID, pdfPath string) string {
 		return "" // Silently fail
 	}
 
-	// pdftoppm creates <prefix>-001.jpg for page 1 (with zero padding)
-	generatedPath := outputPrefix + "-001.jpg"
+	// pdftoppm creates <prefix>-NNNN.jpg for page 1 (with version-dependent zero padding)
+	// Try different padding formats that different pdftoppm versions use
+	possiblePaths := []string{
+		outputPrefix + "-0001.jpg", // 4-digit padding (pdftoppm 26.x)
+		outputPrefix + "-001.jpg",  // 3-digit padding (older versions)
+		outputPrefix + "-1.jpg",    // No padding (fallback)
+	}
+
+	// Try each possible path
+	var foundPath string
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			foundPath = path
+			break
+		}
+	}
+
+	if foundPath == "" {
+		return "" // None of the expected files were created
+	}
 
 	// Rename to final path without page number: <book-id>.jpg
-	if err := os.Rename(generatedPath, coverPath); err != nil {
-		// Try without zero padding as fallback
-		generatedPath = outputPrefix + "-1.jpg"
-		if err := os.Rename(generatedPath, coverPath); err != nil {
-			_ = os.Remove(generatedPath) // Clean up
-			return ""
-		}
+	if err := os.Rename(foundPath, coverPath); err != nil {
+		_ = os.Remove(foundPath) // Clean up
+		return ""
 	}
 
 	return coverPath

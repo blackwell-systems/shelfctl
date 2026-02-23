@@ -16,15 +16,16 @@ import (
 
 // BookItem represents a book in the list with metadata.
 type BookItem struct {
-	Book      catalog.Book
-	ShelfName string
-	Cached    bool
-	HasCover  bool
-	CoverPath string
-	Owner     string
-	Repo      string
-	Release   string // Release tag for this book
-	selected  bool   // For multi-select mode
+	Book        catalog.Book
+	ShelfName   string
+	Cached      bool
+	HasCover    bool
+	CoverPath   string
+	Owner       string
+	Repo        string
+	Release     string // Release tag for this book
+	CatalogPath string // Path to catalog.yml in repo
+	selected    bool   // For multi-select mode
 }
 
 // FilterValue returns a string used for filtering in the list
@@ -224,7 +225,7 @@ type Downloader interface {
 	Download(owner, repo, bookID, release, asset, sha256 string) (downloaded bool, err error)
 	DownloadWithProgress(owner, repo, bookID, release, asset, sha256 string, progressCh chan<- float64) error
 	Uncache(owner, repo, bookID, asset string) error
-	Sync(owner, repo, bookID, release, asset, catalogSHA256 string) (synced bool, err error)
+	Sync(owner, repo, bookID, release, asset, catalogPath, catalogSHA256 string) (synced bool, err error)
 	HasBeenModified(owner, repo, bookID, asset, catalogSHA256 string) bool
 }
 
@@ -484,7 +485,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				for i, bookItem := range booksToSync {
 					progressLabel := fmt.Sprintf("[%d/%d] %s", i+1, len(booksToSync), bookItem.Book.ID)
 					m.list.NewStatusMessage(progressLabel)
-					_, _ = m.downloader.Sync(bookItem.Owner, bookItem.Repo, bookItem.Book.ID, bookItem.Release, bookItem.Book.Source.Asset, bookItem.Book.Checksum.SHA256)
+					_, _ = m.downloader.Sync(bookItem.Owner, bookItem.Repo, bookItem.Book.ID, bookItem.Release, bookItem.Book.Source.Asset, bookItem.CatalogPath, bookItem.Book.Checksum.SHA256)
 				}
 				m.list.NewStatusMessage(fmt.Sprintf("Synced %d books", len(booksToSync)))
 				// Clear selections after sync
@@ -502,7 +503,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item, ok := m.list.SelectedItem().(BookItem); ok {
 				if item.Cached && m.downloader.HasBeenModified(item.Owner, item.Repo, item.Book.ID, item.Book.Source.Asset, item.Book.Checksum.SHA256) {
 					m.list.NewStatusMessage(fmt.Sprintf("Syncing %s...", item.Book.ID))
-					_, _ = m.downloader.Sync(item.Owner, item.Repo, item.Book.ID, item.Release, item.Book.Source.Asset, item.Book.Checksum.SHA256)
+					_, _ = m.downloader.Sync(item.Owner, item.Repo, item.Book.ID, item.Release, item.Book.Source.Asset, item.CatalogPath, item.Book.Checksum.SHA256)
 					m.list.NewStatusMessage(fmt.Sprintf("Synced %s", item.Book.ID))
 				} else {
 					m.list.NewStatusMessage(fmt.Sprintf("%s: no changes", item.Book.ID))

@@ -580,13 +580,14 @@ func loadAllBooksAcrossShelves() []tui.BookItem {
 			hasCover := coverPath != ""
 
 			allItems = append(allItems, tui.BookItem{
-				Book:      b,
-				ShelfName: shelf.Name,
-				Cached:    cached,
-				HasCover:  hasCover,
-				CoverPath: coverPath,
-				Owner:     owner,
-				Repo:      shelf.Repo,
+				Book:        b,
+				ShelfName:   shelf.Name,
+				Cached:      cached,
+				HasCover:    hasCover,
+				CoverPath:   coverPath,
+				Owner:       owner,
+				Repo:        shelf.Repo,
+				CatalogPath: catalogPath,
 			})
 		}
 	}

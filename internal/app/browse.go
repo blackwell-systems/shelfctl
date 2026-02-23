@@ -72,7 +72,7 @@ func (d *browserDownloader) Uncache(owner, repo, bookID, asset string) error {
 	return d.cache.Remove(owner, repo, bookID, asset)
 }
 
-func (d *browserDownloader) Sync(owner, repo, bookID, release, asset, catalogSHA256 string) (bool, error) {
+func (d *browserDownloader) Sync(owner, repo, bookID, release, asset, catalogPath, catalogSHA256 string) (bool, error) {
 	// Check if cached and modified
 	if !d.cache.Exists(owner, repo, bookID, asset) {
 		return false, fmt.Errorf("not cached")
@@ -82,13 +82,12 @@ func (d *browserDownloader) Sync(owner, repo, bookID, release, asset, catalogSHA
 		return false, nil // No changes
 	}
 
-	// Get cached file path and size
+	// Get cached file path, hash, and size
 	cachedPath := d.cache.Path(owner, repo, bookID, asset)
-	info, err := os.Stat(cachedPath)
+	cachedSHA, cachedSize, err := computeFileHash(cachedPath)
 	if err != nil {
-		return false, fmt.Errorf("stat cached file: %w", err)
+		return false, fmt.Errorf("computing hash: %w", err)
 	}
-	cachedSize := info.Size()
 
 	// Get release
 	rel, err := d.gh.GetReleaseByTag(owner, repo, release)
@@ -117,6 +116,25 @@ func (d *browserDownloader) Sync(owner, repo, bookID, release, asset, catalogSHA
 	_, err = d.gh.UploadAsset(owner, repo, rel.ID, asset, f, cachedSize, "application/octet-stream")
 	if err != nil {
 		return false, fmt.Errorf("uploading: %w", err)
+	}
+
+	// Update catalog with new SHA256
+	mgr := catalog.NewManager(d.gh, owner, repo, catalogPath)
+	books, err := mgr.Load()
+	if err != nil {
+		return false, fmt.Errorf("loading catalog: %w", err)
+	}
+
+	// Find and update the book
+	bookToUpdate := catalog.ByID(books, bookID)
+	if bookToUpdate != nil {
+		bookToUpdate.Checksum.SHA256 = cachedSHA
+		bookToUpdate.SizeBytes = cachedSize
+
+		commitMsg := fmt.Sprintf("sync: update %s with local changes", bookID)
+		if err := mgr.Save(books, commitMsg); err != nil {
+			return false, fmt.Errorf("saving catalog: %w", err)
+		}
 	}
 
 	return true, nil
@@ -217,14 +235,15 @@ func newBrowseCmd() *cobra.Command {
 						hasCover := coverPath != ""
 
 						allItems = append(allItems, tui.BookItem{
-							Book:      b,
-							ShelfName: shelf.Name,
-							Cached:    cached,
-							HasCover:  hasCover,
-							CoverPath: coverPath,
-							Owner:     owner,
-							Repo:      shelf.Repo,
-							Release:   releaseTag,
+							Book:        b,
+							ShelfName:   shelf.Name,
+							Cached:      cached,
+							HasCover:    hasCover,
+							CoverPath:   coverPath,
+							Owner:       owner,
+							Repo:        shelf.Repo,
+							Release:     releaseTag,
+							CatalogPath: catalogPath,
 						})
 					}
 				}

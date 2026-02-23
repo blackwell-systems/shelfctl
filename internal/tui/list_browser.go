@@ -251,6 +251,7 @@ type BrowserModel struct {
 	downloadPct     float64
 	downloadErr     string
 	progress        progress.Model
+	progressCh      <-chan float64 // Active progress channel for streaming updates
 
 	// Unified mode flag - when true, never returns tea.Quit
 	// Instead, sets quitting flag for wrapper to handle
@@ -269,6 +270,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.downloadErr = fmt.Sprintf("Download failed: %v", msg.err)
 			m.downloading = false
 			m.currentDownload = nil
+			m.progressCh = nil // Clear the channel
 			// Continue with next download if any
 			if len(m.downloadQueue) > 0 {
 				return m, m.startNextDownload()
@@ -296,6 +298,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.downloading = false
 			m.currentDownload = nil
 			m.downloadErr = ""
+			m.progressCh = nil // Clear the channel
 
 			// Start next download if any
 			if len(m.downloadQueue) > 0 {
@@ -304,9 +307,14 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Progress update
+		// Intermediate progress update - update progress bar and continue subscription
 		m.downloadPct = msg.progress
 		cmd := m.progress.SetPercent(msg.progress)
+
+		// Continue subscribing to progress updates
+		if m.progressCh != nil {
+			return m, tea.Batch(cmd, waitForDownloadProgress(msg.bookID, m.progressCh))
+		}
 		return m, cmd
 
 	case tea.KeyMsg:
@@ -805,6 +813,37 @@ func (m BrowserModel) View() string {
 	return outerStyle.Render(boxed)
 }
 
+// waitForDownloadProgress creates a subscription command that waits for the next progress update
+func waitForDownloadProgress(bookID string, progressCh <-chan float64) tea.Cmd {
+	return func() tea.Msg {
+		pct, ok := <-progressCh
+		if !ok {
+			// Channel closed, download complete
+			return downloadMsg{
+				bookID:   bookID,
+				progress: 1.0,
+				done:     true,
+			}
+		}
+
+		if pct < 0 {
+			// Error occurred
+			return downloadMsg{
+				bookID: bookID,
+				done:   true,
+				err:    fmt.Errorf("download failed"),
+			}
+		}
+
+		// Intermediate progress update
+		return downloadMsg{
+			bookID:   bookID,
+			progress: pct,
+			done:     false,
+		}
+	}
+}
+
 // startNextDownload pops the next book from queue and starts downloading
 func (m *BrowserModel) startNextDownload() tea.Cmd {
 	if len(m.downloadQueue) == 0 {
@@ -823,55 +862,39 @@ func (m *BrowserModel) startNextDownload() tea.Cmd {
 	m.downloadErr = ""
 
 	// Start download in background and stream progress
-	return func() tea.Msg {
-		if m.downloader == nil {
+	if m.downloader == nil {
+		return func() tea.Msg {
 			return downloadMsg{
 				bookID: book.Book.ID,
 				done:   true,
 				err:    fmt.Errorf("downloader not configured"),
 			}
 		}
-
-		progressCh := make(chan float64, 100)
-
-		// Download in goroutine
-		go func() {
-			err := m.downloader.DownloadWithProgress(
-				book.Owner,
-				book.Repo,
-				book.Book.ID,
-				book.Book.Source.Release,
-				book.Book.Source.Asset,
-				book.Book.Checksum.SHA256,
-				progressCh,
-			)
-			close(progressCh)
-
-			// Send completion message
-			if err != nil {
-				progressCh <- -1.0 // Signal error
-			}
-		}()
-
-		// For now, just wait for completion and return final message
-		// TODO: Stream progress updates via subscription
-		for pct := range progressCh {
-			if pct < 0 {
-				// Error occurred
-				return downloadMsg{
-					bookID: book.Book.ID,
-					done:   true,
-					err:    fmt.Errorf("download failed"),
-				}
-			}
-		}
-
-		return downloadMsg{
-			bookID:   book.Book.ID,
-			progress: 1.0,
-			done:     true,
-		}
 	}
+
+	progressCh := make(chan float64, 100)
+	m.progressCh = progressCh // Store for continued subscription
+
+	// Download in goroutine
+	go func() {
+		err := m.downloader.DownloadWithProgress(
+			book.Owner,
+			book.Repo,
+			book.Book.ID,
+			book.Book.Source.Release,
+			book.Book.Source.Asset,
+			book.Book.Checksum.SHA256,
+			progressCh,
+		)
+		// Signal error before closing if download failed
+		if err != nil {
+			progressCh <- -1.0
+		}
+		close(progressCh)
+	}()
+
+	// Return subscription command that waits for progress updates
+	return waitForDownloadProgress(book.Book.ID, progressCh)
 }
 
 // RunListBrowser launches an interactive book browser.

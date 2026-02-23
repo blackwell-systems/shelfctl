@@ -535,16 +535,10 @@ func cacheUploadedFile(cmd *cobra.Command, tmpPath, owner, repo, bookID, assetFi
 	}
 	defer func() { _ = f.Close() }()
 
-	// Store in cache
-	cachedPath, err := cacheMgr.Store(owner, repo, bookID, assetFilename, f, expectedSHA256)
+	// Store in cache (cover extraction happens automatically for PDFs)
+	_, err = cacheMgr.Store(owner, repo, bookID, assetFilename, f, expectedSHA256)
 	if err != nil {
 		return fmt.Errorf("storing in cache: %w", err)
-	}
-
-	// Extract cover if it's a PDF
-	if format == "pdf" {
-		_ = cacheMgr.ExtractCover(repo, bookID, cachedPath)
-		// Silently ignore errors - cover extraction is optional
 	}
 
 	return nil

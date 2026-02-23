@@ -50,6 +50,7 @@ type Model struct {
 	pendingShelve      *ShelveRequestMsg
 	pendingMove        *MoveRequestMsg
 	pendingDelete      *DeleteRequestMsg
+	pendingEdit        *EditRequestMsg
 	pendingCacheClear  *CacheClearRequestMsg
 	pendingCommand     *CommandRequestMsg
 	shouldRestart      bool
@@ -123,10 +124,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.restartAtView = ViewHub
 		case "browse":
 			m.restartAtView = ViewBrowse
-		case "shelve":
-			m.restartAtView = ViewShelve
-		case "edit":
-			m.restartAtView = ViewEdit
 		default:
 			m.restartAtView = ViewHub
 		}
@@ -150,6 +147,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case MoveRequestMsg:
 		// Store move request and exit TUI to perform it
 		m.pendingMove = &msg
+		m.shouldRestart = true
+		switch msg.ReturnTo {
+		case "browse":
+			m.restartAtView = ViewBrowse
+		case "hub":
+			m.restartAtView = ViewHub
+		default:
+			m.restartAtView = ViewHub
+		}
+		return m, tea.Quit
+
+	case EditRequestMsg:
+		// Store edit request and exit TUI to perform it
+		m.pendingEdit = &msg
 		m.shouldRestart = true
 		switch msg.ReturnTo {
 		case "browse":
@@ -215,16 +226,10 @@ func (m Model) View() string {
 		return m.hub.View()
 	case ViewBrowse:
 		return m.browse.View()
-	case ViewShelve:
-		return "Shelve view (not yet implemented)"
-	case ViewEdit:
-		return "Edit view (not yet implemented)"
-	case ViewMove:
-		return "Move view (not yet implemented)"
-	case ViewDelete:
-		return "Delete view (not yet implemented)"
-	case ViewCacheClear:
-		return "Cache clear view (not yet implemented)"
+	case ViewShelve, ViewEdit, ViewMove, ViewDelete, ViewCacheClear:
+		// These views use exit-perform-restart pattern
+		// Should never be rendered, but return placeholder just in case
+		return "Loading..."
 	default:
 		return "Unknown view"
 	}
@@ -242,16 +247,9 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var browseModel tea.Model
 		browseModel, cmd = m.browse.Update(msg)
 		m.browse = browseModel.(BrowseModel)
-	case ViewShelve:
-		// TODO: forward to shelve model
-	case ViewEdit:
-		// TODO: forward to edit model
-	case ViewMove:
-		// TODO: forward to move model
-	case ViewDelete:
-		// TODO: forward to delete model
-	case ViewCacheClear:
-		// TODO: forward to cache clear model
+	case ViewShelve, ViewEdit, ViewMove, ViewDelete, ViewCacheClear:
+		// These views use exit-perform-restart pattern, never rendered in unified TUI
+		// If we somehow reach here, do nothing
 	}
 
 	return m, cmd
@@ -337,9 +335,13 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "edit-book":
-		m.currentView = ViewEdit
-		// TODO: initialize edit model
-		return m, nil
+		// Edit requires book picker and form (separate TUI program)
+		// Exit unified TUI and run edit workflow
+		return m, func() tea.Msg {
+			return EditRequestMsg{
+				ReturnTo: "hub",
+			}
+		}
 
 	case "move":
 		// Move requires book picker (separate TUI program)
@@ -626,6 +628,18 @@ func (m *Model) GetPendingDelete() *DeleteRequestMsg {
 	del := m.pendingDelete
 	m.pendingDelete = nil
 	return del
+}
+
+// HasPendingEdit returns true if there's a pending edit request
+func (m Model) HasPendingEdit() bool {
+	return m.pendingEdit != nil
+}
+
+// GetPendingEdit returns the pending edit request and clears it
+func (m *Model) GetPendingEdit() *EditRequestMsg {
+	edit := m.pendingEdit
+	m.pendingEdit = nil
+	return edit
 }
 
 // HasPendingCacheClear returns true if there's a pending cache clear request

@@ -573,6 +573,26 @@ func runUnifiedTUI() error {
 				}
 			}
 
+			// Handle edit request
+			if editReq := unifiedModel.GetPendingEdit(); editReq != nil {
+				// Run edit workflow (TUI has exited, we're back in normal terminal)
+				if err := runEditFromUnified(); err != nil {
+					// Suppress cancellation errors
+					errMsg := err.Error()
+					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
+						warn("Edit failed: %v", err)
+					}
+				}
+
+				// Check if we should restart
+				if unifiedModel.ShouldRestart() {
+					// Rebuild context and restart at the specified view
+					ctx = buildHubContext()
+					startView = unifiedModel.GetRestartView()
+					continue
+				}
+			}
+
 			// Handle delete request
 			if deleteReq := unifiedModel.GetPendingDelete(); deleteReq != nil {
 				// Run delete workflow (TUI has exited, we're back in normal terminal)

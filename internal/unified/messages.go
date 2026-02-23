@@ -34,6 +34,11 @@ type DeleteRequestMsg struct {
 	ReturnTo string // Which view to return to after completion
 }
 
+// EditRequestMsg is emitted when user wants to edit books
+type EditRequestMsg struct {
+	ReturnTo string // Which view to return to after completion
+}
+
 // CacheClearRequestMsg is emitted when user wants to clear cache
 type CacheClearRequestMsg struct {
 	ReturnTo string // Which view to return to after completion

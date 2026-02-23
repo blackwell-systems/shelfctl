@@ -271,7 +271,7 @@ func (m editFormModel) View() string {
 // Returns the filled form data, or error if canceled.
 func RunEditForm(defaults EditFormDefaults) (*EditFormData, error) {
 	m := newEditForm(defaults)
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	finalModel, err := p.Run()
 	if err != nil {

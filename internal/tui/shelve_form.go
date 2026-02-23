@@ -262,7 +262,7 @@ func (m shelveFormModel) getValue(field int) string {
 // Returns the filled form data, or error if canceled.
 func RunShelveForm(defaults ShelveFormDefaults) (*ShelveFormData, error) {
 	m := newShelveForm(defaults)
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	finalModel, err := p.Run()
 	if err != nil {

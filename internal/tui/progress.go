@@ -175,7 +175,7 @@ func ShowProgress(label string, total int64, progressCh <-chan int64) error {
 		progressCh: progressCh,
 	}
 
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithAltScreen())
 	finalModel, err := p.Run()
 	if err != nil {
 		return err

@@ -100,17 +100,19 @@ type filePickerModel struct {
 	selectedMulti []string // Return value for multi-select
 	width         int
 	height        int
+	showHidden    bool // Whether to show hidden files/directories
 }
 
 // filePickerKeys defines keyboard shortcuts
 type filePickerKeys struct {
-	quit       key.Binding
-	selectItem key.Binding
-	openDir    key.Binding
-	parent     key.Binding
-	toggle     key.Binding
-	navRight   key.Binding
-	navLeft    key.Binding
+	quit         key.Binding
+	selectItem   key.Binding
+	openDir      key.Binding
+	parent       key.Binding
+	toggle       key.Binding
+	toggleHidden key.Binding
+	navRight     key.Binding
+	navLeft      key.Binding
 }
 
 var fileKeys = filePickerKeys{
@@ -133,6 +135,10 @@ var fileKeys = filePickerKeys{
 	toggle: key.NewBinding(
 		key.WithKeys(" "),
 		key.WithHelp("space", "toggle"),
+	),
+	toggleHidden: key.NewBinding(
+		key.WithKeys("."),
+		key.WithHelp(".", "show hidden"),
 	),
 	navRight: key.NewBinding(
 		key.WithKeys("tab"),
@@ -185,6 +191,12 @@ func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Toggle checkbox in focused column
 			ms.Toggle()
 			return m, nil
+
+		case key.Matches(msg, fileKeys.toggleHidden):
+			// Toggle hidden files/directories visibility
+			m.showHidden = !m.showHidden
+			// Rebuild all visible columns with new showHidden setting
+			return m.rebuildAllColumns()
 
 		case key.Matches(msg, fileKeys.openDir):
 			// Right arrow / 'l' - only navigates into directories
@@ -256,7 +268,7 @@ func (m filePickerModel) View() string {
 }
 
 // buildDirectoryItems creates list items for the given directory
-func buildDirectoryItems(path string) ([]list.Item, error) {
+func buildDirectoryItems(path string, showHidden bool) ([]list.Item, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -268,8 +280,8 @@ func buildDirectoryItems(path string) ([]list.Item, error) {
 
 	for _, entry := range entries {
 		name := entry.Name()
-		// Skip hidden files
-		if strings.HasPrefix(name, ".") {
+		// Skip hidden files unless showHidden is true
+		if !showHidden && strings.HasPrefix(name, ".") {
 			continue
 		}
 
@@ -313,8 +325,8 @@ func buildDirectoryItems(path string) ([]list.Item, error) {
 }
 
 // createListForPath creates a multiselect list model for the given path
-func createListForPath(path string) (*multiselect.Model, error) {
-	items, err := buildDirectoryItems(path)
+func createListForPath(path string, showHidden bool) (*multiselect.Model, error) {
+	items, err := buildDirectoryItems(path, showHidden)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +349,7 @@ func createListForPath(path string) (*multiselect.Model, error) {
 
 	// Set help keybindings
 	ms.List.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{fileKeys.toggle, fileKeys.parent}
+		return []key.Binding{fileKeys.toggle, fileKeys.toggleHidden, fileKeys.parent}
 	}
 
 	// Restore selection state
@@ -348,7 +360,7 @@ func createListForPath(path string) (*multiselect.Model, error) {
 
 // pushColumn adds a new column for the given directory
 func (m filePickerModel) pushColumn(path string) (tea.Model, tea.Cmd) {
-	listModel, err := createListForPath(path)
+	listModel, err := createListForPath(path, m.showHidden)
 	if err != nil {
 		// On error, show message in current column but don't crash
 		col := m.mc.FocusedColumn()
@@ -370,12 +382,63 @@ func (m filePickerModel) pushColumn(path string) (tea.Model, tea.Cmd) {
 
 // replaceColumn replaces the column at the given index with a new path
 func (m filePickerModel) replaceColumn(index int, path string) (tea.Model, tea.Cmd) {
-	listModel, err := createListForPath(path)
+	listModel, err := createListForPath(path, m.showHidden)
 	if err != nil {
 		return m, nil
 	}
 
 	m.mc.ReplaceColumn(index, path, listModel)
+	m.resizeAllColumns()
+
+	return m, nil
+}
+
+// rebuildAllColumns rebuilds all visible columns with current showHidden setting
+func (m filePickerModel) rebuildAllColumns() (tea.Model, tea.Cmd) {
+	// Get all current column paths
+	columns := m.mc.Columns()
+	if len(columns) == 0 {
+		return m, nil
+	}
+
+	// Store the focused column index and selected item index
+	focusedIdx := m.mc.FocusedIndex()
+
+	// Get the selected index in the focused column before rebuilding
+	var selectedIdx int
+	if focusedCol := m.mc.FocusedColumn(); focusedCol != nil {
+		if ms, ok := focusedCol.List.(*multiselect.Model); ok {
+			selectedIdx = ms.List.Index()
+		}
+	}
+
+	// Rebuild each column
+	for i, col := range columns {
+		listModel, err := createListForPath(col.ID, m.showHidden)
+		if err != nil {
+			continue
+		}
+
+		// Restore selection state for this column
+		m.mc.ReplaceColumn(i, col.ID, listModel)
+	}
+
+	// Restore focus to the same column index
+	// FocusedIndex returns 0-based index, so we need to focus that many times from start
+	for i := 0; i < focusedIdx; i++ {
+		m.mc.FocusNext()
+	}
+
+	// Restore selected index in focused column
+	if focusedCol := m.mc.FocusedColumn(); focusedCol != nil {
+		if ms, ok := focusedCol.List.(*multiselect.Model); ok {
+			// Try to restore the same index, but don't exceed new list length
+			if selectedIdx < len(ms.List.Items()) {
+				ms.List.Select(selectedIdx)
+			}
+		}
+	}
+
 	m.resizeAllColumns()
 
 	return m, nil
@@ -460,8 +523,13 @@ func RunFilePickerMulti(startPath string) ([]string, error) {
 		startPath = filepath.Join(home, startPath[2:])
 	}
 
+	// Create file picker model first (needed for showHidden flag)
+	m := filePickerModel{
+		showHidden: false, // Hidden files are hidden by default
+	}
+
 	// Create initial list for start path
-	initialList, err := createListForPath(startPath)
+	initialList, err := createListForPath(startPath, m.showHidden)
 	if err != nil {
 		return nil, fmt.Errorf("loading start path: %w", err)
 	}
@@ -475,10 +543,8 @@ func RunFilePickerMulti(startPath string) ([]string, error) {
 	})
 	mc.PushColumn(startPath, initialList)
 
-	// Create file picker model
-	m := filePickerModel{
-		mc: mc,
-	}
+	// Assign miller columns to model
+	m.mc = mc
 
 	// Run the program
 	p := tea.NewProgram(m, tea.WithAltScreen())

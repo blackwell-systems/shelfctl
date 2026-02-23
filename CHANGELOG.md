@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Toggle Hidden Files in File Picker**
+  - Press `.` (dot) in the file picker to show/hide hidden files and directories
+  - Hidden files/folders (starting with `.`) are hidden by default
+  - Useful for edge cases like `.hidden-book.pdf` or navigating into `.config` directories
+  - Toggle state rebuilds all visible columns immediately
+  - Help text shows `. show hidden` in the bottom bar
+
 ### Changed
 - **Hub Menu Navigation Improvement**
   - TUI commands (browse, shelve, edit-book, move, delete-book, cache-clear) now return directly to hub menu

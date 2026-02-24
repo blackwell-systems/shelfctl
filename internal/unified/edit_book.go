@@ -574,13 +574,26 @@ func (m EditBookModel) renderMessage(title, help string) string {
 // The active card is shown full-width in the center; adjacent cards peek in
 // from the sides showing only their near edge.
 func (m EditBookModel) renderCarouselView() string {
-	const peekW = 18 // visible chars of each adjacent card
-	const gap = 2    // space between peek and center card
+	const peekW = 14      // visible chars of each adjacent card
+	const gap = 2         // space between peek and center card
+	const maxCenterW = 44 // cap card width for a realistic aspect ratio
 
 	usable := m.width - 6 // outer padding from StyleBorder + outerPad
 	centerW := usable - 2*(peekW+gap)
+	if centerW > maxCenterW {
+		centerW = maxCenterW
+	}
 	if centerW < 24 {
 		centerW = 24
+	}
+
+	// Derive card content height from width to approximate a 3:5 library card.
+	// Terminal chars are ~2:1 (height:width in pixels), so:
+	//   rows = (centerW + 2) * 3 / 10   (total visible width * ratio / char_aspect)
+	totalCardW := centerW + 2 // include border cols
+	cardContentH := totalCardW * 3 / 10
+	if cardContentH < 8 {
+		cardContentH = 8
 	}
 
 	saved := 0
@@ -613,29 +626,37 @@ func (m EditBookModel) renderCarouselView() string {
 	header.WriteString("\n\n")
 
 	// Render the three slots
-	centerCard := m.renderCarouselCard(cur, centerW, true)
+	centerCard := m.renderCarouselCard(cur, centerW, cardContentH, true)
 
 	gapBlock := strings.Repeat(" ", gap)
 
-	cardH := lipgloss.Height(centerCard)
+	renderedCardH := lipgloss.Height(centerCard)
 
 	var leftPeek, rightPeek string
 	if cur > 0 {
-		rendered := m.renderCarouselCard(cur-1, centerW, false)
+		rendered := m.renderCarouselCard(cur-1, centerW, cardContentH, false)
 		leftPeek = peekRight(rendered, peekW)
 	} else {
-		leftPeek = peekRight(ghostCard(centerW, cardH), peekW)
+		leftPeek = peekRight(ghostCard(centerW, cardContentH), peekW)
 	}
 	if cur < n-1 {
-		rendered := m.renderCarouselCard(cur+1, centerW, false)
+		rendered := m.renderCarouselCard(cur+1, centerW, cardContentH, false)
 		rightPeek = peekLeft(rendered, peekW)
 	} else {
-		rightPeek = peekLeft(ghostCard(centerW, cardH), peekW)
+		rightPeek = peekLeft(ghostCard(centerW, cardContentH), peekW)
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top,
 		leftPeek, gapBlock, centerCard, gapBlock, rightPeek,
 	)
+
+	// Center the row in available terminal space
+	rowW := lipgloss.Width(row)
+	innerW := m.width - 6
+	if rowW < innerW {
+		row = lipgloss.NewStyle().Width(innerW).Align(lipgloss.Center).Render(row)
+	}
+	_ = renderedCardH
 
 	// Footer
 	var navHint string
@@ -663,7 +684,7 @@ func (m EditBookModel) renderCarouselView() string {
 }
 
 // renderCarouselCard renders a single card. active=true uses the orange border.
-func (m EditBookModel) renderCarouselCard(i, cardW int, active bool) string {
+func (m EditBookModel) renderCarouselCard(i, cardW, cardH int, active bool) string {
 	book := m.toEdit[i]
 	fs := m.formStates[i]
 
@@ -687,19 +708,19 @@ func (m EditBookModel) renderCarouselCard(i, cardW int, active bool) string {
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#fb6820")).
-			Width(cardW).Height(8).Padding(1, 1)
+			Width(cardW).Height(cardH).Padding(1, 1)
 	case fs.saved:
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("28")).
 			Foreground(lipgloss.Color("242")).
-			Width(cardW).Height(8).Padding(1, 1)
+			Width(cardW).Height(cardH).Padding(1, 1)
 	default:
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("240")).
 			Foreground(lipgloss.Color("242")).
-			Width(cardW).Height(8).Padding(1, 1)
+			Width(cardW).Height(cardH).Padding(1, 1)
 	}
 
 	return style.Render(content)
@@ -732,8 +753,7 @@ func ghostCard(cardW, cardH int) string {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("235")).
-		Width(cardW).
-		Height(cardH - 2). // Height excludes border rows
+		Width(cardW).Height(cardH).
 		Render("")
 }
 

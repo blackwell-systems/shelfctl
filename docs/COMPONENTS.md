@@ -1,6 +1,6 @@
 # Reusable Bubble Tea Components
 
-shelfctl includes three production-ready Bubble Tea components designed for reuse in other projects. Each component is self-contained, well-documented, and has zero dependencies on shelfctl internals.
+shelfctl developed three production-ready Bubble Tea components that have been extracted to a standalone package for use in other projects. Each component is self-contained, well-documented, and has zero dependencies on shelfctl internals.
 
 ---
 
@@ -29,7 +29,7 @@ Building complex TUIs with Bubble Tea involves repetitive boilerplate for common
 
 ## 1. Base Picker Component
 
-**Location:** `internal/tui/picker/`
+**Package:** `github.com/blackwell-systems/bubbletea-components/picker`
 
 Eliminates boilerplate for picker components by handling:
 - Standard key bindings (quit, select, custom keys)
@@ -42,8 +42,7 @@ Eliminates boilerplate for picker components by handling:
 
 ```go
 import (
-    "github.com/blackwell-systems/shelfctl/internal/tui"
-    "github.com/blackwell-systems/shelfctl/internal/tui/picker"
+    "github.com/blackwell-systems/bubbletea-components/picker"
     "github.com/charmbracelet/bubbles/list"
 )
 
@@ -90,13 +89,13 @@ func (m myPickerModel) View() string {
 **After Base Picker:** ~40 lines focused on your logic
 **Savings:** 38% less code
 
-[Full documentation →](../internal/tui/picker/README.md)
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/picker)
 
 ---
 
 ## 2. Multi-Select Component
 
-**Location:** `internal/tui/multiselect/`
+**Package:** `github.com/blackwell-systems/bubbletea-components/multiselect`
 
 Generic multi-selection wrapper that works with any `list.Item`:
 - Checkbox UI with customizable appearance
@@ -108,7 +107,7 @@ Generic multi-selection wrapper that works with any `list.Item`:
 
 ```go
 import (
-    "github.com/blackwell-systems/shelfctl/internal/tui/multiselect"
+    "github.com/blackwell-systems/bubbletea-components/multiselect"
     "github.com/charmbracelet/bubbles/list"
 )
 
@@ -154,13 +153,13 @@ selectedKeys := ms.SelectedKeys()
 - Tag management
 - Any list where users need to select multiple items
 
-[Full documentation →](../internal/tui/multiselect/README.md)
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/multiselect)
 
 ---
 
 ## 3. Miller Columns Component
 
-**Location:** `internal/tui/millercolumns/`
+**Package:** `github.com/blackwell-systems/bubbletea-components/millercolumns`
 
 Hierarchical navigation layout inspired by macOS Finder:
 - Multiple directory levels displayed side-by-side
@@ -173,7 +172,7 @@ Hierarchical navigation layout inspired by macOS Finder:
 
 ```go
 import (
-    "github.com/blackwell-systems/shelfctl/internal/tui/millercolumns"
+    "github.com/blackwell-systems/bubbletea-components/millercolumns"
     "github.com/charmbracelet/bubbles/list"
     "github.com/charmbracelet/lipgloss"
 )
@@ -230,36 +229,35 @@ mc := millercolumns.New(millercolumns.Config{
 - Configuration editors with nested sections
 - Any hierarchical data exploration
 
-[Full documentation →](../internal/tui/millercolumns/README.md)
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/millercolumns)
 
 ---
 
-## Extraction Ready
+## Installation
 
-All three components are designed for extraction to standalone repositories:
+The components are available as a standalone Go module:
 
-### Requirements for Extraction
+```bash
+go get github.com/blackwell-systems/bubbletea-components
+```
 
 **Dependencies (all official Bubble Tea libraries):**
 ```go
 require (
-    github.com/charmbracelet/bubbles v0.18.0
-    github.com/charmbracelet/bubbletea v0.25.0
-    github.com/charmbracelet/lipgloss v0.10.0
+    github.com/charmbracelet/bubbles v1.0.0
+    github.com/charmbracelet/bubbletea v1.3.10
+    github.com/charmbracelet/lipgloss v1.1.0
 )
 ```
 
-**No code changes needed:**
-- Zero dependencies on shelfctl internals
-- Self-contained implementations
-- Clean interfaces
-- Comprehensive documentation included
+**Import what you need:**
+```go
+import "github.com/blackwell-systems/bubbletea-components/picker"
+import "github.com/blackwell-systems/bubbletea-components/multiselect"
+import "github.com/blackwell-systems/bubbletea-components/millercolumns"
+```
 
-**To extract:**
-1. Copy component directory to new repo
-2. Update import paths
-3. Add `go.mod` with dependencies above
-4. Publish!
+**Repository:** https://github.com/blackwell-systems/bubbletea-components
 
 ---
 
@@ -443,26 +441,27 @@ func TestBasePicker(t *testing.T) {
 
 **New to these components?** Start here:
 
-1. **Read [TUI Architecture Guide](../internal/tui/ARCHITECTURE.md)** - Understand the component hierarchy and patterns
+1. **Visit the [bubbletea-components repository](https://github.com/blackwell-systems/bubbletea-components)** - Browse all components
 2. **Try Base Picker first** - Simplest component, immediate value
 3. **Add Multi-Select** - Once you have a picker, add checkbox selection
 4. **Use Miller Columns** - For hierarchical navigation needs
 
-**Want to extract?** Each README includes extraction instructions with zero code changes required.
+**Want to see them in action?** Check out shelfctl's [TUI Architecture Guide](../internal/tui/ARCHITECTURE.md) to see how these components are used in production.
 
 ---
 
 ## Open Source Ready
 
-These components represent production-grade Bubble Tea patterns that solve real problems. They're currently part of shelfctl but designed for independence.
+These components have been extracted to a standalone repository and are available as a Go module:
 
-**Potential future:**
-- Extract to `github.com/blackwell-systems/bubbletea-components`
-- Publish as standalone Go module
-- Expand with additional reusable components
-- Serve broader Bubble Tea community
+**Repository:** https://github.com/blackwell-systems/bubbletea-components
 
-**Current status:** Available in shelfctl codebase with MIT license. Copy freely.
+**Status:**
+- Published as standalone Go module
+- MIT licensed
+- Used in production by shelfctl
+- Ready for community contributions
+- Open to expansion with additional reusable components
 
 ---
 
@@ -475,8 +474,8 @@ https://github.com/blackwell-systems/shelfctl/issues
 
 ## Component Details
 
-For detailed API documentation, examples, and usage patterns, see the README in each component's directory:
+For detailed API documentation, examples, and usage patterns, see the component repository:
 
-- **[Base Picker](../internal/tui/picker/README.md)** - Complete API reference and migration guide
-- **[Multi-Select](../internal/tui/multiselect/README.md)** - Interface requirements and state management
-- **[Miller Columns](../internal/tui/millercolumns/README.md)** - Column navigation and file browser examples
+- **[Base Picker](https://github.com/blackwell-systems/bubbletea-components/tree/main/picker)** - Complete API reference and migration guide
+- **[Multi-Select](https://github.com/blackwell-systems/bubbletea-components/tree/main/multiselect)** - Interface requirements and state management
+- **[Miller Columns](https://github.com/blackwell-systems/bubbletea-components/tree/main/millercolumns)** - Column navigation and file browser examples

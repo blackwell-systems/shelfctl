@@ -1,8 +1,9 @@
 module github.com/blackwell-systems/shelfctl
 
-go 1.24.2
+go 1.25.0
 
 require (
+	github.com/blackwell-systems/bubbletea-components v0.1.0
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -55,3 +56,5 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
+
+replace github.com/blackwell-systems/bubbletea-components => ../bubbletea-components

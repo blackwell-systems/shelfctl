@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/blackwell-systems/bubbletea-components/millercolumns"
+	"github.com/blackwell-systems/bubbletea-components/multiselect"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
-	"github.com/blackwell-systems/shelfctl/internal/tui/millercolumns"
-	"github.com/blackwell-systems/shelfctl/internal/tui/multiselect"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"

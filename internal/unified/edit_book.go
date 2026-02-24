@@ -767,12 +767,18 @@ func ghostCard(cardW, cardH int) string {
 }
 
 func (m EditBookModel) renderEditForm() string {
-	style := lipgloss.NewStyle().Padding(2, 4)
+	const (
+		orange    = lipgloss.Color("#fb6820")
+		tealLight = lipgloss.Color("#2ecfd4")
+		tealDim   = lipgloss.Color("#0d3536")
+		dimColor  = lipgloss.Color("240")
+		errColor  = lipgloss.Color("196")
+	)
 
-	var b strings.Builder
-
-	// Header
 	book := m.toEdit[m.editIndex]
+
+	// ── Header ───────────────────────────────────────────────────────────────
+	var hdr strings.Builder
 	if len(m.toEdit) > 1 {
 		saved := 0
 		for _, fs := range m.formStates {
@@ -780,55 +786,167 @@ func (m EditBookModel) renderEditForm() string {
 				saved++
 			}
 		}
-		b.WriteString(tui.StyleHeader.Render(fmt.Sprintf("Edit: %s", book.Book.ID)))
-		b.WriteString("  ")
-		b.WriteString(tui.StyleHelp.Render(fmt.Sprintf("%d/%d saved — ↑ to browse all cards", saved, len(m.toEdit))))
-	} else {
-		b.WriteString(tui.StyleHeader.Render(fmt.Sprintf("Edit Book: %s", book.Book.ID)))
-	}
-	b.WriteString("\n\n")
-
-	if m.formErr != nil {
-		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-		b.WriteString(errStyle.Render(fmt.Sprintf("Error: %v", m.formErr)))
-		b.WriteString("\n\n")
-	}
-
-	if len(book.Book.Tags) > 0 {
-		b.WriteString(tui.StyleHelp.Render("Current tags: " + strings.Join(book.Book.Tags, ", ")))
-		b.WriteString("\n\n")
-	}
-
-	fields := []string{"Title", "Author", "Year", "Tags"}
-	for i, label := range fields {
-		if i == m.focused {
-			b.WriteString(tui.StyleHighlight.Render("› " + label + ":"))
-		} else {
-			b.WriteString(tui.StyleNormal.Render("  " + label + ":"))
+		hdr.WriteString(tui.StyleHeader.Render(fmt.Sprintf("Edit: %s", book.Book.ID)))
+		hdr.WriteString("  ")
+		hdr.WriteString(tui.StyleHelp.Render(fmt.Sprintf("%d/%d saved — ↑ browse", saved, len(m.toEdit))))
+		hdr.WriteString("\n")
+		// Dot indicator: orange = current, green = saved, gray = unsaved
+		dots := make([]string, len(m.toEdit))
+		for i := range dots {
+			switch {
+			case i == m.editIndex:
+				dots[i] = lipgloss.NewStyle().Foreground(orange).Render("●")
+			case m.formStates[i].saved:
+				dots[i] = lipgloss.NewStyle().Foreground(lipgloss.Color("28")).Render("●")
+			default:
+				dots[i] = lipgloss.NewStyle().Foreground(dimColor).Render("○")
+			}
 		}
-		b.WriteString("\n  ")
-		b.WriteString(m.inputs[i].View())
-		b.WriteString("\n\n")
+		hdr.WriteString(strings.Join(dots, " "))
+	} else {
+		hdr.WriteString(tui.StyleHeader.Render(fmt.Sprintf("Edit Book: %s", book.Book.ID)))
+	}
+	hdr.WriteString("\n\n")
+
+	// ── Error ─────────────────────────────────────────────────────────────────
+	var errStr string
+	if m.formErr != nil {
+		errStr = lipgloss.NewStyle().Foreground(errColor).
+			Render(fmt.Sprintf("✗  %v", m.formErr)) + "\n\n"
 	}
 
-	b.WriteString("\n")
+	// ── Tag pills (existing tags for reference) ───────────────────────────────
+	var tagsStr string
+	if len(book.Book.Tags) > 0 && !m.confirming {
+		pills := make([]string, len(book.Book.Tags))
+		for i, t := range book.Book.Tags {
+			pills[i] = lipgloss.NewStyle().
+				Background(tealDim).Foreground(tealLight).
+				Padding(0, 1).Render(t)
+		}
+		tagsStr = strings.Join(pills, " ") + "\n\n"
+	}
+
+	// ── Fields with accent bar ────────────────────────────────────────────────
+	accentBar := lipgloss.NewStyle().
+		Border(lipgloss.Border{Left: "▌"}, false, false, false, true).
+		BorderForeground(orange).
+		PaddingLeft(1)
+	focusedLabel := lipgloss.NewStyle().Foreground(orange).Bold(true)
+	dimLabel := lipgloss.NewStyle().Foreground(dimColor)
+
+	var fieldsStr strings.Builder
+	fieldNames := []string{"Title", "Author", "Year", "Tags"}
+	for i, name := range fieldNames {
+		var block strings.Builder
+		if i == m.focused {
+			block.WriteString(focusedLabel.Render(name))
+		} else {
+			block.WriteString(dimLabel.Render(name))
+		}
+		block.WriteString("\n")
+		block.WriteString(m.inputs[i].View())
+
+		if i == m.focused {
+			fieldsStr.WriteString(accentBar.Render(block.String()))
+		} else {
+			fieldsStr.WriteString("   " + block.String())
+		}
+		fieldsStr.WriteString("\n\n")
+	}
+
+	// ── Confirmation box ──────────────────────────────────────────────────────
+	var confirmStr string
 	if m.confirming {
-		b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		labelW := 8
+		lStyle := lipgloss.NewStyle().Foreground(dimColor).Width(labelW)
+		vStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
+		lines := lStyle.Render("Title") + "  " + vStyle.Render(m.inputs[editFieldTitle].Value()) + "\n" +
+			lStyle.Render("Author") + "  " + vStyle.Render(m.inputs[editFieldAuthor].Value()) + "\n" +
+			lStyle.Render("Year") + "  " + vStyle.Render(m.inputs[editFieldYear].Value()) + "\n" +
+			lStyle.Render("Tags") + "  " + vStyle.Render(m.inputs[editFieldTags].Value())
+		confirmStr = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(orange).
+			Padding(1, 2).
+			Render(lipgloss.NewStyle().Foreground(orange).Bold(true).Render("Save changes?")+"\n\n"+lines) + "\n\n"
+	}
+
+	// ── Footer ────────────────────────────────────────────────────────────────
+	var footer string
+	if m.confirming {
+		footer = tui.RenderFooterBar([]tui.ShortcutEntry{
 			{Key: "y", Label: "Y Confirm"},
 			{Key: "n", Label: "N Skip"},
 			{Key: "", Label: "Esc Back"},
-		}, m.activeCmd))
+		}, m.activeCmd)
 	} else {
-		b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		footer = tui.RenderFooterBar([]tui.ShortcutEntry{
 			{Key: "tab", Label: "Tab/↑↓ Navigate"},
 			{Key: "enter", Label: "Enter Submit"},
 			{Key: "", Label: "Esc Cancel"},
-		}, m.activeCmd))
+		}, m.activeCmd)
 	}
-	b.WriteString("\n")
 
-	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)
-	return style.Render(tui.StyleBorder.Render(innerPadding.Render(b.String())))
+	// ── Left column ───────────────────────────────────────────────────────────
+	var left strings.Builder
+	left.WriteString(hdr.String())
+	left.WriteString(errStr)
+	left.WriteString(tagsStr)
+	if m.confirming {
+		left.WriteString(confirmStr)
+	} else {
+		left.WriteString(fieldsStr.String())
+	}
+	left.WriteString("\n")
+	left.WriteString(footer)
+	left.WriteString("\n")
+
+	// ── Right column: live preview card ──────────────────────────────────────
+	// Approx usable inner width: terminal - border(2) - outerPad(8) - innerPad(3)
+	innerW := m.width - 13
+	const previewW = 24
+	const colGap = 4
+
+	var body string
+	if innerW >= previewW+colGap+32 && !m.confirming {
+		title := m.inputs[editFieldTitle].Value()
+		if title == "" {
+			title = book.Book.Title
+		}
+		author := m.inputs[editFieldAuthor].Value()
+		tags := m.inputs[editFieldTags].Value()
+
+		inner := previewW - 2
+		previewContent := xansi.Truncate(title, inner, "…") + "\n" +
+			lipgloss.NewStyle().Foreground(dimColor).Render(xansi.Truncate(author, inner, "…")) + "\n" +
+			lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Render(xansi.Truncate(tags, inner, "…"))
+
+		cardH := (previewW + 2) * 3 / 10
+		if cardH < 8 {
+			cardH = 8
+		}
+		previewCard := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(orange).
+			Width(previewW).Height(cardH).
+			Padding(1, 1).
+			Render(previewContent)
+
+		rightCol := lipgloss.NewStyle().Foreground(dimColor).Render("preview") + "\n" + previewCard
+
+		leftW := innerW - previewW - colGap - 2
+		leftBlock := lipgloss.NewStyle().Width(leftW).Render(left.String())
+		body = lipgloss.JoinHorizontal(lipgloss.Top,
+			leftBlock, strings.Repeat(" ", colGap), rightCol,
+		)
+	} else {
+		body = left.String()
+	}
+
+	outerPad := lipgloss.NewStyle().Padding(2, 4)
+	innerPad := lipgloss.NewStyle().Padding(0, 2, 0, 1)
+	return outerPad.Render(tui.StyleBorder.Render(innerPad.Render(body)))
 }
 
 // commitEditsAsync commits all edits in background

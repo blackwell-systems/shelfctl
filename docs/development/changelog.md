@@ -7,34 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-02-24
+
 ### Changed
-- **Hub menu modernisation**: grouped menu items into labeled sections (Library, Organize, Shelves, Tools, Cache) with `─── Section ───` separators; each item now has a single-character icon prefix (`▶`, `+`, `~`, `→`, `≡`, etc.); two-tone `shelf`/`ctl` wordmark and stat-pill status bar added to the unified-mode hub header
-- **Refactor**: split `internal/app/root.go` (896 lines) into `init_wizard.go` (interactive init wizard + legacy hub loop) and `hub_runner.go` (unified TUI runner, URL/repo import helpers); `root.go` reduced to 199 lines of command wiring and output helpers
-- **Refactor**: split `internal/tui/list_browser.go` (1150 lines) into three focused files — `book_item.go` (BookItem type, column layout helpers, `renderBookItem`), `browser_render.go` (View, details pane, footer), `list_browser.go` (model, Update, download logic, constructors); main file reduced to 685 lines
-- **Refactor**: split `internal/unified/move_book.go` (915 lines) into `move_book_ops.go` (async move operations) and `move_book_render.go` (View and render helpers); main file reduced to 435 lines
-- **Refactor**: split `internal/unified/shelve.go` (1217 lines) into `shelve_ops.go` (async ingest/commit operations) and `shelve_render.go` (View and render helpers); main file reduced to 716 lines
-- **Refactor**: extracted carousel logic (`updateCarouselView`, `renderCarouselView`, `renderCarouselCard`, `peekLeft`, `peekRight`, `ghostCard`) from `edit_book.go` into a dedicated `carousel.go` file; `edit_book.go` reduced from 1030 → 802 lines
-- Fixed column header alignment in browse view (1-space prefix corrects TitleBar indentation offset)
-- Fixed `carousel.go` nav hint: replaced `if/else if` chain with tagged `switch` (staticcheck QF1003)
+- **Hub menu redesign** — items grouped into labeled sections (Library, Organize, Shelves, Tools, Cache) with `─── Section ───` dividers; two-tone `shelf`/`ctl` wordmark and stat-pill status bar in the unified-mode hub header
+- **Hub navigation** — cursor skips section headers automatically; clamped at top/bottom so pressing up from the first item stays put
+- **Browse view** — author column capped at 26 characters
+- **Refactor**: split `internal/app/root.go` (896 lines) into `init_wizard.go` and `hub_runner.go`; root reduced to 199 lines
+- **Refactor**: split `internal/tui/list_browser.go` (1150 lines) into `book_item.go`, `browser_render.go`, and `list_browser.go` (685 lines)
+- **Refactor**: split `internal/unified/move_book.go` (915 lines) into `move_book_ops.go` and `move_book_render.go` (435 lines)
+- **Refactor**: split `internal/unified/shelve.go` (1217 lines) into `shelve_ops.go` and `shelve_render.go` (716 lines)
+- **Refactor**: extracted carousel logic from `edit_book.go` into `carousel.go`; `edit_book.go` reduced from 1030 → 802 lines
+- Fixed column header alignment in browse view
 - **Brand color theming** applied across all TUI views
   - Added `ColorOrange` (`#fb6820`), `ColorTeal` (`#1b8487`), `ColorTealLight` (`#2ecfd4`), `ColorTealDim` (`#0d3536`) to the shared color palette
-  - `StyleHighlight` updated from yellow → orange; `StyleTag` updated from cyan → teal-light; `StyleBorder` border color updated to teal — affects all views globally
-  - **Hub**: two-tone `shelf`/`ctl` wordmark in header; teal-light numbers in status bar; teal panel divider; shelf detail pane uses orange names and teal book counts
-  - **Browse**: orange `›` cursor; teal `✓` multi-select indicator; tags rendered without brackets using `·` separator in teal; cache indicator `[local]` → `✓ local`; teal master border and dividers; tag pills in details pane; teal column headers
-  - **Edit form**: uses shared tui color constants instead of hardcoded hex strings
-  - Fixed `padOrTruncate` and `truncateText` to use rune count (not byte length) so multi-byte characters (`·`, `✓`, `›`) no longer cause column misalignment
+  - `StyleHighlight` updated from yellow → orange; `StyleTag` updated from cyan → teal-light; `StyleBorder` border color updated to teal
+  - **Hub**: two-tone wordmark; teal-light stat numbers; teal panel divider; orange shelf names and teal book counts in detail pane
+  - **Browse**: orange `›` cursor; teal `✓` multi-select; tags with `·` separator in teal; `✓ local` cache indicator; teal column headers
+  - **Edit form**: uses shared tui color constants
+  - Fixed `padOrTruncate` and `truncateText` to use rune count so multi-byte characters no longer cause column misalignment
 - **Bulk Edit Carousel** — fully redesigned as a peeking single-row layout
-  - Replaced multi-row grid with a centered card flanked by adjacent cards peeking in from each side
-  - Adjacent cards are clipped to at most half their width, giving a clear "there's more" hint
-  - Ghost cards (dimmed border, no content) appear at the edges of the batch to maintain visual rhythm
-  - Card aspect ratio approximates a 3×5 library card (height derived from width using terminal char ratio)
-  - Peek slots dynamically fill available terminal width; capped so cards never show more than half
-  - Dot position indicator (`○ ● ○`) shows current position in the batch
-  - Selecting multiple books in the picker now opens the carousel immediately instead of the first card's form
-  - Pressing `↓` or `Enter` selects the current card and drops into its edit form
-  - Pressing `Esc` from the carousel returns to the edit form for the current card
-  - Terminal resize artifacts fixed globally by wrapping all view output in `lipgloss.Place`
-  - Fixed panic when Esc was pressed before any card had been opened (uninitialised form inputs)
+  - Centered card flanked by adjacent cards peeking in from each side (clipped to ≤ half width)
+  - Ghost cards at edges; dot position indicator (`○ ● ○`)
+  - Card aspect ratio approximates a 3×5 library card
+  - Selecting multiple books opens the carousel immediately
+  - `↓`/`Enter` selects the current card and opens its edit form; `Esc` returns to carousel
+  - Terminal resize artifacts fixed globally via `lipgloss.Place`
+  - Fixed panic when `Esc` pressed before any card was opened
 
 ## [0.2.3] - 2026-02-24
 

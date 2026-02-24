@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Brand color theming** applied across all TUI views
+  - Added `ColorOrange` (`#fb6820`), `ColorTeal` (`#1b8487`), `ColorTealLight` (`#2ecfd4`), `ColorTealDim` (`#0d3536`) to the shared color palette
+  - `StyleHighlight` updated from yellow → orange; `StyleTag` updated from cyan → teal-light; `StyleBorder` border color updated to teal — affects all views globally
+  - **Hub**: two-tone `shelf`/`ctl` wordmark in header; teal-light numbers in status bar; teal panel divider; shelf detail pane uses orange names and teal book counts
+  - **Browse**: orange `›` cursor; teal `✓` multi-select indicator; tags rendered without brackets using `·` separator in teal; cache indicator `[local]` → `✓ local`; teal master border and dividers; tag pills in details pane; teal column headers
+  - **Edit form**: uses shared tui color constants instead of hardcoded hex strings
+  - Fixed `padOrTruncate` and `truncateText` to use rune count (not byte length) so multi-byte characters (`·`, `✓`, `›`) no longer cause column misalignment
 - **Bulk Edit Carousel** — fully redesigned as a peeking single-row layout
   - Replaced multi-row grid with a centered card flanked by adjacent cards peeking in from each side
   - Adjacent cards are clipped to at most half their width, giving a clear "there's more" hint

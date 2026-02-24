@@ -100,7 +100,7 @@ func renderMenuItem(w io.Writer, m list.Model, index int, item list.Item) {
 	label := menuItem.Label
 	desc := StyleHelp.Render(menuItem.Description)
 
-	display := fmt.Sprintf("%-20s   %s", label, desc)
+	display := fmt.Sprintf("%-25s   %s", label, desc)
 
 	if isSelected {
 		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+display))

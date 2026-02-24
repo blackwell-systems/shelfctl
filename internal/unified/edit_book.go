@@ -46,6 +46,15 @@ type editedBook struct {
 	updated catalog.Book
 }
 
+// editFormState persists form input values per card in multi-edit sessions
+type editFormState struct {
+	title  string
+	author string
+	year   string
+	tags   string
+	saved  bool // true once user has confirmed this card via Enter
+}
+
 // EditBookModel is the unified view for editing book metadata
 type EditBookModel struct {
 	phase    editBookPhase
@@ -68,6 +77,13 @@ type EditBookModel struct {
 	confirming bool
 	formErr    error
 	edits      []editedBook // Accumulated edits
+
+	// Per-card form state (multi-book edit)
+	formStates []editFormState
+
+	// Full-screen carousel sub-view
+	inCarousel     bool
+	carouselCursor int // highlighted card index while browsing carousel
 
 	// Results
 	successCount int
@@ -134,8 +150,27 @@ func NewEditBookModelSingle(item *tui.BookItem, gh *github.Client, cfg *config.C
 		toEdit:   []tui.BookItem{*item},
 		returnTo: returnTo,
 	}
+	m.formStates = initFormStates(m.toEdit)
 	m.initFormForBook(0)
 	return m
+}
+
+// initFormStates builds per-card form state initialised from book data
+func initFormStates(books []tui.BookItem) []editFormState {
+	states := make([]editFormState, len(books))
+	for i, book := range books {
+		yearStr := ""
+		if book.Book.Year > 0 {
+			yearStr = strconv.Itoa(book.Book.Year)
+		}
+		states[i] = editFormState{
+			title:  book.Book.Title,
+			author: book.Book.Author,
+			year:   yearStr,
+			tags:   strings.Join(book.Book.Tags, ","),
+		}
+	}
+	return states
 }
 
 // Init initializes the edit-book view
@@ -166,7 +201,6 @@ func (m EditBookModel) Update(msg tea.Msg) (EditBookModel, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// Handle empty state or error (not form error)
 		if m.empty || (m.err != nil && m.phase == editBookPicking) {
 			switch msg.String() {
 			case "enter", "esc", "q":
@@ -179,6 +213,9 @@ func (m EditBookModel) Update(msg tea.Msg) (EditBookModel, tea.Cmd) {
 		case editBookPicking:
 			return m.updatePicking(msg)
 		case editBookEditing:
+			if m.inCarousel {
+				return m.updateCarouselView(msg)
+			}
 			return m.updateEditing(msg)
 		case editBookProcessing:
 			return m, nil
@@ -199,8 +236,8 @@ func (m EditBookModel) Update(msg tea.Msg) (EditBookModel, tea.Cmd) {
 		return m, cmd
 	}
 
-	// Forward to text inputs in editing phase
-	if m.phase == editBookEditing && !m.confirming {
+	// Forward to text inputs in editing phase (not when in carousel or confirming)
+	if m.phase == editBookEditing && !m.confirming && !m.inCarousel {
 		cmd := m.updateInputs(msg)
 		return m, cmd
 	}
@@ -235,6 +272,7 @@ func (m EditBookModel) updatePicking(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 		m.toEdit = selected
 		m.editIndex = 0
 		m.edits = nil
+		m.formStates = initFormStates(selected)
 		m.initFormForBook(0)
 		m.phase = editBookEditing
 		return m, tea.Batch(textinput.Blink, tui.SetActiveCmd(&m.activeCmd, "enter"))
@@ -246,45 +284,48 @@ func (m EditBookModel) updatePicking(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 }
 
 func (m *EditBookModel) initFormForBook(index int) {
-	b := &m.toEdit[index].Book
+	fs := m.formStates[index]
 
 	m.inputs = make([]textinput.Model, 4)
 	m.focused = 0
 	m.confirming = false
 	m.formErr = nil
 
-	// Title
 	m.inputs[editFieldTitle] = textinput.New()
-	m.inputs[editFieldTitle].Placeholder = b.Title
-	m.inputs[editFieldTitle].SetValue(b.Title)
+	m.inputs[editFieldTitle].Placeholder = fs.title
+	m.inputs[editFieldTitle].SetValue(fs.title)
 	m.inputs[editFieldTitle].Focus()
 	m.inputs[editFieldTitle].CharLimit = 200
 	m.inputs[editFieldTitle].Width = 50
 
-	// Author
 	m.inputs[editFieldAuthor] = textinput.New()
 	m.inputs[editFieldAuthor].Placeholder = "Author name"
-	m.inputs[editFieldAuthor].SetValue(b.Author)
+	m.inputs[editFieldAuthor].SetValue(fs.author)
 	m.inputs[editFieldAuthor].CharLimit = 100
 	m.inputs[editFieldAuthor].Width = 50
 
-	// Year
 	m.inputs[editFieldYear] = textinput.New()
 	m.inputs[editFieldYear].Placeholder = "Publication year (e.g., 2023)"
-	if b.Year > 0 {
-		m.inputs[editFieldYear].SetValue(strconv.Itoa(b.Year))
-	}
+	m.inputs[editFieldYear].SetValue(fs.year)
 	m.inputs[editFieldYear].CharLimit = 4
 	m.inputs[editFieldYear].Width = 50
 
-	// Tags
 	m.inputs[editFieldTags] = textinput.New()
 	m.inputs[editFieldTags].Placeholder = "comma,separated,tags"
-	if len(b.Tags) > 0 {
-		m.inputs[editFieldTags].SetValue(strings.Join(b.Tags, ","))
-	}
+	m.inputs[editFieldTags].SetValue(fs.tags)
 	m.inputs[editFieldTags].CharLimit = 200
 	m.inputs[editFieldTags].Width = 50
+}
+
+// saveCurrentFormToState copies current input values back into formStates
+func (m *EditBookModel) saveCurrentFormToState() {
+	if m.formStates == nil || m.editIndex >= len(m.formStates) {
+		return
+	}
+	m.formStates[m.editIndex].title = m.inputs[editFieldTitle].Value()
+	m.formStates[m.editIndex].author = m.inputs[editFieldAuthor].Value()
+	m.formStates[m.editIndex].year = m.inputs[editFieldYear].Value()
+	m.formStates[m.editIndex].tags = m.inputs[editFieldTags].Value()
 }
 
 func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
@@ -294,11 +335,9 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 
 	case "esc":
 		if m.confirming {
-			// Cancel confirmation, go back to form
 			m.confirming = false
 			return m, nil
 		}
-		// Cancel editing entirely, return to hub
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 
 	case "enter":
@@ -307,7 +346,6 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 			m, cmd := m.submitCurrentBook()
 			return m, tea.Batch(cmd, highlightCmd)
 		}
-		// Show confirmation
 		m.confirming = true
 		return m, highlightCmd
 
@@ -333,6 +371,13 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
 
 		if msg.String() == "up" || msg.String() == "shift+tab" {
+			// Up from the first field in multi-book edit: open carousel
+			if msg.String() == "up" && m.focused == 0 && len(m.toEdit) > 1 {
+				m.saveCurrentFormToState()
+				m.carouselCursor = m.editIndex
+				m.inCarousel = true
+				return m, highlightCmd
+			}
 			m.focused--
 		} else {
 			m.focused++
@@ -363,8 +408,69 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 	return m, nil
 }
 
+// updateCarouselView handles key events in the full-screen carousel
+func (m EditBookModel) updateCarouselView(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
+	cols := m.carouselColumns()
+	n := len(m.toEdit)
+
+	switch msg.String() {
+	case "ctrl+c":
+		return m, func() tea.Msg { return QuitAppMsg{} }
+
+	case "esc":
+		// Return to form without changing selection
+		m.inCarousel = false
+		return m, textinput.Blink
+
+	case "left", "h":
+		if m.carouselCursor > 0 {
+			m.carouselCursor--
+		}
+
+	case "right", "l":
+		if m.carouselCursor < n-1 {
+			m.carouselCursor++
+		}
+
+	case "up", "k":
+		if m.carouselCursor-cols >= 0 {
+			m.carouselCursor -= cols
+		}
+
+	case "down", "j":
+		if m.carouselCursor+cols < n {
+			m.carouselCursor += cols
+		}
+
+	case "enter", " ":
+		// Select this card, drop back into the form
+		m.editIndex = m.carouselCursor
+		m.inCarousel = false
+		m.initFormForBook(m.editIndex)
+		return m, textinput.Blink
+	}
+
+	return m, nil
+}
+
+// carouselColumns returns the number of columns that fit the terminal width
+func (m EditBookModel) carouselColumns() int {
+	const minCardWidth = 28 // minimum usable card width
+	usable := m.width - 4   // outer padding
+	cols := usable / minCardWidth
+	if cols < 1 {
+		cols = 1
+	}
+	if cols > 4 {
+		cols = 4
+	}
+	if cols > len(m.toEdit) {
+		cols = len(m.toEdit)
+	}
+	return cols
+}
+
 func (m EditBookModel) submitCurrentBook() (EditBookModel, tea.Cmd) {
-	// Parse year
 	yearVal := 0
 	if yearStr := m.inputs[editFieldYear].Value(); yearStr != "" {
 		year, err := strconv.Atoi(yearStr)
@@ -376,7 +482,6 @@ func (m EditBookModel) submitCurrentBook() (EditBookModel, tea.Cmd) {
 		yearVal = year
 	}
 
-	// Parse tags
 	var tags []string
 	if tagStr := m.inputs[editFieldTags].Value(); tagStr != "" {
 		for _, t := range strings.Split(tagStr, ",") {
@@ -387,7 +492,6 @@ func (m EditBookModel) submitCurrentBook() (EditBookModel, tea.Cmd) {
 		}
 	}
 
-	// Build updated book
 	item := m.toEdit[m.editIndex]
 	updated := item.Book
 	updated.Title = m.inputs[editFieldTitle].Value()
@@ -400,24 +504,46 @@ func (m EditBookModel) submitCurrentBook() (EditBookModel, tea.Cmd) {
 		updated: updated,
 	})
 
+	if m.editIndex < len(m.formStates) {
+		m.formStates[m.editIndex].saved = true
+	}
+
 	return m.advanceToNextBook()
 }
 
 func (m EditBookModel) advanceToNextBook() (EditBookModel, tea.Cmd) {
-	m.editIndex++
-
-	if m.editIndex >= len(m.toEdit) {
-		// All books edited, start processing
+	// Single-book path: commit immediately
+	if len(m.toEdit) == 1 {
 		if len(m.edits) == 0 {
-			// Nothing was actually edited
 			return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 		}
 		m.phase = editBookProcessing
 		return m, m.commitEditsAsync()
 	}
 
-	// Initialize form for next book
-	m.initFormForBook(m.editIndex)
+	// Multi-book: find next unsaved card (wrapping forward)
+	n := len(m.toEdit)
+	next := -1
+	for i := 1; i <= n; i++ {
+		candidate := (m.editIndex + i) % n
+		if candidate < len(m.formStates) && !m.formStates[candidate].saved {
+			next = candidate
+			break
+		}
+	}
+
+	// All cards saved — commit
+	if next == -1 {
+		if len(m.edits) == 0 {
+			return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
+		}
+		m.phase = editBookProcessing
+		return m, m.commitEditsAsync()
+	}
+
+	// Load the next unsaved card
+	m.editIndex = next
+	m.initFormForBook(next)
 	return m, textinput.Blink
 }
 
@@ -444,6 +570,9 @@ func (m EditBookModel) View() string {
 		return tui.StyleBorder.Render(m.ms.View())
 
 	case editBookEditing:
+		if m.inCarousel {
+			return m.renderCarouselView()
+		}
 		return m.renderEditForm()
 
 	case editBookProcessing:
@@ -466,15 +595,150 @@ func (m EditBookModel) renderMessage(title, help string) string {
 	return style.Render(tui.StyleBorder.Render(innerPadding.Render(b.String())))
 }
 
+// renderCarouselView renders the full-screen card grid for navigating between books
+func (m EditBookModel) renderCarouselView() string {
+	cols := m.carouselColumns()
+	usable := m.width - 4
+	cardW := usable/cols - 2 // subtract gap between cards
+	if cardW < 20 {
+		cardW = 20
+	}
+
+	saved := 0
+	for _, fs := range m.formStates {
+		if fs.saved {
+			saved++
+		}
+	}
+
+	// Header
+	var header strings.Builder
+	header.WriteString(tui.StyleHeader.Render("Select a book to edit"))
+	header.WriteString("  ")
+	header.WriteString(tui.StyleHelp.Render(fmt.Sprintf("%d/%d saved", saved, len(m.toEdit))))
+	header.WriteString("\n\n")
+
+	// Card grid
+	var gridRows []string
+	for rowStart := 0; rowStart < len(m.toEdit); rowStart += cols {
+		var rowCards []string
+		for col := 0; col < cols; col++ {
+			i := rowStart + col
+			if i >= len(m.toEdit) {
+				// Empty placeholder to keep grid aligned
+				placeholder := lipgloss.NewStyle().
+					Width(cardW).
+					Height(4).
+					Border(lipgloss.HiddenBorder()).
+					Render("")
+				rowCards = append(rowCards, placeholder)
+			} else {
+				rowCards = append(rowCards, m.renderCarouselCard(i, cardW))
+			}
+		}
+		gridRows = append(gridRows, lipgloss.JoinHorizontal(lipgloss.Top, rowCards...))
+	}
+
+	grid := strings.Join(gridRows, "\n")
+
+	// Footer
+	footer := tui.RenderFooterBar([]tui.ShortcutEntry{
+		{Key: "tab", Label: "↑↓←→ Navigate"},
+		{Key: "enter", Label: "Enter Select"},
+		{Key: "", Label: "Esc Back"},
+	}, m.activeCmd)
+
+	var b strings.Builder
+	b.WriteString(header.String())
+	b.WriteString(grid)
+	b.WriteString("\n\n")
+	b.WriteString(footer)
+
+	outerPad := lipgloss.NewStyle().Padding(1, 2)
+	return tui.StyleBorder.Render(outerPad.Render(b.String()))
+}
+
+// renderCarouselCard renders a single card in the full-screen carousel
+func (m EditBookModel) renderCarouselCard(i, cardW int) string {
+	book := m.toEdit[i]
+	fs := m.formStates[i]
+
+	titleText := carouselTruncate(book.Book.Title, cardW-2)
+	authorText := carouselTruncate(book.Book.Author, cardW-2)
+	tagsText := carouselTruncate(strings.Join(book.Book.Tags, ", "), cardW-2)
+
+	var statusText string
+	if fs.saved {
+		statusText = lipgloss.NewStyle().Foreground(lipgloss.Color("28")).Render("✓ saved")
+	} else {
+		statusText = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("· unsaved")
+	}
+
+	content := titleText + "\n" + authorText + "\n" + tagsText + "\n" + statusText
+
+	isActive := i == m.carouselCursor
+
+	var style lipgloss.Style
+	switch {
+	case isActive:
+		style = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#fb6820")).
+			Width(cardW).
+			Height(4).
+			Padding(0, 1)
+	case fs.saved:
+		style = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("28")).
+			Foreground(lipgloss.Color("242")).
+			Width(cardW).
+			Height(4).
+			Padding(0, 1)
+	default:
+		style = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			Foreground(lipgloss.Color("242")).
+			Width(cardW).
+			Height(4).
+			Padding(0, 1)
+	}
+
+	return style.Render(content)
+}
+
+// carouselTruncate truncates a string to fit within a carousel card
+func carouselTruncate(s string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return ""
+	}
+	if len(s) <= maxWidth {
+		return s
+	}
+	if maxWidth <= 1 {
+		return "…"
+	}
+	return s[:maxWidth-1] + "…"
+}
+
 func (m EditBookModel) renderEditForm() string {
 	style := lipgloss.NewStyle().Padding(2, 4)
 
 	var b strings.Builder
 
-	// Header with progress
+	// Header
 	book := m.toEdit[m.editIndex]
 	if len(m.toEdit) > 1 {
-		b.WriteString(tui.StyleHeader.Render(fmt.Sprintf("Edit Book [%d/%d]: %s", m.editIndex+1, len(m.toEdit), book.Book.ID)))
+		saved := 0
+		for _, fs := range m.formStates {
+			if fs.saved {
+				saved++
+			}
+		}
+		b.WriteString(tui.StyleHeader.Render(fmt.Sprintf("Edit: %s", book.Book.ID)))
+		b.WriteString("  ")
+		b.WriteString(tui.StyleHelp.Render(fmt.Sprintf("%d/%d saved — ↑ to browse all cards", saved, len(m.toEdit))))
 	} else {
 		b.WriteString(tui.StyleHeader.Render(fmt.Sprintf("Edit Book: %s", book.Book.ID)))
 	}
@@ -486,13 +750,11 @@ func (m EditBookModel) renderEditForm() string {
 		b.WriteString("\n\n")
 	}
 
-	// Show current tags
 	if len(book.Book.Tags) > 0 {
 		b.WriteString(tui.StyleHelp.Render("Current tags: " + strings.Join(book.Book.Tags, ", ")))
 		b.WriteString("\n\n")
 	}
 
-	// Form fields
 	fields := []string{"Title", "Author", "Year", "Tags"}
 	for i, label := range fields {
 		if i == m.focused {
@@ -505,7 +767,6 @@ func (m EditBookModel) renderEditForm() string {
 		b.WriteString("\n\n")
 	}
 
-	// Help text or confirmation
 	b.WriteString("\n")
 	if m.confirming {
 		b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
@@ -536,7 +797,6 @@ func (m EditBookModel) commitEditsAsync() tea.Cmd {
 		successCount := 0
 		failCount := 0
 
-		// Group by shelf for batch commits
 		editsByShelf := make(map[string][]editedBook)
 		for _, e := range edits {
 			editsByShelf[e.item.ShelfName] = append(editsByShelf[e.item.ShelfName], e)
@@ -552,7 +812,6 @@ func (m EditBookModel) commitEditsAsync() tea.Cmd {
 			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 			catalogPath := shelf.EffectiveCatalogPath()
 
-			// Load catalog once for this shelf
 			catalogData, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
 			if err != nil {
 				failCount += len(shelfEdits)
@@ -565,15 +824,12 @@ func (m EditBookModel) commitEditsAsync() tea.Cmd {
 			}
 
 			var updatedBooks []catalog.Book
-
-			// Apply all edits
 			for _, e := range shelfEdits {
 				books = catalog.Append(books, e.updated)
 				updatedBooks = append(updatedBooks, e.updated)
 				successCount++
 			}
 
-			// Commit catalog once
 			updatedData, err := catalog.Marshal(books)
 			if err != nil {
 				continue
@@ -588,7 +844,6 @@ func (m EditBookModel) commitEditsAsync() tea.Cmd {
 				continue
 			}
 
-			// Update README
 			readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
 			if readmeErr == nil {
 				originalContent := string(readmeData)

@@ -21,6 +21,7 @@ The hub displays:
 - **Status bar** - Number of configured shelves and total books
 - **Keyboard navigation** - Use ↑/↓ or j/k to navigate
 - **Search** - Press `/` to filter menu items
+- **Command palette** - Press `ctrl+p` to fuzzy-search all actions
 - **Help** - Shows keybindings at the bottom
 
 ### Scrollable Details Panel
@@ -243,6 +244,7 @@ It will display the standard CLI help instead.
 **Main Menu:**
 - **↑ / ↓** or **j / k** - Navigate menu items
 - **/** - Filter/search menu items
+- **Ctrl+P** - Open command palette (fuzzy-search all actions)
 - **Enter** - Select highlighted item
 - **Tab** or **→** - Focus details panel (when available)
 - **q** or **Esc** or **Ctrl+C** - Quit
@@ -287,7 +289,7 @@ It will display the standard CLI help instead.
 │                                                                      │
 │    Quit                        Exit shelfctl                        │
 │                                                                      │
-│  ↑/↓: navigate  enter: select  tab: focus details  /: filter  q: quit │
+│  ↑/↓: navigate  enter: select  ctrl+p: palette  /: filter  q: quit    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

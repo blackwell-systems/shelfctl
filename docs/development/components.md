@@ -1,6 +1,6 @@
 # Reusable Bubble Tea Components
 
-shelfctl developed three production-ready Bubble Tea components that have been extracted to a standalone package for use in other projects. Each component is self-contained, well-documented, and has zero dependencies on shelfctl internals.
+shelfctl developed five production-ready Bubble Tea components that have been extracted to a standalone package for use in other projects. Each component is self-contained, well-documented, and has zero dependencies on shelfctl internals.
 
 ---
 
@@ -24,6 +24,8 @@ Building complex TUIs with Bubble Tea involves repetitive boilerplate for common
 | **Base Picker** | Foundation for selection UIs | ~60% less code | ~200 LOC |
 | **Multi-Select** | Checkbox wrapper for any list | Reusable pattern | ~300 LOC |
 | **Miller Columns** | Hierarchical navigation layout | Complex layout solved | ~400 LOC |
+| **Carousel** | Peeking card layout with navigation | Card UI solved | ~350 LOC |
+| **Command Palette** | Fuzzy-search action overlay | Instant action lookup | ~365 LOC |
 
 ---
 
@@ -233,6 +235,104 @@ mc := millercolumns.New(millercolumns.Config{
 
 ---
 
+## 4. Carousel Component
+
+**Package:** `github.com/blackwell-systems/bubbletea-components/carousel`
+
+Peeking single-row card layout where the active card is centered at full width and adjacent cards peek in from both sides:
+- Ghost cards at edges for visual continuity
+- Dot position indicator
+- Delegate interface for custom card content
+- Marked-state coloring (e.g., green for saved items)
+- Caller-appended footer hints
+
+### Quick Example
+
+```go
+import "github.com/blackwell-systems/bubbletea-components/carousel"
+
+type myDelegate struct{}
+
+func (d myDelegate) Render(item any, innerW int) string {
+    return item.(MyItem).Name
+}
+
+func (d myDelegate) IsMarked(item any) bool {
+    return item.(MyItem).Done
+}
+
+c := carousel.New(carousel.Config{
+    Items:    items,
+    Delegate: myDelegate{},
+    Title:    "Select an item",
+})
+c.SetSize(width, height)
+```
+
+**Use cases:**
+- Multi-item editing workflows (navigate cards, select to edit)
+- Batch review interfaces
+- Any horizontal card-based navigation
+
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/carousel)
+
+---
+
+## 5. Command Palette Component
+
+**Package:** `github.com/blackwell-systems/bubbletea-components/commandpalette`
+
+Fuzzy-search overlay for executing actions — VS Code `Ctrl+P` style:
+- Type to filter actions by label and keywords
+- Highlighted cursor navigation through results
+- Self-contained bordered overlay with input, results, and footer
+- Caller controls open/close; component handles filtering and rendering
+
+### Quick Example
+
+```go
+import "github.com/blackwell-systems/bubbletea-components/commandpalette"
+
+palette := commandpalette.New(commandpalette.Config{
+    Actions: []commandpalette.Action{
+        {Label: "Browse Library", Keywords: []string{"view", "search"}, Run: doBrowse},
+        {Label: "Add Book",      Keywords: []string{"shelve", "upload"}, Run: doAdd},
+        {Label: "Edit Book",     Keywords: []string{"modify", "update"}, Run: doEdit},
+    },
+})
+palette.SetSize(width, height)
+
+// In Update:
+if msg.String() == "ctrl+p" {
+    paletteOpen = true
+    return m, palette.Focus()
+}
+if paletteOpen {
+    switch msg.String() {
+    case "esc":
+        paletteOpen = false
+        return m, nil
+    default:
+        palette, cmd = palette.Update(msg)
+        return m, cmd
+    }
+}
+
+// Handle selection:
+case commandpalette.ActionSelectedMsg:
+    paletteOpen = false
+    return m, msg.Action.Run
+```
+
+**Use cases:**
+- Hub menus with many actions
+- Quick access to deeply nested features
+- Any TUI with discoverable commands
+
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/commandpalette)
+
+---
+
 ## Installation
 
 The components are available as a standalone Go module:
@@ -255,6 +355,8 @@ require (
 import "github.com/blackwell-systems/bubbletea-components/picker"
 import "github.com/blackwell-systems/bubbletea-components/multiselect"
 import "github.com/blackwell-systems/bubbletea-components/millercolumns"
+import "github.com/blackwell-systems/bubbletea-components/carousel"
+import "github.com/blackwell-systems/bubbletea-components/commandpalette"
 ```
 
 **Repository:** https://github.com/blackwell-systems/bubbletea-components
@@ -284,6 +386,17 @@ These components power all of shelfctl's interactive features:
 - Displays 3 levels at once for visual context
 - Persistent checkbox state across navigation
 - Prevents accidental PDF opens (enter only navigates directories)
+
+### Carousel
+- **Batch edit workflow** - Navigate between selected books as cards
+- Center card shows full metadata, adjacent cards peek from edges
+- Green border marks saved items, orange border for active card
+- Dot indicator shows position in the set
+
+### Command Palette
+- **Hub quick actions** - `ctrl+p` opens fuzzy-search overlay in the hub
+- Searches all menu actions by label, description, and key
+- Selects an action to navigate directly (emits `NavigateMsg`)
 
 ---
 
@@ -389,6 +502,8 @@ func TestBasePicker(t *testing.T) {
 2. **Try Base Picker first** - Simplest component, immediate value
 3. **Add Multi-Select** - Once you have a picker, add checkbox selection
 4. **Use Miller Columns** - For hierarchical navigation needs
+5. **Use Carousel** - For horizontal card-based workflows
+6. **Use Command Palette** - For fuzzy-search action overlays
 
 **Want to see them in action?** Check out shelfctl's [TUI Architecture Guide](tui-architecture.md) to see how these components are used in production.
 
@@ -423,3 +538,5 @@ For detailed API documentation, examples, and usage patterns, see the component 
 - **[Base Picker](https://github.com/blackwell-systems/bubbletea-components/tree/main/picker)** - Complete API reference and migration guide
 - **[Multi-Select](https://github.com/blackwell-systems/bubbletea-components/tree/main/multiselect)** - Interface requirements and state management
 - **[Miller Columns](https://github.com/blackwell-systems/bubbletea-components/tree/main/millercolumns)** - Column navigation and file browser examples
+- **[Carousel](https://github.com/blackwell-systems/bubbletea-components/tree/main/carousel)** - Card layout and delegate interface
+- **[Command Palette](https://github.com/blackwell-systems/bubbletea-components/tree/main/commandpalette)** - Fuzzy-search overlay and action configuration

@@ -102,7 +102,7 @@ Generate a web-based library viewer with cover thumbnails, tag filters, and live
 `shelfctl` (no arguments) launches an interactive visual hub. `shelfctl --help` lists all CLI commands. Every command supports `--json` output and `--no-interactive` for scripting and automation — the two modes share the same feature set.
 
 ### Reusable TUI components
-shelfctl uses three production-ready [Bubble Tea](https://github.com/charmbracelet/bubbletea) components that have been extracted to a standalone package: **Base Picker** (eliminates picker boilerplate), **Multi-Select** (checkbox wrapper for any list), and **Miller Columns** (hierarchical navigation layout). Available at [github.com/blackwell-systems/bubbletea-components](https://github.com/blackwell-systems/bubbletea-components). See [docs/development/components.md](docs/development/components.md) for details.
+shelfctl uses five production-ready [Bubble Tea](https://github.com/charmbracelet/bubbletea) components that have been extracted to a standalone package: **Base Picker** (eliminates picker boilerplate), **Multi-Select** (checkbox wrapper for any list), **Miller Columns** (hierarchical navigation layout), **Carousel** (peeking card layout), and **Command Palette** (fuzzy-search action overlay). Available at [github.com/blackwell-systems/bubbletea-components](https://github.com/blackwell-systems/bubbletea-components). See [docs/development/components.md](docs/development/components.md) for details.
 
 ---
 

@@ -84,7 +84,7 @@ Each view is a self-contained model that:
 - Emits `ActionRequestMsg` or `CommandRequestMsg` for operations needing TUI suspension
 
 **Fully integrated views** (zero flicker):
-- `hub.go` — Main menu with scrollable details panel
+- `hub.go` — Main menu with scrollable details panel and command palette (`ctrl+p`)
 - `browse.go` — Book browser with multi-select and actions
 - `shelve.go` — File picker and metadata form
 - `edit_book.go` — Book picker and edit form

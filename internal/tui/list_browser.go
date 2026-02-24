@@ -35,15 +35,16 @@ func (b BookItem) FilterValue() string {
 	return fmt.Sprintf("%s %s %s %s", b.Book.ID, b.Book.Title, tags, b.ShelfName)
 }
 
-// truncateText truncates a string to maxWidth with ellipsis
+// truncateText truncates a string to maxWidth visible chars with ellipsis.
 func truncateText(s string, maxWidth int) string {
-	if len(s) <= maxWidth {
+	runes := []rune(s)
+	if len(runes) <= maxWidth {
 		return s
 	}
 	if maxWidth <= 1 {
 		return "…"
 	}
-	return s[:maxWidth-1] + "…"
+	return string(runes[:maxWidth-1]) + "…"
 }
 
 // formatBytes formats bytes as human-readable size
@@ -153,19 +154,22 @@ func computeColumnWidths(totalWidth int) (titleW, authorW, tagW, shelfW, cachedW
 	return
 }
 
-// padOrTruncate pads s to exactly width, truncating with "…" if necessary.
+// padOrTruncate pads s to exactly width visible chars, truncating with "…" if necessary.
+// Uses rune count (not byte length) so multi-byte UTF-8 characters align correctly.
 func padOrTruncate(s string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	if len(s) > width {
+	runes := []rune(s)
+	n := len(runes)
+	if n > width {
 		if width <= 1 {
 			return "…"
 		}
-		return s[:width-1] + "…"
+		return string(runes[:width-1]) + "…"
 	}
-	if len(s) < width {
-		return s + strings.Repeat(" ", width-len(s))
+	if n < width {
+		return s + strings.Repeat(" ", width-n)
 	}
 	return s
 }

@@ -19,10 +19,7 @@ jobs:
         fetch-depth: 0
 
     - name: Check out bubbletea-components
-      uses: actions/checkout@v4
-      with:
-        repository: blackwell-systems/bubbletea-components
-        path: ../bubbletea-components
+      run: git clone https://github.com/blackwell-systems/bubbletea-components.git ../bubbletea-components
 
     - name: Set up Go
       uses: actions/setup-go@v5

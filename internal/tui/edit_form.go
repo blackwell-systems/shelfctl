@@ -38,6 +38,7 @@ type editFormModel struct {
 	height      int
 	confirming  bool
 	confirmResp string
+	activeCmd   string
 }
 
 const (
@@ -53,29 +54,34 @@ func newEditForm(defaults EditFormDefaults) editFormModel {
 		defaults: defaults,
 	}
 
+	const fieldWidth = 42
+
 	// Title field
 	m.inputs[editFieldTitle] = textinput.New()
-	m.inputs[editFieldTitle].Placeholder = defaults.Title
+	m.inputs[editFieldTitle].Placeholder = "Book title"
 	m.inputs[editFieldTitle].SetValue(defaults.Title)
 	m.inputs[editFieldTitle].Focus()
 	m.inputs[editFieldTitle].CharLimit = 200
-	m.inputs[editFieldTitle].Width = 50
+	m.inputs[editFieldTitle].Width = fieldWidth
+	m.inputs[editFieldTitle].Prompt = "│ "
 
 	// Author field
 	m.inputs[editFieldAuthor] = textinput.New()
 	m.inputs[editFieldAuthor].Placeholder = "Author name"
 	m.inputs[editFieldAuthor].SetValue(defaults.Author)
 	m.inputs[editFieldAuthor].CharLimit = 100
-	m.inputs[editFieldAuthor].Width = 50
+	m.inputs[editFieldAuthor].Width = fieldWidth
+	m.inputs[editFieldAuthor].Prompt = "│ "
 
 	// Year field
 	m.inputs[editFieldYear] = textinput.New()
-	m.inputs[editFieldYear].Placeholder = "Publication year (e.g., 2023)"
+	m.inputs[editFieldYear].Placeholder = "2024"
 	if defaults.Year > 0 {
 		m.inputs[editFieldYear].SetValue(strconv.Itoa(defaults.Year))
 	}
 	m.inputs[editFieldYear].CharLimit = 4
-	m.inputs[editFieldYear].Width = 50
+	m.inputs[editFieldYear].Width = 8
+	m.inputs[editFieldYear].Prompt = "│ "
 
 	// Tags field
 	m.inputs[editFieldTags] = textinput.New()
@@ -84,7 +90,8 @@ func newEditForm(defaults EditFormDefaults) editFormModel {
 		m.inputs[editFieldTags].SetValue(strings.Join(defaults.Tags, ","))
 	}
 	m.inputs[editFieldTags].CharLimit = 200
-	m.inputs[editFieldTags].Width = 50
+	m.inputs[editFieldTags].Width = fieldWidth
+	m.inputs[editFieldTags].Prompt = "│ "
 
 	return m
 }
@@ -95,6 +102,10 @@ func (m editFormModel) Init() tea.Cmd {
 
 func (m editFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -188,7 +199,7 @@ func (m editFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.focused = 0
 			}
 
-			cmds := make([]tea.Cmd, len(m.inputs))
+			cmds := make([]tea.Cmd, len(m.inputs)+1)
 			for i := 0; i < len(m.inputs); i++ {
 				if i == m.focused {
 					cmds[i] = m.inputs[i].Focus()
@@ -196,6 +207,7 @@ func (m editFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inputs[i].Blur()
 				}
 			}
+			cmds[len(m.inputs)] = SetActiveCmd(&m.activeCmd, "tab")
 			return m, tea.Batch(cmds...)
 		}
 	}
@@ -214,57 +226,78 @@ func (m *editFormModel) updateInputs(msg tea.Msg) tea.Cmd {
 }
 
 func (m editFormModel) View() string {
-	// Outer container for centering - same as hub
-	outerStyle := lipgloss.NewStyle().
-		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
+	outerStyle := lipgloss.NewStyle().Padding(2, 4)
+
+	sepStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#D0D0D0", Dark: "#444444"})
+	formLabel := lipgloss.NewStyle().
+		Foreground(ColorGray).
+		Width(10).
+		Align(lipgloss.Right).
+		PaddingRight(1)
+	formLabelActive := lipgloss.NewStyle().
+		Foreground(ColorYellow).
+		Bold(true).
+		Width(10).
+		Align(lipgloss.Right).
+		PaddingRight(1)
+
+	const w = 54
+	sep := sepStyle.Render(strings.Repeat("─", w))
 
 	var b strings.Builder
 
-	// Title
-	b.WriteString(StyleHeader.Render(fmt.Sprintf("Edit Book: %s", m.defaults.BookID)))
+	// ── Header ──
+	b.WriteString(StyleHeader.Render("Edit Book"))
+	b.WriteString("\n")
+	b.WriteString(StyleHelp.Render(m.defaults.BookID))
+	b.WriteString("\n")
+	if len(m.defaults.Tags) > 0 {
+		b.WriteString(StyleTag.Render(strings.Join(m.defaults.Tags, ", ")))
+		b.WriteString("\n")
+	}
+
+	b.WriteString("\n")
+	b.WriteString(sep)
 	b.WriteString("\n\n")
 
+	// ── Error ──
 	if m.err != nil {
-		b.WriteString(StyleNormal.Render(fmt.Sprintf("Error: %v", m.err)))
+		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+		b.WriteString(errStyle.Render(fmt.Sprintf("Error: %v", m.err)))
 		b.WriteString("\n\n")
 	}
 
-	// Show current tags above the form
-	if len(m.defaults.Tags) > 0 {
-		b.WriteString(StyleHelp.Render("Current tags: " + strings.Join(m.defaults.Tags, ", ")))
-		b.WriteString("\n\n")
-	}
-
-	// Form fields
+	// ── Form fields ──
 	fields := []string{"Title", "Author", "Year", "Tags"}
 	for i, label := range fields {
-		if i == m.focused {
-			b.WriteString(StyleHighlight.Render("› " + label + ":"))
+		if i == m.focused && !m.confirming {
+			b.WriteString(formLabelActive.Render("› " + label))
 		} else {
-			b.WriteString(StyleNormal.Render("  " + label + ":"))
+			b.WriteString(formLabel.Render(label))
 		}
-		b.WriteString("\n  ")
 		b.WriteString(m.inputs[i].View())
 		b.WriteString("\n\n")
 	}
 
-	// Help text or confirmation prompt
+	b.WriteString(sep)
 	b.WriteString("\n")
+
+	// ── Footer ──
 	if m.confirming {
-		b.WriteString(StyleHighlight.Render("Apply changes? (Y/n): "))
+		b.WriteString(StyleHighlight.Render("  Apply changes? "))
+		b.WriteString(StyleHelp.Render("Y/n"))
 	} else {
-		b.WriteString(StyleHelp.Render("Tab/↑↓: Navigate  Enter: Submit  Esc: Cancel"))
+		b.WriteString(RenderFooterBar([]ShortcutEntry{
+			{Key: "tab", Label: "Tab/↑↓ navigate"},
+			{Key: "enter", Label: "enter submit"},
+			{Key: "", Label: "esc cancel"},
+		}, m.activeCmd))
 	}
 	b.WriteString("\n")
 
-	content := b.String()
-
-	// Add inner padding inside border (same as hub)
-	innerPadding := lipgloss.NewStyle().
-		Padding(0, 2, 0, 1) // top, right, bottom, left
-
-	// Apply inner padding, then border, then outer padding
-	return outerStyle.Render(StyleBorder.Render(innerPadding.Render(content)))
+	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)
+	return outerStyle.Render(StyleBorder.Render(innerPadding.Render(b.String())))
 }
 
 // RunEditForm launches an interactive form for editing book metadata.

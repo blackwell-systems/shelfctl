@@ -239,12 +239,11 @@ func (m BrowseModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case tui.ActionEdit:
-			// Edit book - suspend TUI, run edit form, commit changes
+			// Edit book - navigate to unified edit view (stays in TUI)
 			return m, func() tea.Msg {
-				return ActionRequestMsg{
-					Action:   tui.ActionEdit,
+				return NavigateMsg{
+					Target:   "edit-book-single",
 					BookItem: selected,
-					ReturnTo: "browse",
 				}
 			}
 		}

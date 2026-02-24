@@ -185,15 +185,14 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 
 	gap := strings.Repeat(" ", columnGap)
 
-	// Selection checkbox prefix
+	// Cursor / selection prefix
+	isCursor := index == m.Index()
 	prefix := "  "
-	if index == m.Index() {
-		prefix = "› "
+	if isCursor {
+		prefix = lipgloss.NewStyle().Foreground(ColorOrange).Render("›") + " "
 	}
 	if bookItem.selected {
-		prefix = "[✓]"
-		// Ensure prefix is exactly 2 chars for alignment (it's 3 with checkbox)
-		// We keep 3 chars for checkbox; adjust title width down by 1
+		prefix = lipgloss.NewStyle().Foreground(ColorTealLight).Bold(true).Render("✓") + "  "
 		titleW--
 		if titleW < minTitleWidth {
 			titleW = minTitleWidth
@@ -204,29 +203,26 @@ func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 	titleCol := padOrTruncate(bookItem.Book.Title, titleW)
 	authorCol := padOrTruncate(bookItem.Book.Author, authorW)
 
-	tagStr := ""
-	if len(bookItem.Book.Tags) > 0 {
-		tagStr = "[" + strings.Join(bookItem.Book.Tags, ",") + "]"
-	}
+	tagStr := strings.Join(bookItem.Book.Tags, " · ")
 	tagCol := padOrTruncate(tagStr, tagW)
 
 	shelfCol := padOrTruncate(bookItem.ShelfName, shelfW)
 
 	cachedStr := ""
 	if bookItem.Cached {
-		cachedStr = "[local]"
+		cachedStr = "✓ local"
 	}
 	cachedCol := padOrTruncate(cachedStr, cachedW)
 
-	isCursorSelected := index == m.Index()
+	isCursorSelected := isCursor
 
 	// Style each column
 	var titleStyled, authorStyled, tagStyled, shelfStyled, cachedStyled string
 	if isCursorSelected {
 		titleStyled = StyleHighlight.Render(titleCol)
-		authorStyled = StyleHighlight.Render(authorCol)
-		tagStyled = StyleHighlight.Render(tagCol)
-		shelfStyled = StyleHighlight.Render(shelfCol)
+		authorStyled = lipgloss.NewStyle().Foreground(ColorOrange).Faint(true).Render(authorCol)
+		tagStyled = lipgloss.NewStyle().Foreground(ColorTealLight).Render(tagCol)
+		shelfStyled = lipgloss.NewStyle().Foreground(ColorOrange).Faint(true).Render(shelfCol)
 		cachedStyled = StyleHighlight.Render(cachedCol)
 	} else {
 		titleStyled = StyleNormal.Render(titleCol)
@@ -793,8 +789,13 @@ func (m BrowserModel) renderDetailsPane() string {
 	// Tags
 	if len(bookItem.Book.Tags) > 0 {
 		s.WriteString(StyleHighlight.Render("Tags: "))
-		tagsText := strings.Join(bookItem.Book.Tags, ", ")
-		s.WriteString(StyleTag.Render(truncateText(tagsText, maxTextWidth)))
+		s.WriteString("\n")
+		for _, t := range bookItem.Book.Tags {
+			pill := lipgloss.NewStyle().
+				Background(ColorTealDim).Foreground(ColorTealLight).
+				Padding(0, 1).Render(t)
+			s.WriteString(pill + " ")
+		}
 		s.WriteString("\n\n")
 	}
 
@@ -865,7 +866,7 @@ func (m BrowserModel) View() string {
 	// Inner content box with border
 	masterStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ColorGray).
+		BorderForeground(ColorTeal).
 		Padding(0)
 
 	// Calculate dimensions for inner box
@@ -894,7 +895,7 @@ func (m BrowserModel) View() string {
 		listStyle := lipgloss.NewStyle().
 			BorderRight(true).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(ColorGray)
+			BorderForeground(ColorTeal)
 		listView := listStyle.Render(m.list.View())
 		detailsView := m.renderDetailsPane()
 
@@ -916,7 +917,7 @@ func (m BrowserModel) View() string {
 		dividerWidth = 40
 	}
 	divider := lipgloss.NewStyle().
-		Foreground(ColorGray).
+		Foreground(ColorTeal).
 		Width(dividerWidth).
 		Render(strings.Repeat("─", dividerWidth))
 	footer := m.renderFooter()

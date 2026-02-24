@@ -46,7 +46,7 @@ func RenderColumnHeader(listWidth int) string {
 	}
 	titleW, authorW, tagW, shelfW, cachedW := computeColumnWidths(listWidth)
 
-	headerStyle := StyleHelp.Underline(true)
+	headerStyle := lipgloss.NewStyle().Foreground(ColorTeal).Bold(true)
 	gap := " "
 
 	return "  " +

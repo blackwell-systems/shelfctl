@@ -250,13 +250,17 @@ func (m hubModel) renderShelvesDetails() string {
 	s.WriteString(StyleHeader.Render("Configured Shelves"))
 	s.WriteString("\n\n")
 
+	dim := lipgloss.NewStyle().Foreground(ColorGray)
+	num := lipgloss.NewStyle().Foreground(ColorTealLight).Bold(true)
 	for _, shelf := range m.context.ShelfDetails {
 		s.WriteString(StyleHighlight.Render(shelf.Name))
 		s.WriteString("\n")
-		fmt.Fprintf(&s, "  Repo: %s/%s\n", shelf.Owner, shelf.Repo)
-		fmt.Fprintf(&s, "  Books: %d\n", shelf.BookCount)
-		fmt.Fprintf(&s, "  Status: %s\n", shelf.Status)
+		s.WriteString(dim.Render(fmt.Sprintf("  %s/%s", shelf.Owner, shelf.Repo)))
 		s.WriteString("\n")
+		s.WriteString(dim.Render("  ") + num.Render(fmt.Sprintf("%d", shelf.BookCount)) + dim.Render(" books"))
+		s.WriteString("\n")
+		s.WriteString(dim.Render("  ") + shelf.Status)
+		s.WriteString("\n\n")
 	}
 
 	return detailsStyle.Render(s.String())
@@ -350,25 +354,25 @@ func (m hubModel) View() string {
 	outerStyle := lipgloss.NewStyle().
 		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
 
-	// Create header
-	header := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("86")).
-		Padding(0, 1).
-		Render("shelfctl - Personal Library Manager")
+	// Two-tone wordmark header
+	wordmark := lipgloss.NewStyle().Bold(true).Foreground(ColorOrange).Render("shelf") +
+		lipgloss.NewStyle().Bold(true).Foreground(ColorTealLight).Render("ctl")
+	header := lipgloss.NewStyle().Padding(0, 1).Render(wordmark + "  " +
+		lipgloss.NewStyle().Foreground(ColorGray).Render("Personal Library Manager"))
 
-	// Create status bar if we have context
+	// Status bar with brand teal accent
 	var statusBar string
 	if m.context.ShelfCount > 0 {
-		status := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render(fmt.Sprintf("  %d shelves", m.context.ShelfCount))
+		num := lipgloss.NewStyle().Foreground(ColorTealLight).Bold(true)
+		dim := lipgloss.NewStyle().Foreground(ColorGray)
+		stat := "  " + num.Render(fmt.Sprintf("%d", m.context.ShelfCount)) + dim.Render(" shelves")
 		if m.context.BookCount > 0 {
-			status = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("240")).
-				Render(fmt.Sprintf("  %d shelves · %d books", m.context.ShelfCount, m.context.BookCount))
+			stat += "  " + num.Render(fmt.Sprintf("%d", m.context.BookCount)) + dim.Render(" books")
 		}
-		statusBar = status
+		if m.context.CachedCount > 0 {
+			stat += "  " + num.Render(fmt.Sprintf("%d", m.context.CachedCount)) + dim.Render(" cached")
+		}
+		statusBar = stat
 	}
 
 	// Combine header, status, and list
@@ -386,7 +390,7 @@ func (m hubModel) View() string {
 		listStyle := lipgloss.NewStyle().
 			BorderRight(true).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(ColorGray)
+			BorderForeground(ColorTeal)
 		listView := listStyle.Render(listContent)
 		detailsView := m.renderDetailsPane()
 

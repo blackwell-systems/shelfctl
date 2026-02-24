@@ -625,7 +625,7 @@ func (m EditBookModel) renderCarouselView() string {
 	dots := make([]string, n)
 	for i := range dots {
 		if i == cur {
-			dots[i] = lipgloss.NewStyle().Foreground(lipgloss.Color("#fb6820")).Render("●")
+			dots[i] = lipgloss.NewStyle().Foreground(tui.ColorOrange).Render("●")
 		} else {
 			dots[i] = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("○")
 		}
@@ -716,7 +716,7 @@ func (m EditBookModel) renderCarouselCard(i, cardW, cardH int, active bool) stri
 	case active:
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#fb6820")).
+			BorderForeground(tui.ColorOrange).
 			Width(cardW).Height(cardH).Padding(1, 1)
 	case fs.saved:
 		style = lipgloss.NewStyle().
@@ -767,13 +767,11 @@ func ghostCard(cardW, cardH int) string {
 }
 
 func (m EditBookModel) renderEditForm() string {
-	const (
-		orange    = lipgloss.Color("#fb6820")
-		tealLight = lipgloss.Color("#2ecfd4")
-		tealDim   = lipgloss.Color("#0d3536")
-		dimColor  = lipgloss.Color("240")
-		errColor  = lipgloss.Color("196")
-	)
+	orange := tui.ColorOrange
+	tealLight := tui.ColorTealLight
+	tealDim := tui.ColorTealDim
+	dimColor := lipgloss.Color("240")
+	errColor := lipgloss.Color("196")
 
 	book := m.toEdit[m.editIndex]
 

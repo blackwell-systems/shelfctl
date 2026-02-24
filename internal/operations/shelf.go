@@ -94,7 +94,7 @@ func createShelfREADME(gh *github.Client, shelfName, repoName, owner string) {
 	readmeBytes := []byte(readmeContent)
 
 	commitMsg := "Initial commit: Add shelf README"
-	gh.CommitFile(owner, repoName, "README.md", readmeBytes, commitMsg)
+	_ = gh.CommitFile(owner, repoName, "README.md", readmeBytes, commitMsg)
 }
 
 func generateShelfREADME(shelfName, repoName, owner string) string {

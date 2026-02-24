@@ -55,10 +55,10 @@ type Model struct {
 	cacheMgr *cache.Manager
 
 	// Pending action (used when TUI needs to exit to perform action)
-	pendingAction      *ActionRequestMsg
-	pendingCommand     *CommandRequestMsg
-	shouldRestart      bool
-	restartAtView      View
+	pendingAction  *ActionRequestMsg
+	pendingCommand *CommandRequestMsg
+	shouldRestart  bool
+	restartAtView  View
 }
 
 // New creates a new unified model starting at the hub
@@ -568,7 +568,7 @@ func (m Model) handleEditBook(item *tui.BookItem) error {
 
 	fmt.Printf("\n✓ Book successfully updated: %s\n", b.ID)
 	fmt.Println("\nPress Enter to return to browse...")
-	fmt.Scanln()
+	fmt.Scanln() //nolint:errcheck
 
 	return nil
 }

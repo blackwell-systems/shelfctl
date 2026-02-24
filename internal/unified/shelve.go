@@ -67,12 +67,12 @@ type shelveIngestCompleteMsg struct {
 }
 
 type shelveProcessingMsg struct {
-	kind     string // "status", "progress", "done"
-	status   string
-	bytes    int64
-	total    int64
-	book     *catalog.Book
-	err      error
+	kind   string // "status", "progress", "done"
+	status string
+	bytes  int64
+	total  int64
+	book   *catalog.Book
+	err    error
 }
 
 type shelveCommitCompleteMsg struct {
@@ -99,14 +99,14 @@ type ShelveModel struct {
 	cacheMgr *cache.Manager
 
 	// Shelf selection
-	shelfList     list.Model
-	shelfOptions  []tui.ShelfOption
-	shelfName     string
-	shelf         *config.ShelfConfig
-	owner         string
-	releaseTag    string
-	catalogPath   string
-	autoSelected  bool // true if single shelf, skip picker
+	shelfList    list.Model
+	shelfOptions []tui.ShelfOption
+	shelfName    string
+	shelf        *config.ShelfConfig
+	owner        string
+	releaseTag   string
+	catalogPath  string
+	autoSelected bool // true if single shelf, skip picker
 
 	// File selection
 	filePicker    tui.FilePickerModel
@@ -788,7 +788,7 @@ func (m ShelveModel) processFileAsync(statusCh chan shelveProcessingMsg, bookID,
 		uploadErrCh := make(chan error, 1)
 
 		go func() {
-			defer uploadFile.Close()
+			defer uploadFile.Close() //nolint:errcheck
 			progressCh <- 0
 			pr := tui.NewProgressReader(uploadFile, size, progressCh)
 			_, uploadErr := gh.UploadAsset(owner, repo, releaseID, assetName, pr, size, "application/octet-stream")
@@ -1189,13 +1189,13 @@ func (r regexpWrapper) MatchString(s string) bool {
 	}
 	// First char must be [a-z0-9]
 	first := s[0]
-	if !((first >= 'a' && first <= 'z') || (first >= '0' && first <= '9')) {
+	if (first < 'a' || first > 'z') && (first < '0' || first > '9') {
 		return false
 	}
 	// Rest must be [a-z0-9-]
 	for i := 1; i < len(s); i++ {
 		c := s[i]
-		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+		if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
 			return false
 		}
 	}

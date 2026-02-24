@@ -12,8 +12,8 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/unified"
 	"github.com/blackwell-systems/shelfctl/internal/util"
-	"github.com/fatih/color"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -576,7 +576,7 @@ func runUnifiedTUI() error {
 				// Wait for user to press Enter (skip if canceled)
 				if !wasCanceled {
 					fmt.Println("\nPress Enter to return to menu...")
-					fmt.Scanln()
+					fmt.Scanln() //nolint:errcheck
 				}
 
 				// Check if we should restart

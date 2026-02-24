@@ -24,13 +24,13 @@ const (
 
 // CacheClearModel is the unified view for clearing cached books
 type CacheClearModel struct {
-	phase     cacheClearPhase
-	ms        multiselect.Model
-	cacheMgr  *cache.Manager
-	width     int
-	height    int
-	err       error
-	empty     bool // true if no cached books
+	phase    cacheClearPhase
+	ms       multiselect.Model
+	cacheMgr *cache.Manager
+	width    int
+	height   int
+	err      error
+	empty    bool // true if no cached books
 
 	// Confirmation phase
 	toRemove  []tui.BookItem

@@ -319,4 +319,3 @@ func deleteSingleBook(item tui.BookItem) error {
 
 	return nil
 }
-

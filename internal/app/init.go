@@ -200,7 +200,6 @@ func setConfigDefaults(cfg *config.Config, owner string) {
 	}
 }
 
-
 func displayInitSuccess(shelfName, owner, repoName string, createRepo bool) {
 	configPath := config.DefaultPath()
 	ok("Added shelf %q to config", shelfName)
@@ -227,4 +226,3 @@ func displayInitSuccess(shelfName, owner, repoName string, createRepo bool) {
 	fmt.Printf("  4. View your shelves:\n")
 	fmt.Printf("     %s\n", color.CyanString("shelfctl shelves"))
 }
-

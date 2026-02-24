@@ -804,4 +804,3 @@ func updateREADMEAfterAdd(owner, repo string, books []catalog.Book, book catalog
 		ok("Destination README.md updated")
 	}
 }
-

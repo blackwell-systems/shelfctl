@@ -27,11 +27,11 @@ type HubModel struct {
 }
 
 type hubKeys struct {
-	quit         key.Binding
-	selectItem   key.Binding
-	switchFocus  key.Binding
-	scrollUp     key.Binding
-	scrollDown   key.Binding
+	quit        key.Binding
+	selectItem  key.Binding
+	switchFocus key.Binding
+	scrollUp    key.Binding
+	scrollDown  key.Binding
 }
 
 var hubKeyMap = hubKeys{

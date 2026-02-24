@@ -606,4 +606,3 @@ func loadAllBooksAcrossShelves() []tui.BookItem {
 
 	return allItems
 }
-

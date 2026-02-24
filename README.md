@@ -242,7 +242,7 @@ shelfctl
 ```
 
 <p align="center">
-  <img src="assets/screenshot.png" alt="shelfctl interactive TUI hub menu" width="600">
+  <img src="assets/tui_screenshot.png" alt="shelfctl interactive TUI hub menu" width="600">
 </p>
 
 This provides a visual interface with:

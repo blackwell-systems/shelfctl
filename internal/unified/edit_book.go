@@ -274,8 +274,13 @@ func (m EditBookModel) updatePicking(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 		m.editIndex = 0
 		m.edits = nil
 		m.formStates = initFormStates(selected)
-		m.initFormForBook(0)
 		m.phase = editBookEditing
+		if len(selected) > 1 {
+			m.carouselCursor = 0
+			m.inCarousel = true
+			return m, tui.SetActiveCmd(&m.activeCmd, "enter")
+		}
+		m.initFormForBook(0)
 		return m, tea.Batch(textinput.Blink, tui.SetActiveCmd(&m.activeCmd, "enter"))
 	}
 

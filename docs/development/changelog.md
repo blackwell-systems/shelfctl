@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-02-24
+
 ### Added
 - `shelfctl index --open` — open the generated HTML index in the default browser immediately after generation; OS-aware (`open` on macOS, `xdg-open` on Linux, `rundll32` on Windows)
 - Subtle SVG teal texture on HTML index sticky nav header (autumn chevron pattern at 4% opacity)

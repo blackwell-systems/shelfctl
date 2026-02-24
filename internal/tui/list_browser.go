@@ -97,8 +97,10 @@ const (
 	minTitleWidth  = 12
 	maxTitleWidth  = 48
 	minAuthorWidth = 8
+	maxAuthorWidth = 45
 	minTagWidth    = 6
 	minShelfWidth  = 5
+	maxShelfWidth  = 16
 	minCachedWidth = 7
 	columnGap      = 1
 )
@@ -118,8 +120,14 @@ func computeColumnWidths(totalWidth int) (titleW, authorW, tagW, shelfW, cachedW
 	}
 	remaining := usable - titleW
 	authorW = remaining * 35 / 100
-	tagW = remaining * 25 / 100
+	if authorW > maxAuthorWidth {
+		authorW = maxAuthorWidth
+	}
 	shelfW = remaining * 20 / 100
+	if shelfW > maxShelfWidth {
+		shelfW = maxShelfWidth
+	}
+	tagW = remaining * 25 / 100
 	cachedW = remaining - authorW - tagW - shelfW // remainder
 
 	// Enforce minimums

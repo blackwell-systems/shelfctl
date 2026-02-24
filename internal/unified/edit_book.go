@@ -574,17 +574,22 @@ func (m EditBookModel) renderMessage(title, help string) string {
 // The active card is shown full-width in the center; adjacent cards peek in
 // from the sides showing only their near edge.
 func (m EditBookModel) renderCarouselView() string {
-	const peekW = 14      // visible chars of each adjacent card
+	const minPeekW = 8    // minimum peek width on each side
 	const gap = 2         // space between peek and center card
 	const maxCenterW = 44 // cap card width for a realistic aspect ratio
 
 	usable := m.width - 6 // outer padding from StyleBorder + outerPad
-	centerW := usable - 2*(peekW+gap)
+	centerW := usable - 2*(minPeekW+gap)
 	if centerW > maxCenterW {
 		centerW = maxCenterW
 	}
 	if centerW < 24 {
 		centerW = 24
+	}
+	// Give all leftover space to the peek slots so they fill the sides.
+	peekW := (usable - centerW - 2*gap) / 2
+	if peekW < minPeekW {
+		peekW = minPeekW
 	}
 
 	// Derive card content height from width to approximate a 3:5 library card.
@@ -650,12 +655,6 @@ func (m EditBookModel) renderCarouselView() string {
 		leftPeek, gapBlock, centerCard, gapBlock, rightPeek,
 	)
 
-	// Center the row in available terminal space
-	rowW := lipgloss.Width(row)
-	innerW := m.width - 6
-	if rowW < innerW {
-		row = lipgloss.NewStyle().Width(innerW).Align(lipgloss.Center).Render(row)
-	}
 	_ = renderedCardH
 
 	// Footer

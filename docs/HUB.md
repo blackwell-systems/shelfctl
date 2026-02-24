@@ -114,8 +114,7 @@ The hub provides access to all core operations and loops continuously until you 
 - Checkboxes for configuration options:
   - Create GitHub repository (default: yes)
   - Make repository private (default: yes)
-  - Create 'library' release tag (default: yes)
-- Creates repo via GitHub API, generates README.md, adds to config
+- Creates repo via GitHub API with 'library' release, generates README.md, adds to config
 - No need to exit to CLI or remember `init` command syntax
 - Returns to hub menu after completion
 

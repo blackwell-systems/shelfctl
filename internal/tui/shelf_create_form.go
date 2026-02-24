@@ -11,11 +11,10 @@ import (
 
 // ShelfCreateFormData holds the shelf configuration collected from the user
 type ShelfCreateFormData struct {
-	ShelfName     string
-	RepoName      string
-	CreateRepo    bool
-	Private       bool
-	CreateRelease bool
+	ShelfName  string
+	RepoName   string
+	CreateRepo bool
+	Private    bool
 }
 
 type shelfCreateFormModel struct {
@@ -28,7 +27,6 @@ type shelfCreateFormModel struct {
 	height         int
 	createRepoFlag bool // Checkbox state
 	privateFlag    bool // Checkbox state
-	releaseFlag    bool // Checkbox state
 }
 
 const (
@@ -36,7 +34,6 @@ const (
 	shelfFieldRepo
 	shelfFieldCreateRepo
 	shelfFieldPrivate
-	shelfFieldRelease
 )
 
 func newShelfCreateForm() shelfCreateFormModel {
@@ -44,7 +41,6 @@ func newShelfCreateForm() shelfCreateFormModel {
 		inputs:         make([]textinput.Model, 2), // Only name and repo are text inputs
 		createRepoFlag: true,                       // Default: create repo
 		privateFlag:    true,                       // Default: private
-		releaseFlag:    true,                       // Default: create release
 	}
 
 	const inputWidth = 50
@@ -99,11 +95,10 @@ func (m shelfCreateFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.result = &ShelfCreateFormData{
-				ShelfName:     shelfName,
-				RepoName:      repoName,
-				CreateRepo:    m.createRepoFlag,
-				Private:       m.privateFlag,
-				CreateRelease: m.releaseFlag,
+				ShelfName:  shelfName,
+				RepoName:   repoName,
+				CreateRepo: m.createRepoFlag,
+				Private:    m.privateFlag,
 			}
 			return m, tea.Quit
 
@@ -115,7 +110,7 @@ func (m shelfCreateFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.focused++
 			}
 
-			totalFields := 5 // 2 text inputs + 3 checkboxes
+			totalFields := 4 // 2 text inputs + 2 checkboxes
 			if m.focused < 0 {
 				m.focused = totalFields - 1
 			} else if m.focused >= totalFields {
@@ -141,9 +136,6 @@ func (m shelfCreateFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case shelfFieldPrivate:
 				m.privateFlag = !m.privateFlag
-				return m, nil
-			case shelfFieldRelease:
-				m.releaseFlag = !m.releaseFlag
 				return m, nil
 			}
 		}
@@ -200,7 +192,6 @@ func (m shelfCreateFormModel) View() string {
 	}{
 		{"Create GitHub repository", shelfFieldCreateRepo, m.createRepoFlag, "Create repo via GitHub API"},
 		{"Make repository private", shelfFieldPrivate, m.privateFlag, "Private repos are only visible to you"},
-		{"Create 'library' release", shelfFieldRelease, m.releaseFlag, "Required for storing book files"},
 	}
 
 	for _, cb := range checkboxes {

@@ -39,10 +39,10 @@ shelfctl init --repo REPO --name NAME [flags]
 
 ```bash
 # Create new private shelf with repo and release (default)
-shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+shelfctl init --repo shelf-programming --name programming --create-repo
 
 # Create public shelf
-shelfctl init --repo shelf-public --name public --create-repo --create-release --private=false
+shelfctl init --repo shelf-public --name public --create-repo --private=false
 
 # Initialize existing repo as a shelf
 shelfctl init --repo existing-repo --name mybooks
@@ -50,8 +50,8 @@ shelfctl init --repo existing-repo --name mybooks
 
 ### What it does
 
-1. Optionally creates the GitHub repository
-2. Optionally creates the initial release tag
+1. Optionally creates the GitHub repository (with `--create-repo`)
+2. Creates the 'library' release tag automatically when creating repo
 3. Adds shelf to `~/.config/shelfctl/config.yml`
 4. Creates empty `catalog.yml` in the repo
 

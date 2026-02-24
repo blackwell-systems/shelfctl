@@ -109,8 +109,7 @@ Let's create a shelf for programming books:
 shelfctl init \
   --repo shelf-programming \
   --name programming \
-  --create-repo \
-  --create-release
+  --create-repo
 ```
 
 This will:

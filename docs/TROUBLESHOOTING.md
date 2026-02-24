@@ -83,7 +83,7 @@ If the repo should exist:
 If you need to create it:
 
 ```bash
-shelfctl init --repo shelf-name --name name --create-repo --create-release
+shelfctl init --repo shelf-name --name name --create-repo
 ```
 
 ### "catalog.yml not found"

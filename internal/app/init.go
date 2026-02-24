@@ -12,12 +12,11 @@ import (
 
 func newInitCmd() *cobra.Command {
 	var (
-		owner         string
-		repoName      string
-		shelfName     string
-		createRepo    bool
-		private       bool
-		createRelease bool
+		owner      string
+		repoName   string
+		shelfName  string
+		createRepo bool
+		private    bool
 	)
 
 	cmd := &cobra.Command{
@@ -33,13 +32,13 @@ shelfctl organizes your books into "shelves" - GitHub repos where:
 This command creates or registers a shelf repo in your config.
 
 Quick start:
-  1. Run: shelfctl init --repo shelf-books --name books --create-repo --create-release
+  1. Run: shelfctl init --repo shelf-books --name books --create-repo
   2. Then: shelfctl shelve (launches interactive workflow)
   3. Or: shelfctl shelve ~/book.pdf --shelf books --title "My Book"
 
 For more details, see: shelfctl --help or docs/TUTORIAL.md`,
 		Example: `  # Create a new shelf with repo and release
-  shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+  shelfctl init --repo shelf-programming --name programming --create-repo
 
   # Register an existing repo as a shelf
   shelfctl init --repo shelf-history --name history`,
@@ -51,7 +50,7 @@ For more details, see: shelfctl --help or docs/TUTORIAL.md`,
 			}
 
 			// Create repo and release if requested
-			if err := createRepoAndRelease(effectiveOwner, repoName, createRepo, createRelease, private); err != nil {
+			if err := createRepoAndRelease(effectiveOwner, repoName, createRepo, private); err != nil {
 				return err
 			}
 
@@ -76,7 +75,6 @@ For more details, see: shelfctl --help or docs/TUTORIAL.md`,
 	cmd.Flags().StringVar(&shelfName, "name", "", "Local shelf name (default: repo without 'shelf-' prefix)")
 	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "Create the GitHub repo via API")
 	cmd.Flags().BoolVar(&private, "private", true, "Make the repo private (with --create-repo)")
-	cmd.Flags().BoolVar(&createRelease, "create-release", true, "Create the 'library' release")
 
 	return cmd
 }
@@ -107,7 +105,7 @@ func validateInitParams(owner, repoName, shelfName string) (string, string, erro
 	return effectiveOwner, effectiveShelfName, nil
 }
 
-func createRepoAndRelease(owner, repoName string, createRepo, createRelease, private bool) error {
+func createRepoAndRelease(owner, repoName string, createRepo, private bool) error {
 	if createRepo {
 		header("Creating repo %s/%s …", owner, repoName)
 
@@ -127,7 +125,7 @@ func createRepoAndRelease(owner, repoName string, createRepo, createRelease, pri
 		}
 	}
 
-	if createRelease {
+	if createRepo {
 		header("Creating release 'library' in %s/%s …", owner, repoName)
 		rel, err := gh.EnsureRelease(owner, repoName, "library")
 		if err != nil {
@@ -249,7 +247,7 @@ func runCreateShelfFromUnified() error {
 	repoName := formData.RepoName
 
 	// Create repo and release if requested
-	if err := createRepoAndRelease(effectiveOwner, repoName, formData.CreateRepo, formData.CreateRelease, formData.Private); err != nil {
+	if err := createRepoAndRelease(effectiveOwner, repoName, formData.CreateRepo, formData.Private); err != nil {
 		return err
 	}
 

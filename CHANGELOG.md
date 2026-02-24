@@ -45,9 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Create Shelf in TUI**
   - New "Create Shelf" option in hub menu for adding shelves interactively
   - Interactive form collects shelf name, repository name, and configuration flags
-  - Checkboxes for: create repository, make private, create release tag
-  - All defaults match CLI behavior (create repo: yes, private: yes, create release: yes)
-  - Creates repo via GitHub API, generates README.md, and adds shelf to config
+  - Checkboxes for: create repository, make private
+  - Creates repo via GitHub API with 'library' release, generates README.md, and adds shelf to config
+  - Release is always created when repo is created (simplifies workflow, release is required anyway)
   - No need to exit to CLI for shelf creation workflow
   - Returns to hub menu after completion
 - **Scrollable Details Panel in Hub**
@@ -67,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Help text shows `. show hidden` in the bottom bar
 
 ### Changed
+- **Simplified Shelf Creation**
+  - Removed optional 'create release' checkbox from shelf creation form
+  - Release is now always created when creating a new repo (it's required for storing books anyway)
+  - Reduces confusion - release will be auto-created on first shelve if missing
+  - CLI: removed `--create-release` flag from `shelfctl init` (always creates release with repo)
 - **Improved Hub Menu Layout**
   - Increased label width from 20 to 25 characters to accommodate longer menu item names
   - Prevents text collision between labels and descriptions for items like "Import from Repository"

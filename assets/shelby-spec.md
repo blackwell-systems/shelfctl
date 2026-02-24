@@ -155,6 +155,11 @@ This version refines curvature, shading, and bottom edge behavior while preservi
 - No heavy floor stage
 - No exaggerated 3D perspective distortion
 
+## Brand Colors
+
+- **Shelf**: `#ee481f` (warm red-orange)
+- **ctl**: `#1b8487` (teal)
+
 ## Style Language
 
 - High saturation

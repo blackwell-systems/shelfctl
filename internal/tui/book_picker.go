@@ -49,7 +49,7 @@ func RenderColumnHeader(listWidth int) string {
 	headerStyle := lipgloss.NewStyle().Foreground(ColorTeal).Bold(true)
 	gap := " "
 
-	return "  " +
+	return " " +
 		headerStyle.Render(padOrTruncate("TITLE", titleW)) + gap +
 		headerStyle.Render(padOrTruncate("AUTHOR", authorW)) + gap +
 		headerStyle.Render(padOrTruncate("TAGS", tagW)) + gap +

@@ -669,11 +669,12 @@ func (m EditBookModel) renderCarouselView() string {
 
 	// Footer
 	var navHint string
-	if cur == 0 {
+	switch cur {
+	case 0:
 		navHint = "→ Navigate"
-	} else if cur == n-1 {
+	case n - 1:
 		navHint = "← Navigate"
-	} else {
+	default:
 		navHint = "←→ Navigate"
 	}
 	footer := tui.RenderFooterBar([]tui.ShortcutEntry{

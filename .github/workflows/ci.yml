@@ -19,6 +19,12 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v4
 
+    - name: Check out bubbletea-components
+      uses: actions/checkout@v4
+      with:
+        repository: blackwell-systems/bubbletea-components
+        path: ../bubbletea-components
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -60,6 +66,12 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v4
 
+    - name: Check out bubbletea-components
+      uses: actions/checkout@v4
+      with:
+        repository: blackwell-systems/bubbletea-components
+        path: ../bubbletea-components
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -78,6 +90,12 @@ jobs:
     steps:
     - name: Check out code
       uses: actions/checkout@v4
+
+    - name: Check out bubbletea-components
+      uses: actions/checkout@v4
+      with:
+        repository: blackwell-systems/bubbletea-components
+        path: ../bubbletea-components
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -100,6 +118,12 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v4
 
+    - name: Check out bubbletea-components
+      uses: actions/checkout@v4
+      with:
+        repository: blackwell-systems/bubbletea-components
+        path: ../bubbletea-components
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -121,6 +145,12 @@ jobs:
     steps:
     - name: Check out code
       uses: actions/checkout@v4
+
+    - name: Check out bubbletea-components
+      uses: actions/checkout@v4
+      with:
+        repository: blackwell-systems/bubbletea-components
+        path: ../bubbletea-components
 
     - name: Set up Go
       uses: actions/setup-go@v5

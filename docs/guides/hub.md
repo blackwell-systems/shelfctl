@@ -137,6 +137,7 @@ All other shelfctl commands remain available via direct invocation:
 
 ```bash
 shelfctl status          # Library sync status overview
+shelfctl search <query>  # Search by title, author, or tags
 shelfctl info <id>       # View book details
 shelfctl open <id>       # Open a book
 shelfctl move <id>       # Move books between shelves

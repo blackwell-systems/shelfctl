@@ -317,6 +317,7 @@ shelfctl sync sicp  # Upload annotated version (replaces original, no versioning
 | `delete-shelf` | Remove a shelf from configuration |
 | `browse` | Browse your library (interactive TUI or text) |
 | `index` | Generate local HTML index for web browsing |
+| `search` | Search books by title, author, or tags |
 | `status` | Show library sync status and statistics |
 | `verify` | Detect catalog vs release mismatches, auto-fix with `--fix` |
 | `sync` | Upload locally modified books (annotations/highlights) to GitHub |

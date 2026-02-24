@@ -8,11 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`shelfctl search` Command**
+  - Full-text search across title, author, and tags (case-insensitive)
+  - `--tag`, `--format`, `--shelf` flags to narrow results
+  - `--json` flag for machine-readable output
+  - Uses existing `catalog.Filter` engine
 - **`shelfctl status` Command**
   - Per-shelf summary: book counts, cached count, modified count
   - `--verbose` flag for per-book status lines (cached/modified/remote)
   - `--shelf` flag to filter to a specific shelf
   - `--json` flag for machine-readable output
+
+### Documentation
+- Added `verify` command reference to `docs/reference/commands.md`
 
 ### Fixed
 - **Footer Command Highlighting on All TUI Screens**

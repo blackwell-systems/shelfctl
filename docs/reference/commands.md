@@ -167,6 +167,55 @@ Total: 4 books, 3 cached (89 MiB), 1 modified
 
 ---
 
+## search
+
+Search books by title, author, or tags across all shelves.
+
+```bash
+shelfctl search <query> [flags]
+```
+
+### Flags
+
+- `--shelf`: Search within a specific shelf
+- `--tag`: Filter results by tag
+- `--format`: Filter by format (pdf, epub, ...)
+- `--json`: Output as JSON
+
+### Examples
+
+```bash
+# Full-text search across title, author, and tags
+shelfctl search "neural networks"
+
+# Search within a specific shelf
+shelfctl search golang --shelf programming
+
+# Combine search with tag filter
+shelfctl search "smith" --tag research
+
+# Filter by format
+shelfctl search --tag fiction --format epub
+
+# Machine-readable output
+shelfctl search "algorithms" --json
+```
+
+### Example Output
+
+```
+── programming  (3 matches)
+  design-patterns       Design Patterns [oop,architecture] ✓
+  sicp                  Structure and Interpretation [lisp,cs]
+  clean-code            Clean Code [craftsmanship] ✓
+
+3 result(s)
+```
+
+The `✓` mark indicates the book is cached locally.
+
+---
+
 ## shelve
 
 Add a book to your library.
@@ -518,6 +567,61 @@ shelfctl sync --all --shelf programming
 - Safe: catalog SHA256 always matches Release asset after sync
 - Commits once per shelf: "sync: update 3 books with local changes"
 - Silent for unmodified books when using `--all`
+
+---
+
+## verify
+
+Detect mismatches between catalog entries and release assets, and optionally auto-fix them.
+
+```bash
+shelfctl verify [flags]
+```
+
+### Flags
+
+- `--shelf`: Verify a specific shelf only
+- `--fix`: Automatically clean up issues
+
+### What it checks
+
+1. **Orphaned catalog entries** — book listed in `catalog.yml` but its asset is missing from the GitHub Release
+2. **Orphaned release assets** — file exists in the Release but is not referenced by any catalog entry
+
+### What `--fix` does
+
+- Removes orphaned catalog entries from `catalog.yml` and clears their local cache
+- Deletes orphaned assets from the GitHub Release
+- Commits the cleaned-up catalog with a summary message
+- Updates the shelf README with the new book count
+
+### Examples
+
+```bash
+# Check all shelves for issues
+shelfctl verify
+
+# Check a specific shelf
+shelfctl verify --shelf programming
+
+# Auto-fix all issues
+shelfctl verify --fix
+```
+
+### Example Output
+
+```
+Verifying shelf: programming
+  Owner/Repo: user/shelf-programming
+  Release: library
+  Catalog: 15 entries
+  Release: 14 assets
+
+Issues found:
+  ✗ Orphaned catalog entry: old-book
+    - Asset "old-book.pdf" missing from release
+    - Fix: Remove from catalog
+```
 
 ---
 

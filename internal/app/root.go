@@ -115,6 +115,7 @@ func init() {
 		newSyncCmd(),
 		newCacheCmd(),
 		newStatusCmd(),
+		newSearchCmd(),
 	)
 
 	// Set up colored help template after commands are added

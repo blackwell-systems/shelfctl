@@ -447,6 +447,99 @@ return m, func() tea.Msg {
 
 ---
 
+## Current State and Remaining Work
+
+### What's Unified ✅
+
+The following views run **entirely within the unified TUI** with zero flicker:
+- **Hub:** Main menu with scrollable details panel
+- **Browse:** Book browser with multi-select and actions
+- **Shelve:** File picker and metadata form
+- **Edit-book:** Book picker and edit form
+- **Move:** Multi-select picker and destination selector
+- **Delete-book:** Multi-select picker with confirmation
+- **Cache-clear:** Multi-select picker for cache operations
+
+### What Still Uses Exit-Suspend Pattern ⚠️
+
+These operations currently exit the TUI, run in terminal, then return:
+- **Create-shelf:** Form that prompts for shelf details
+- **Import-repository:** Repository scanner and migration workflow
+- **Delete-shelf:** Shelf picker and confirmation
+- **Shelves/Index/Cache-info:** Commands that print table output
+
+### The Problem
+
+Operations marked ⚠️ cause unwanted behavior:
+1. **Terminal drops:** User sees terminal briefly even on cancel
+2. **Screen clears:** Brief flicker when exiting/re-entering alt screen
+3. **Inconsistent UX:** Some forms stay in TUI, others don't
+
+Example: Pressing Escape in create-shelf form:
+```
+Hub view (in TUI)
+  ↓ Select "Create Shelf"
+  ↓
+Suspend TUI, exit to terminal
+  ↓ Launch separate form program
+  ↓
+Form displays (in separate TUI)
+  ↓ Press Escape to cancel
+  ↓
+Form exits, returns to terminal
+  ↓ Brief terminal flash (even with no "Press Enter...")
+  ↓
+Resume unified TUI, return to hub
+```
+
+The terminal flash is inevitable with the suspend pattern because we exit and re-enter alt screen.
+
+### The Solution: Complete Unification
+
+**TUI Forms → Unified Views:**
+- Move create-shelf form into `internal/unified/create_shelf.go`
+- Move import-repo workflow into unified views
+- Move delete-shelf picker into unified view
+- These should emit `NavigateMsg` not exit the program
+
+**Terminal Operations → Keep Suspend Pattern:**
+- Commands that print tables (shelves, cache-info)
+- Operations that run external tools (gh commands with output)
+- Index generation (writes HTML file, shows path)
+
+**Result:**
+```
+Hub view (in TUI)
+  ↓ Select "Create Shelf"
+  ↓
+Switch to create-shelf view (internal state, instant)
+  ↓ Fill form or press Escape
+  ↓
+Emit NavigateMsg{Target: "hub"} (instant return, zero flicker)
+```
+
+### Implementation Plan
+
+**Phase 5: Form Unification (In Progress)**
+1. Create `internal/unified/create_shelf.go` view model
+2. Migrate shelf creation form logic from `internal/tui/shelf_create_form.go`
+3. Update orchestrator to route "create-shelf" as a view
+4. Remove CommandRequestMsg handler for "create-shelf"
+5. Keep `shelfctl init` CLI command unchanged
+
+**Phase 6: Workflow Unification (Future)**
+1. Migrate import-repository to unified views
+2. Migrate delete-shelf picker to unified view
+3. Evaluate other suspend-pattern operations
+
+**CLI Compatibility:**
+- `shelfctl init` remains scriptable standalone command
+- `shelfctl import` remains scriptable standalone command
+- Unified TUI provides interactive alternative for these operations
+- Both paths coexist, serving different use cases
+
+---
+
 ## Benefits
 
 ### User Experience

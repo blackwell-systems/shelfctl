@@ -656,9 +656,6 @@ func runUnifiedTUI() error {
 				case "import-repo":
 					cmdErr = runImportFromRepo()
 
-				case "create-shelf":
-					cmdErr = runCreateShelfFromUnified()
-
 				case "delete-shelf":
 					cmdErr = newDeleteShelfCmd().Execute()
 
@@ -667,16 +664,21 @@ func runUnifiedTUI() error {
 				}
 
 				// Show result (suppress cancellations)
+				wasCanceled := false
 				if cmdErr != nil {
 					errMsg := cmdErr.Error()
-					if errMsg != "canceled" && errMsg != "canceled by user" && errMsg != "cancelled by user" {
+					if errMsg == "canceled" || errMsg == "canceled by user" || errMsg == "cancelled by user" {
+						wasCanceled = true
+					} else {
 						warn("Command failed: %v", cmdErr)
 					}
 				}
 
-				// Wait for user to press Enter
-				fmt.Println("\nPress Enter to return to menu...")
-				fmt.Scanln()
+				// Wait for user to press Enter (skip if canceled)
+				if !wasCanceled {
+					fmt.Println("\nPress Enter to return to menu...")
+					fmt.Scanln()
+				}
 
 				// Check if we should restart
 				if unifiedModel.ShouldRestart() {

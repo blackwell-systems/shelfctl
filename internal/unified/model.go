@@ -20,13 +20,14 @@ import (
 type View string
 
 const (
-	ViewHub        View = "hub"
-	ViewBrowse     View = "browse"
-	ViewShelve     View = "shelve"
-	ViewEdit       View = "edit"
-	ViewMove       View = "move"
-	ViewDelete     View = "delete"
-	ViewCacheClear View = "cache-clear"
+	ViewHub         View = "hub"
+	ViewBrowse      View = "browse"
+	ViewShelve      View = "shelve"
+	ViewEdit        View = "edit"
+	ViewMove        View = "move"
+	ViewDelete      View = "delete"
+	ViewCacheClear  View = "cache-clear"
+	ViewCreateShelf View = "create-shelf"
 )
 
 // Model is the unified TUI orchestrator that manages view switching
@@ -36,8 +37,9 @@ type Model struct {
 	height      int
 
 	// View models
-	hub    HubModel
-	browse BrowseModel
+	hub         HubModel
+	browse      BrowseModel
+	createShelf CreateShelfModel
 
 	// Context passed between views
 	hubContext tui.HubContext
@@ -81,6 +83,8 @@ func NewAtView(ctx tui.HubContext, gh *github.Client, cfg *config.Config, cacheM
 	case ViewBrowse:
 		books := m.collectBooks()
 		m.browse = NewBrowseModel(books, gh, cacheMgr)
+	case ViewCreateShelf:
+		m.createShelf = NewCreateShelfModel(gh, cfg)
 	// Add other views as they're implemented
 	default:
 		// Default to hub
@@ -97,6 +101,8 @@ func (m Model) Init() tea.Cmd {
 		return m.hub.Init()
 	case ViewBrowse:
 		return m.browse.Init()
+	case ViewCreateShelf:
+		return m.createShelf.Init()
 	default:
 		return m.hub.Init()
 	}
@@ -228,6 +234,8 @@ func (m Model) View() string {
 		return m.hub.View()
 	case ViewBrowse:
 		return m.browse.View()
+	case ViewCreateShelf:
+		return m.createShelf.View()
 	case ViewShelve, ViewEdit, ViewMove, ViewDelete, ViewCacheClear:
 		// These views use exit-perform-restart pattern
 		// Should never be rendered, but return placeholder just in case
@@ -249,6 +257,10 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var browseModel tea.Model
 		browseModel, cmd = m.browse.Update(msg)
 		m.browse = browseModel.(BrowseModel)
+	case ViewCreateShelf:
+		var createShelfModel CreateShelfModel
+		createShelfModel, cmd = m.createShelf.Update(msg)
+		m.createShelf = createShelfModel
 	case ViewShelve, ViewEdit, ViewMove, ViewDelete, ViewCacheClear:
 		// These views use exit-perform-restart pattern, never rendered in unified TUI
 		// If we somehow reach here, do nothing
@@ -432,13 +444,15 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "create-shelf":
-		// Non-TUI command - interactive form and repo creation
-		return m, func() tea.Msg {
-			return CommandRequestMsg{
-				Command:  "create-shelf",
-				ReturnTo: "hub",
-			}
-		}
+		// Create-shelf form as unified view
+		m.currentView = ViewCreateShelf
+		m.createShelf = NewCreateShelfModel(m.gh, m.cfg)
+		return m, tea.Batch(
+			m.createShelf.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "delete-shelf":
 		// Non-TUI command - just run command and return

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-23
+
 ### Added
 - **Column Headers on Browse and Picker Screens**
   - TITLE, AUTHOR, TAGS, SHELF, CACHE headers displayed above list items
@@ -24,8 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Repository name field now shows `shelf-` as a fixed prefix
   - Users only type the suffix (e.g., "programming" instead of "shelf-programming")
   - Reduces confusion and enforces naming convention
+- **Documentation Reorganized into Subdirectories**
+  - Moved all docs into `guides/`, `reference/`, and `development/` subdirectories
+  - Renamed files to lowercase kebab-case for consistency
+  - Deleted stale `nav.yml` (mkdocs.yml is canonical)
+  - Updated all cross-references in markdown, YAML config, and Go source
 - **TUI Architecture Docs Rewritten**
-  - `docs/TUI_ARCHITECTURE.md` rewritten as a clean post-migration architecture reference
+  - Rewritten as a clean post-migration architecture reference
   - Removed all migration history, phase tracking, and old/new comparisons
 - Removed `docs/UNIFIED_TUI_PLAN.md` (migration complete)
 
@@ -937,7 +944,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `init.go`: 22 → ~8 (6 helpers)
   - `migrate.go`: 22 & 19 → ~10 & ~8 (9 helpers)
 
-[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/blackwell-systems/shelfctl/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/blackwell-systems/shelfctl/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.4
 [0.1.3]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.3

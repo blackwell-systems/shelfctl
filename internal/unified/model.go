@@ -313,6 +313,17 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 			},
 		)
 
+	case "edit-book-single":
+		// Edit a single book directly (from browse view), return to browse
+		m.currentView = ViewEdit
+		m.editBook = NewEditBookModelSingle(msg.BookItem, m.gh, m.cfg, m.cacheMgr, "browse")
+		return m, tea.Batch(
+			m.editBook.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
+
 	case "move":
 		// Move as unified view (no terminal drop)
 		m.currentView = ViewMove

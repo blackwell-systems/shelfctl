@@ -25,7 +25,7 @@ Start with [index.md](index.md) or jump to:
 ## For Developers
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Schemas and configuration reference
-- [../CONTRIBUTING.md](../CONTRIBUTING.md) - Development setup
+- [contributing.md](contributing.md) - Development setup
 
 ## Building Documentation Site
 

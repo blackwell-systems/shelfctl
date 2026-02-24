@@ -76,58 +76,139 @@ func (b BookItem) IsSelectable() bool {
 	return true
 }
 
-// renderBookItem renders a book in the browser list
+// Column width minimums
+const (
+	minTitleWidth  = 12
+	minAuthorWidth = 8
+	minTagWidth    = 6
+	minShelfWidth  = 5
+	minCachedWidth = 7
+	columnGap      = 1
+)
+
+// computeColumnWidths distributes available width proportionally across columns.
+func computeColumnWidths(totalWidth int) (titleW, authorW, tagW, shelfW, cachedW int) {
+	// Reserve space for prefix ("› " or "  " or "[✓] ") and gaps between columns
+	prefix := 2
+	gaps := columnGap * 4 // 4 gaps between 5 columns
+	usable := totalWidth - prefix - gaps
+	if usable < minTitleWidth+minAuthorWidth+minTagWidth+minShelfWidth+minCachedWidth {
+		return minTitleWidth, minAuthorWidth, minTagWidth, minShelfWidth, minCachedWidth
+	}
+	titleW = usable * 45 / 100
+	authorW = usable * 20 / 100
+	tagW = usable * 15 / 100
+	shelfW = usable * 10 / 100
+	cachedW = usable - titleW - authorW - tagW - shelfW // remainder
+
+	// Enforce minimums
+	if titleW < minTitleWidth {
+		titleW = minTitleWidth
+	}
+	if authorW < minAuthorWidth {
+		authorW = minAuthorWidth
+	}
+	if tagW < minTagWidth {
+		tagW = minTagWidth
+	}
+	if shelfW < minShelfWidth {
+		shelfW = minShelfWidth
+	}
+	if cachedW < minCachedWidth {
+		cachedW = minCachedWidth
+	}
+	return
+}
+
+// padOrTruncate pads s to exactly width, truncating with "…" if necessary.
+func padOrTruncate(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if len(s) > width {
+		if width <= 1 {
+			return "…"
+		}
+		return s[:width-1] + "…"
+	}
+	if len(s) < width {
+		return s + strings.Repeat(" ", width-len(s))
+	}
+	return s
+}
+
+// renderBookItem renders a book in the browser list with fixed-width columns.
 func renderBookItem(w io.Writer, m list.Model, index int, item list.Item) {
 	bookItem, ok := item.(BookItem)
 	if !ok {
 		return
 	}
 
-	// Build the display string
-	var s strings.Builder
+	listWidth := m.Width()
+	if listWidth <= 0 {
+		listWidth = 80
+	}
+	titleW, authorW, tagW, shelfW, cachedW := computeColumnWidths(listWidth)
 
-	// Selection checkbox (only show when selected)
-	checkbox := ""
+	gap := strings.Repeat(" ", columnGap)
+
+	// Selection checkbox prefix
+	prefix := "  "
+	if index == m.Index() {
+		prefix = "› "
+	}
 	if bookItem.selected {
-		checkbox = "[✓] "
+		prefix = "[✓]"
+		// Ensure prefix is exactly 2 chars for alignment (it's 3 with checkbox)
+		// We keep 3 chars for checkbox; adjust title width down by 1
+		titleW--
+		if titleW < minTitleWidth {
+			titleW = minTitleWidth
+		}
 	}
 
-	// Title (truncate based on available width)
-	title := bookItem.Book.Title
-	const maxTitleWidth = 66
-	if len(title) > maxTitleWidth {
-		title = title[:maxTitleWidth-1] + "…"
-	}
+	// Build column content
+	titleCol := padOrTruncate(bookItem.Book.Title, titleW)
+	authorCol := padOrTruncate(bookItem.Book.Author, authorW)
 
-	// Tags (truncate if too long)
 	tagStr := ""
 	if len(bookItem.Book.Tags) > 0 {
-		tagsJoined := strings.Join(bookItem.Book.Tags, ",")
-		const maxTagWidth = 30
-		if len(tagsJoined) > maxTagWidth {
-			tagsJoined = tagsJoined[:maxTagWidth-1] + "…"
-		}
-		tagStr = " " + StyleTag.Render("["+tagsJoined+"]")
+		tagStr = "[" + strings.Join(bookItem.Book.Tags, ",") + "]"
 	}
+	tagCol := padOrTruncate(tagStr, tagW)
 
-	// Cached indicator
-	cachedMark := ""
+	shelfCol := padOrTruncate(bookItem.ShelfName, shelfW)
+
+	cachedStr := ""
 	if bookItem.Cached {
-		cachedMark = " " + StyleCached.Render("[local]")
+		cachedStr = "[local]"
 	}
+	cachedCol := padOrTruncate(cachedStr, cachedW)
 
-	// Check if this item is cursor-selected
 	isCursorSelected := index == m.Index()
 
+	// Style each column
+	var titleStyled, authorStyled, tagStyled, shelfStyled, cachedStyled string
 	if isCursorSelected {
-		// Highlight cursor position
-		s.WriteString(StyleHighlight.Render("› " + checkbox + title + tagStr + cachedMark))
+		titleStyled = StyleHighlight.Render(titleCol)
+		authorStyled = StyleHighlight.Render(authorCol)
+		tagStyled = StyleHighlight.Render(tagCol)
+		shelfStyled = StyleHighlight.Render(shelfCol)
+		cachedStyled = StyleHighlight.Render(cachedCol)
 	} else {
-		// Normal rendering
-		s.WriteString("  " + checkbox + title + tagStr + cachedMark)
+		titleStyled = StyleNormal.Render(titleCol)
+		authorStyled = StyleHelp.Render(authorCol)
+		tagStyled = StyleTag.Render(tagCol)
+		shelfStyled = StyleHelp.Render(shelfCol)
+		if bookItem.Cached {
+			cachedStyled = StyleCached.Render(cachedCol)
+		} else {
+			cachedStyled = cachedCol
+		}
 	}
 
-	_, _ = fmt.Fprint(w, s.String())
+	line := prefix + titleStyled + gap + authorStyled + gap + tagStyled + gap + shelfStyled + gap + cachedStyled
+	_, _ = fmt.Fprint(w, line)
 }
 
 // keyMap defines keyboard shortcuts
@@ -256,14 +337,26 @@ type BrowserModel struct {
 	// Unified mode flag - when true, never returns tea.Quit
 	// Instead, sets quitting flag for wrapper to handle
 	unifiedMode bool
+
+	// Footer command highlight
+	activeCmd string // Key that was just pressed for footer highlight
 }
 
 func (m BrowserModel) Init() tea.Cmd {
 	return nil
 }
 
+// setActiveCmd sets the footer highlight and returns a tick command to clear it.
+func (m *BrowserModel) setActiveCmd(key string) tea.Cmd {
+	return SetActiveCmd(&m.activeCmd, key)
+}
+
 func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case downloadMsg:
 		// Handle download progress
 		if msg.err != nil {
@@ -335,7 +428,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Toggle details panel
 			m.showDetails = !m.showDetails
 			m.updateListSize()
-			return m, nil
+			return m, m.setActiveCmd("tab")
 
 		case key.Matches(msg, keys.enter):
 			// If details showing, use as action, otherwise toggle details
@@ -357,6 +450,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keys.open):
 			// Open book
+			highlightCmd := m.setActiveCmd("o")
 			if item, ok := m.list.SelectedItem().(BookItem); ok {
 				m.action = ActionOpen
 				m.selected = &item
@@ -366,6 +460,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, tea.Quit
 			}
+			return m, highlightCmd
 
 		case key.Matches(msg, keys.toggleSelect):
 			// Toggle selection on current item (spacebar)
@@ -378,7 +473,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.list.SetItems(items)
 				}
 			}
-			return m, nil
+			return m, m.setActiveCmd(" ")
 
 		case key.Matches(msg, keys.clearSelect):
 			// Clear all selections
@@ -390,13 +485,15 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			m.list.SetItems(items)
-			return m, nil
+			return m, m.setActiveCmd("c")
 
 		case key.Matches(msg, keys.get):
 			// Download book(s)
+			highlightCmd := m.setActiveCmd("g")
+
 			// Don't start new download if already downloading
 			if m.downloading {
-				return m, nil
+				return m, highlightCmd
 			}
 
 			// Check if any books are selected for batch download
@@ -416,24 +513,26 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Batch download selected books
 				if len(booksToDownload) > 0 {
 					m.downloadQueue = booksToDownload
-					return m, m.startNextDownload()
+					return m, tea.Batch(highlightCmd, m.startNextDownload())
 				}
 
 				// Single book download
 				if item, ok := m.list.SelectedItem().(BookItem); ok {
 					if !item.Cached {
 						m.downloadQueue = []BookItem{item}
-						return m, m.startNextDownload()
+						return m, tea.Batch(highlightCmd, m.startNextDownload())
 					}
 				}
 			}
-			return m, nil
+			return m, highlightCmd
 
 		case key.Matches(msg, keys.uncache):
 			// Remove book(s) from cache
+			highlightCmd := m.setActiveCmd("x")
+
 			// Only works if downloader available
 			if m.downloader == nil {
-				return m, nil
+				return m, highlightCmd
 			}
 
 			// Check if any books are selected for batch uncache
@@ -463,7 +562,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				m.list.SetItems(items)
-				return m, nil
+				return m, highlightCmd
 			}
 
 			// Single book uncache
@@ -481,13 +580,15 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-			return m, nil
+			return m, highlightCmd
 
 		case key.Matches(msg, keys.sync):
 			// Sync modified cached books back to GitHub
+			highlightCmd := m.setActiveCmd("s")
+
 			// Only works if downloader available
 			if m.downloader == nil {
-				return m, nil
+				return m, highlightCmd
 			}
 
 			// Check if any books are selected for batch sync
@@ -518,7 +619,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				m.list.SetItems(items)
-				return m, nil
+				return m, highlightCmd
 			}
 
 			// Single book sync
@@ -531,10 +632,11 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.list.NewStatusMessage(fmt.Sprintf("%s: no changes", item.Book.ID))
 				}
 			}
-			return m, nil
+			return m, highlightCmd
 
 		case key.Matches(msg, keys.edit):
 			// Edit book
+			highlightCmd := m.setActiveCmd("e")
 			if item, ok := m.list.SelectedItem().(BookItem); ok {
 				m.action = ActionEdit
 				m.selected = &item
@@ -544,6 +646,7 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, tea.Quit
 			}
+			return m, highlightCmd
 		}
 
 	case tea.WindowSizeMsg:
@@ -691,28 +794,23 @@ func (m BrowserModel) renderDetailsPane() string {
 	return detailsStyle.Render(s.String())
 }
 
-// renderFooter creates a footer with all available keyboard shortcuts
+// renderFooter creates a footer with all available keyboard shortcuts.
+// The shortcut matching activeCmd is rendered with StyleHighlight.
 func (m BrowserModel) renderFooter() string {
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Padding(0, 1)
-
-	shortcuts := []string{
-		"↑/↓ navigate",
-		"/ filter",
-		"enter action",
-		"o open",
-		"g download",
-		"x uncache",
-		"s sync",
-		"e edit",
-		"space select",
-		"c clear",
-		"tab toggle",
-		"q quit",
-	}
-
-	return helpStyle.Render(strings.Join(shortcuts, " • "))
+	return RenderFooterBar([]ShortcutEntry{
+		{Key: "", Label: "↑/↓ navigate"},
+		{Key: "/", Label: "/ filter"},
+		{Key: "", Label: "enter action"},
+		{Key: "o", Label: "o open"},
+		{Key: "g", Label: "g download"},
+		{Key: "x", Label: "x uncache"},
+		{Key: "s", Label: "s sync"},
+		{Key: "e", Label: "e edit"},
+		{Key: " ", Label: "space select"},
+		{Key: "c", Label: "c clear"},
+		{Key: "tab", Label: "tab detail toggle"},
+		{Key: "", Label: "q quit"},
+	}, m.activeCmd)
 }
 
 func (m BrowserModel) View() string {
@@ -927,7 +1025,7 @@ func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, er
 
 	m := BrowserModel{
 		list:        l,
-		showDetails: true, // Show details pane by default
+		showDetails: false, // Details pane off by default
 		downloader:  downloader,
 		progress:    prog,
 	}
@@ -975,7 +1073,7 @@ func NewBrowserModel(books []BookItem, downloader Downloader, unifiedMode bool) 
 
 	return BrowserModel{
 		list:        l,
-		showDetails: true, // Show details pane by default
+		showDetails: false, // Details pane off by default
 		downloader:  downloader,
 		progress:    prog,
 		unifiedMode: unifiedMode,

@@ -13,44 +13,73 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// renderBookPickerItem renders a book item in picker mode
+// renderPickerColumns renders book metadata as aligned columns for picker views.
+func renderPickerColumns(b *BookItem, listWidth int) (titleCol, authorCol, tagCol, shelfCol, cachedCol string) {
+	if listWidth <= 0 {
+		listWidth = 80
+	}
+	titleW, authorW, tagW, shelfW, cachedW := computeColumnWidths(listWidth)
+
+	titleCol = padOrTruncate(b.Book.Title, titleW)
+	authorCol = padOrTruncate(b.Book.Author, authorW)
+
+	tagStr := ""
+	if len(b.Book.Tags) > 0 {
+		tagStr = "[" + strings.Join(b.Book.Tags, ",") + "]"
+	}
+	tagCol = padOrTruncate(tagStr, tagW)
+	shelfCol = padOrTruncate(b.ShelfName, shelfW)
+
+	cachedStr := ""
+	if b.Cached {
+		cachedStr = "[local]"
+	}
+	cachedCol = padOrTruncate(cachedStr, cachedW)
+	return
+}
+
+// RenderPickerColumnHeader renders a column header row matching picker column widths.
+func RenderPickerColumnHeader(listWidth int) string {
+	if listWidth <= 0 {
+		listWidth = 80
+	}
+	titleW, authorW, tagW, shelfW, cachedW := computeColumnWidths(listWidth)
+
+	headerStyle := StyleHelp.Underline(true)
+	gap := " "
+
+	return "  " +
+		headerStyle.Render(padOrTruncate("TITLE", titleW)) + gap +
+		headerStyle.Render(padOrTruncate("AUTHOR", authorW)) + gap +
+		headerStyle.Render(padOrTruncate("TAGS", tagW)) + gap +
+		headerStyle.Render(padOrTruncate("SHELF", shelfW)) + gap +
+		headerStyle.Render(padOrTruncate("CACHE", cachedW)) + "\n"
+}
+
+// renderBookPickerItem renders a book item in picker mode with aligned columns.
 func renderBookPickerItem(w io.Writer, m list.Model, index int, item list.Item) {
 	bookItem, ok := item.(BookItem)
 	if !ok {
 		return
 	}
 
-	// Build the display string
-	idStr := fmt.Sprintf("%-22s", bookItem.Book.ID)
-	title := bookItem.Book.Title
+	titleCol, authorCol, tagCol, shelfCol, cachedCol := renderPickerColumns(&bookItem, m.Width())
+	gap := " "
+	isCursor := index == m.Index()
 
-	// Tags
-	tagStr := ""
-	if len(bookItem.Book.Tags) > 0 {
-		tagsJoined := strings.Join(bookItem.Book.Tags, ",")
-		const maxTagWidth = 30
-		if len(tagsJoined) > maxTagWidth {
-			tagsJoined = tagsJoined[:maxTagWidth-1] + "…"
-		}
-		tagStr = " " + StyleTag.Render("["+tagsJoined+"]")
-	}
-
-	// Cached indicator
-	cachedStr := ""
-	if bookItem.Cached {
-		cachedStr = " " + StyleCached.Render("[local]")
-	}
-
-	shelfInfo := " " + StyleHelp.Render("["+bookItem.ShelfName+"]")
-
-	// Check if this item is selected
-	isSelected := index == m.Index()
-
-	if isSelected {
-		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+idStr+" "+title+tagStr+cachedStr+shelfInfo))
+	var line string
+	if isCursor {
+		line = "› " + StyleHighlight.Render(titleCol) + gap + StyleHighlight.Render(authorCol) + gap +
+			StyleHighlight.Render(tagCol) + gap + StyleHighlight.Render(shelfCol) + gap + StyleHighlight.Render(cachedCol)
 	} else {
-		_, _ = fmt.Fprint(w, "  "+StyleNormal.Render(idStr)+" "+title+tagStr+cachedStr+shelfInfo)
+		cached := cachedCol
+		if bookItem.Cached {
+			cached = StyleCached.Render(cachedCol)
+		}
+		line = "  " + StyleNormal.Render(titleCol) + gap + StyleHelp.Render(authorCol) + gap +
+			StyleTag.Render(tagCol) + gap + StyleHelp.Render(shelfCol) + gap + cached
 	}
+	_, _ = fmt.Fprint(w, line)
 }
 
 type bookPickerModel struct {
@@ -229,41 +258,24 @@ func renderBookPickerItemMulti(w io.Writer, m list.Model, index int, item list.I
 		return
 	}
 
-	isSelected := index == m.Index()
-
-	// Get checkbox prefix
+	titleCol, authorCol, tagCol, shelfCol, cachedCol := renderPickerColumns(bookItem, m.Width())
+	gap := " "
+	isCursor := index == m.Index()
 	prefix := ms.CheckboxPrefix(bookItem)
 
-	// Build the display string
-	idStr := fmt.Sprintf("%-22s", bookItem.Book.ID)
-	title := bookItem.Book.Title
-
-	// Tags
-	tagStr := ""
-	if len(bookItem.Book.Tags) > 0 {
-		tagsJoined := strings.Join(bookItem.Book.Tags, ",")
-		const maxTagWidth = 30
-		if len(tagsJoined) > maxTagWidth {
-			tagsJoined = tagsJoined[:maxTagWidth-1] + "…"
-		}
-		tagStr = " " + StyleTag.Render("["+tagsJoined+"]")
-	}
-
-	// Cached indicator
-	cachedStr := ""
-	if bookItem.Cached {
-		cachedStr = " " + StyleCached.Render("[local]")
-	}
-
-	shelfInfo := " " + StyleHelp.Render("["+bookItem.ShelfName+"]")
-
-	display := prefix + idStr + " " + title + tagStr + cachedStr + shelfInfo
-
-	if isSelected {
-		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+display))
+	var line string
+	if isCursor {
+		line = "› " + prefix + StyleHighlight.Render(titleCol) + gap + StyleHighlight.Render(authorCol) + gap +
+			StyleHighlight.Render(tagCol) + gap + StyleHighlight.Render(shelfCol) + gap + StyleHighlight.Render(cachedCol)
 	} else {
-		_, _ = fmt.Fprint(w, "  "+StyleNormal.Render(display))
+		cached := cachedCol
+		if bookItem.Cached {
+			cached = StyleCached.Render(cachedCol)
+		}
+		line = "  " + prefix + StyleNormal.Render(titleCol) + gap + StyleHelp.Render(authorCol) + gap +
+			StyleTag.Render(tagCol) + gap + StyleHelp.Render(shelfCol) + gap + cached
 	}
+	_, _ = fmt.Fprint(w, line)
 }
 
 // RunBookPickerMulti launches an interactive book picker with multi-select support.

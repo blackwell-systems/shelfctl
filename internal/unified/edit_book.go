@@ -72,6 +72,12 @@ type EditBookModel struct {
 	// Results
 	successCount int
 	failCount    int
+
+	// Navigation: where to go when done (default "hub")
+	returnTo string
+
+	// Footer highlight
+	activeCmd string
 }
 
 // NewEditBookModel creates a new edit-book view
@@ -82,6 +88,7 @@ func NewEditBookModel(books []tui.BookItem, gh *github.Client, cfg *config.Confi
 			cfg:      cfg,
 			cacheMgr: cacheMgr,
 			empty:    true,
+			returnTo: "hub",
 		}
 	}
 
@@ -92,6 +99,7 @@ func NewEditBookModel(books []tui.BookItem, gh *github.Client, cfg *config.Confi
 			cfg:      cfg,
 			cacheMgr: cacheMgr,
 			err:      err,
+			returnTo: "hub",
 		}
 	}
 
@@ -101,11 +109,40 @@ func NewEditBookModel(books []tui.BookItem, gh *github.Client, cfg *config.Confi
 		gh:       gh,
 		cfg:      cfg,
 		cacheMgr: cacheMgr,
+		returnTo: "hub",
 	}
+}
+
+// NewEditBookModelSingle creates an edit-book view that skips the picker
+// and goes straight to editing a single book. Returns to returnTo when done.
+func NewEditBookModelSingle(item *tui.BookItem, gh *github.Client, cfg *config.Config, cacheMgr *cache.Manager, returnTo string) EditBookModel {
+	if item == nil {
+		return EditBookModel{
+			gh:       gh,
+			cfg:      cfg,
+			cacheMgr: cacheMgr,
+			empty:    true,
+			returnTo: returnTo,
+		}
+	}
+
+	m := EditBookModel{
+		phase:    editBookEditing,
+		gh:       gh,
+		cfg:      cfg,
+		cacheMgr: cacheMgr,
+		toEdit:   []tui.BookItem{*item},
+		returnTo: returnTo,
+	}
+	m.initFormForBook(0)
+	return m
 }
 
 // Init initializes the edit-book view
 func (m EditBookModel) Init() tea.Cmd {
+	if m.phase == editBookEditing {
+		return textinput.Blink
+	}
 	return nil
 }
 

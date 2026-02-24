@@ -372,7 +372,7 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 - **[Interactive Hub](docs/HUB.md)** - Guide to the interactive TUI menu
 - **[Commands Reference](docs/COMMANDS.md)** - Complete documentation for all commands
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Contributing](CONTRIBUTING.md)** - Development guidelines
+- **[Contributing](docs/contributing.md)** - Development guidelines
 
 ### For Developers
 - **[Reusable Bubble Tea Components](docs/COMPONENTS.md)** - Production-ready TUI components (picker, multi-select, miller columns)
@@ -407,7 +407,7 @@ shelfctl is a specialized management tool designed to help developers organize t
 If you find shelfctl useful:
 - ⭐ **Star the repo** on GitHub
 - 🐛 **Report issues** or suggest features
-- 🤝 **Contribute** improvements (see [CONTRIBUTING.md](CONTRIBUTING.md))
+- 🤝 **Contribute** improvements (see [contributing.md](docs/contributing.md))
 - ☕ **Buy me a coffee** via the badge above
 
 ---

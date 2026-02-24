@@ -4,8 +4,9 @@ import "github.com/blackwell-systems/shelfctl/internal/tui"
 
 // NavigateMsg is emitted when a view wants to navigate to another view
 type NavigateMsg struct {
-	Target string      // The target view ("browse", "shelve", "hub", etc.)
-	Data   interface{} // Optional data to pass to the target view
+	Target   string        // The target view ("browse", "shelve", "hub", etc.)
+	Data     interface{}   // Optional data to pass to the target view
+	BookItem *tui.BookItem // Optional single book for direct-edit flows
 }
 
 // QuitAppMsg is emitted when the entire application should quit

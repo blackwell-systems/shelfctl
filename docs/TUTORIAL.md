@@ -254,7 +254,7 @@ The index shows only cached books, so download books first to include them.
 
 ### Managing cache
 
-Your local cache stores downloaded books at `~/.cache/shelfctl/` (or `~/.local/share/shelfctl/cache`). You can manage cache without affecting your shelf catalog or release assets:
+Your local cache stores downloaded books at `~/.local/share/shelfctl/cache/`. You can manage cache without affecting your shelf catalog or release assets:
 
 ```bash
 # View cache statistics

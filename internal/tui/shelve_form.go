@@ -35,7 +35,8 @@ type shelveFormModel struct {
 	canceled     bool
 	width        int
 	height       int
-	cacheLocally bool // Checkbox state
+	cacheLocally bool   // Checkbox state
+	activeCmd    string // Footer highlight
 }
 
 const (
@@ -106,6 +107,10 @@ func (m shelveFormModel) Init() tea.Cmd {
 
 func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -132,7 +137,7 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Toggle checkbox if focused on it
 			if m.focused == fieldCache {
 				m.cacheLocally = !m.cacheLocally
-				return m, nil
+				return m, SetActiveCmd(&m.activeCmd, " ")
 			}
 
 		case "tab", "down":
@@ -143,9 +148,9 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focused = (m.focused + 1) % (fieldCache + 1)
 			if m.focused < fieldID+1 {
 				m.inputs[m.focused].Focus()
-				return m, m.inputs[m.focused].Focus()
+				return m, tea.Batch(m.inputs[m.focused].Focus(), SetActiveCmd(&m.activeCmd, "tab"))
 			}
-			return m, nil
+			return m, SetActiveCmd(&m.activeCmd, "tab")
 
 		case "shift+tab", "up":
 			// Move to previous field (including checkbox)
@@ -158,9 +163,9 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.focused < fieldID+1 {
 				m.inputs[m.focused].Focus()
-				return m, m.inputs[m.focused].Focus()
+				return m, tea.Batch(m.inputs[m.focused].Focus(), SetActiveCmd(&m.activeCmd, "tab"))
 			}
-			return m, nil
+			return m, SetActiveCmd(&m.activeCmd, "tab")
 		}
 	}
 
@@ -226,7 +231,12 @@ func (m shelveFormModel) View() string {
 
 	// Help text
 	b.WriteString("\n")
-	b.WriteString(StyleHelp.Render("Tab/↑↓: Navigate  Space: Toggle  Enter: Submit  Esc: Cancel"))
+	b.WriteString(RenderFooterBar([]ShortcutEntry{
+		{Key: "tab", Label: "Tab/↑↓ navigate"},
+		{Key: " ", Label: "space toggle"},
+		{Key: "enter", Label: "enter submit"},
+		{Key: "", Label: "esc cancel"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	content := b.String()

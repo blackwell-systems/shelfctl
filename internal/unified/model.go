@@ -14,6 +14,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // View represents the current active view
@@ -158,26 +159,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	var content string
 	switch m.currentView {
 	case ViewHub:
-		return m.hub.View()
+		content = m.hub.View()
 	case ViewBrowse:
-		return m.browse.View()
+		content = m.browse.View()
 	case ViewCreateShelf:
-		return m.createShelf.View()
+		content = m.createShelf.View()
 	case ViewCacheClear:
-		return m.cacheClear.View()
+		content = m.cacheClear.View()
 	case ViewDelete:
-		return m.deleteBook.View()
+		content = m.deleteBook.View()
 	case ViewEdit:
-		return m.editBook.View()
+		content = m.editBook.View()
 	case ViewShelve:
-		return m.shelve.View()
+		content = m.shelve.View()
 	case ViewMove:
-		return m.moveBook.View()
+		content = m.moveBook.View()
 	default:
-		return "Unknown view"
+		content = "Unknown view"
 	}
+	if m.width > 0 && m.height > 0 {
+		return lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, content)
+	}
+	return content
 }
 
 func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {

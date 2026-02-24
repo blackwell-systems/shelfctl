@@ -12,7 +12,7 @@ Building complex TUIs with Bubble Tea involves repetitive boilerplate for common
 - 60-70% less boilerplate code in your pickers
 - Consistent UX patterns across your application
 - Production-tested with real-world usage
-- Ready to extract to standalone packages
+- Available as standalone Go module
 - Only depend on official Bubble Tea libraries
 
 ---
@@ -260,62 +260,6 @@ import "github.com/blackwell-systems/bubbletea-components/millercolumns"
 **Repository:** https://github.com/blackwell-systems/bubbletea-components
 
 ---
-
-## Component Documentation
-
-Each component has comprehensive documentation:
-
-- **[Base Picker README](../internal/tui/picker/README.md)**
-  - API reference
-  - Migration guide
-  - Custom handler examples
-  - Integration patterns
-
-- **[Multi-Select README](../internal/tui/multiselect/README.md)**
-  - Complete usage examples
-  - Interface requirements
-  - State persistence details
-  - Custom styling options
-
-- **[Miller Columns README](../internal/tui/millercolumns/README.md)**
-  - File browser example
-  - Column management API
-  - Focus management
-  - Responsive sizing
-
-- **[TUI Architecture Guide](../internal/tui/ARCHITECTURE.md)**
-  - Component hierarchy
-  - Best practices
-  - Migration guide
-  - Testing patterns
-
----
-
-## Standard Keys Module
-
-In addition to the three components, shelfctl provides standard key binding sets in `internal/tui/keys.go`:
-
-### Available Key Sets
-
-```go
-// Basic picker (quit, select)
-keys := tui.NewPickerKeys()
-
-// Navigable picker (quit, select, back)
-keys := tui.NewNavigablePickerKeys()
-
-// Multi-select picker (quit, select, toggle, back)
-keys := tui.NewMultiSelectPickerKeys()
-
-// Form inputs (quit, submit, next, prev)
-keys := tui.NewFormKeys()
-```
-
-**Benefits:**
-- Consistent shortcuts across your application
-- Built-in help text
-- Easy to extend with additional keys
-- Follows Bubble Tea best practices
 
 ---
 

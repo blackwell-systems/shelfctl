@@ -628,7 +628,7 @@ func (m EditBookModel) renderCarouselView() string {
 				// Empty placeholder to keep grid aligned
 				placeholder := lipgloss.NewStyle().
 					Width(cardW).
-					Height(4).
+					Height(8).
 					Border(lipgloss.HiddenBorder()).
 					Render("")
 				rowCards = append(rowCards, placeholder)
@@ -685,24 +685,24 @@ func (m EditBookModel) renderCarouselCard(i, cardW int) string {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#fb6820")).
 			Width(cardW).
-			Height(4).
-			Padding(0, 1)
+			Height(8).
+			Padding(1, 1)
 	case fs.saved:
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("28")).
 			Foreground(lipgloss.Color("242")).
 			Width(cardW).
-			Height(4).
-			Padding(0, 1)
+			Height(8).
+			Padding(1, 1)
 	default:
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("240")).
 			Foreground(lipgloss.Color("242")).
 			Width(cardW).
-			Height(4).
-			Padding(0, 1)
+			Height(8).
+			Padding(1, 1)
 	}
 
 	return style.Render(content)

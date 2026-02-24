@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-23
+
 ### Added
 - **Footer Command Highlight on All TUI Pages**
   - When a shortcut key is pressed, the corresponding label in the footer briefly highlights (500ms)
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Browse detail panel now off by default (toggle with tab)
 - Browse footer label changed from "tab toggle" to "tab detail toggle"
 - Consolidated docs: removed duplicate root `CHANGELOG.md` and `CONTRIBUTING.md` (canonical copies live in `docs/`), moved `UNIFIED_TUI_PLAN.md` to `docs/`
+- CI updated to checkout bubbletea-components sibling repo and use Go 1.25
 - **MAJOR: Unified TUI Architecture (Zero Flicker)**
   - Complete redesign of interactive mode to eliminate screen flicker
   - **Old architecture:** Each operation launched a separate Bubble Tea program
@@ -912,7 +915,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `init.go`: 22 → ~8 (6 helpers)
   - `migrate.go`: 22 & 19 → ~10 & ~8 (9 helpers)
 
-[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/blackwell-systems/shelfctl/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.4
 [0.1.3]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.3
 [0.1.2]: https://github.com/blackwell-systems/shelfctl/releases/tag/v0.1.2

@@ -8,8 +8,8 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'README.md'
-      - 'CONTRIBUTING.md'
-      - 'CHANGELOG.md'
+      - 'docs/contributing.md'
+      - 'docs/changelog.md'
   workflow_dispatch:
 
 permissions:

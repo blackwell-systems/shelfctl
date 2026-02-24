@@ -34,7 +34,6 @@ archives:
         format: zip
     files:
       - README.md
-      - CHANGELOG.md
       - LICENSE
       - docs/*
 
@@ -92,4 +91,4 @@ release:
   footer: |
     ---
 
-    **Full changelog**: See [CHANGELOG.md](https://github.com/blackwell-systems/shelfctl/blob/{{ .Tag }}/CHANGELOG.md) for complete details.
+    **Full changelog**: See [docs/changelog.md](https://github.com/blackwell-systems/shelfctl/blob/{{ .Tag }}/docs/changelog.md) for complete details.

@@ -431,6 +431,7 @@ func (m EditBookModel) updateCarouselView(msg tea.KeyMsg) (EditBookModel, tea.Cm
 
 	case "esc":
 		m.inCarousel = false
+		m.initFormForBook(m.editIndex)
 		return m, textinput.Blink
 
 	case "left", "h":

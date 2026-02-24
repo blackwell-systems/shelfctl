@@ -656,6 +656,9 @@ func runUnifiedTUI() error {
 				case "import-repo":
 					cmdErr = runImportFromRepo()
 
+				case "create-shelf":
+					cmdErr = runCreateShelfFromUnified()
+
 				case "delete-shelf":
 					cmdErr = newDeleteShelfCmd().Execute()
 

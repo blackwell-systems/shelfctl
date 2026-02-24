@@ -46,6 +46,6 @@ type CacheClearRequestMsg struct {
 
 // CommandRequestMsg is emitted when user wants to run a non-TUI command
 type CommandRequestMsg struct {
-	Command  string // Command name: "shelves", "index", "cache-info", "shelve-url", "import-repo", "delete-shelf"
+	Command  string // Command name: "shelves", "index", "cache-info", "shelve-url", "import-repo", "delete-shelf", "create-shelf"
 	ReturnTo string // Which view to return to after completion
 }

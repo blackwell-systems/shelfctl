@@ -81,6 +81,7 @@ var menuItems = []MenuItem{
 	{Key: "move", Label: "Move Book", Description: "Transfer a book to another shelf or release", Available: true},
 	{Key: "delete-book", Label: "Delete Book", Description: "Remove a book from your library", Available: true},
 	{Key: "import-repo", Label: "Import from Repository", Description: "Migrate books from another repo", Available: true},
+	{Key: "create-shelf", Label: "Create Shelf", Description: "Add a new shelf repository to your library", Available: true},
 	{Key: "delete-shelf", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
 	// Exit
 	{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},

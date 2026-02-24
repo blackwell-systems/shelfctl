@@ -431,6 +431,15 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case "create-shelf":
+		// Non-TUI command - interactive form and repo creation
+		return m, func() tea.Msg {
+			return CommandRequestMsg{
+				Command:  "create-shelf",
+				ReturnTo: "hub",
+			}
+		}
+
 	case "delete-shelf":
 		// Non-TUI command - just run command and return
 		return m, func() tea.Msg {

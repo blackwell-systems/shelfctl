@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -228,3 +229,50 @@ func displayInitSuccess(shelfName, owner, repoName string, createRepo bool) {
 	fmt.Printf("  4. View your shelves:\n")
 	fmt.Printf("     %s\n", color.CyanString("shelfctl shelves"))
 }
+
+// runCreateShelfFromUnified runs the create shelf workflow from within unified TUI mode
+// This is called after the unified TUI has exited
+func runCreateShelfFromUnified() error {
+	// Show interactive form to collect shelf details
+	formData, err := tui.RunShelfCreateForm()
+	if err != nil {
+		return err
+	}
+
+	// Validate and resolve parameters
+	effectiveOwner := cfg.GitHub.Owner
+	if effectiveOwner == "" {
+		return fmt.Errorf("github.owner not set in config - run 'shelfctl config set github.owner <username>'")
+	}
+
+	effectiveShelfName := formData.ShelfName
+	repoName := formData.RepoName
+
+	// Create repo and release if requested
+	if err := createRepoAndRelease(effectiveOwner, repoName, formData.CreateRepo, formData.CreateRelease, formData.Private); err != nil {
+		return err
+	}
+
+	// Create README if repo was created
+	if formData.CreateRepo {
+		createShelfREADME(effectiveShelfName, repoName, effectiveOwner)
+	}
+
+	// Update config file
+	if err := addShelfToConfig(effectiveShelfName, effectiveOwner, repoName); err != nil {
+		return err
+	}
+
+	// Display success message
+	fmt.Println()
+	ok("Shelf %q successfully created!", effectiveShelfName)
+	fmt.Printf("  Owner: %s\n", effectiveOwner)
+	fmt.Printf("  Repo:  %s\n", repoName)
+	fmt.Println()
+	fmt.Println("The shelf is ready to use. You can now add books to it!")
+
+	fmt.Println("\nPress Enter to return to menu...")
+	fmt.Scanln()
+	return nil
+}
+

@@ -1,840 +1,251 @@
-# TUI Architecture Evolution
+# TUI Architecture
 
-This document explains the architectural transformation of shelfctl's terminal user interface from multiple separate programs to a unified orchestrator model.
-
-## The Problem: Screen Flicker
-
-### Old Architecture (main branch)
-
-**Approach:** Each TUI operation launched a separate Bubble Tea program.
-
-```
-User launches shelfctl (no args)
-  ↓
-Run hub TUI program (tea.NewProgram)
-  ↓
-User selects "Browse Library"
-  ↓
-Exit hub program (screen clears)
-  ↓
-Run browse TUI program (tea.NewProgram)
-  ↓
-User presses 'q' to return
-  ↓
-Exit browse program (screen clears)
-  ↓
-Run hub TUI program again (tea.NewProgram)
-```
-
-**Result:** Every navigation between views caused:
-1. Visible screen clear/flicker
-2. Terminal state reset
-3. Brief blank screen
-4. Content redraw from scratch
-
-This created a jarring user experience where the screen would flash between operations, breaking the illusion of a cohesive application.
-
-### Example Code (Old Architecture)
-
-**root.go on main branch:**
-```go
-func runHub() error {
-    for {
-        // Launch hub as separate program
-        action, err := tui.RunHub(ctx)
-        if err != nil {
-            return err
-        }
-
-        // Exit hub program, run selected operation
-        switch action {
-        case "browse":
-            // Launch browse as separate program
-            // Screen flickers here
-            result, err := tui.RunBrowser(allBooks, ctx)
-            if err != nil {
-                return err
-            }
-            // Screen flickers again when returning
-
-        case "shelve":
-            // Launch shelve workflow as separate program
-            // Screen flickers here
-            err := runShelveWorkflow()
-            if err != nil {
-                return err
-            }
-            // Screen flickers again when returning
-
-        // ... more cases
-        }
-
-        // Return to hub loop (screen flickers again)
-        fmt.Println("Press Enter to return to menu...")
-        fmt.Scanln()
-    }
-}
-```
-
-**Impact:**
-- 2 flickers per operation (entering and exiting)
-- Terminal briefly goes blank between transitions
-- Feels like switching between separate programs (which it was)
-- Disrupts flow for frequent navigation users
+This document describes shelfctl's terminal user interface architecture — a unified single-program design using the Bubble Tea framework.
 
 ---
 
-## The Solution: Unified TUI Orchestrator
+## Overview
 
-### New Architecture (develop branch)
-
-**Approach:** Single persistent Bubble Tea program with internal view switching.
+When launched with no arguments (`shelfctl`), a single persistent Bubble Tea program runs for the entire session. All views (hub, browse, edit, shelve, etc.) are internal state transitions — no screen flicker, no program restarts.
 
 ```
-User launches shelfctl (no args)
+shelfctl (no args)
   ↓
-Start unified TUI program (tea.NewProgram)
+Single tea.NewProgram starts
   ↓
-Display hub view (internal state)
+Hub view → user selects "Browse" → Browse view (instant, no flicker)
   ↓
-User selects "Browse Library"
+Browse view → user presses 'q' → Hub view (instant, no flicker)
   ↓
-Switch to browse view (internal state)
-  - No program exit
-  - No screen clear
-  - Instant transition
-  ↓
-User presses 'q' to return
-  ↓
-Switch to hub view (internal state)
-  - No program exit
-  - No screen clear
-  - Instant transition
-  ↓
-Unified program keeps running until user quits
+... continues until user quits
 ```
 
-**Result:**
-- Zero screen flicker
-- Seamless view transitions
-- Feels like a native application
-- Terminal state persists throughout session
+Direct commands (`shelfctl browse`, `shelfctl shelve book.pdf`, etc.) still run standalone as before.
 
-### Architecture Components
+---
 
-**1. Unified Model Orchestrator** (`internal/unified/model.go`)
+## Core Components
 
-The central coordinator that manages all views:
+### Orchestrator (`internal/unified/model.go`)
+
+The central coordinator. Holds all view models and routes messages/rendering to the active view.
 
 ```go
 type Model struct {
-    currentView string           // "hub", "browse", "shelve", etc.
-    hub         HubModel         // Hub view state
-    browse      BrowseModel      // Browse view state
+    currentView string       // "hub", "browse", "edit-book", etc.
+    hub         HubModel
+    browse      BrowseModel
+    editBook    EditBookModel
+    shelve      ShelveModel
     // ... other view models
 
-    width, height int            // Terminal dimensions
-    err           error           // Error state
-}
-
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    switch msg := msg.(type) {
-    case NavigateMsg:
-        // Switch views without exiting program
-        m.currentView = msg.Target
-        return m, m.initView(msg.Target)
-
-    case QuitAppMsg:
-        // Only case that exits the program
-        return m, tea.Quit
-
-    default:
-        // Route updates to current view
-        return m.updateCurrentView(msg)
-    }
-}
-
-func (m Model) View() string {
-    // Render current view
-    switch m.currentView {
-    case "hub":
-        return m.hub.View()
-    case "browse":
-        return m.browse.View()
-    // ... other views
-    }
+    width, height int
 }
 ```
 
-**2. Message-Based Navigation** (`internal/unified/messages.go`)
+- `Update()` routes messages to the current view, except navigation messages which switch views
+- `View()` delegates rendering to the current view
+- Single `tea.NewProgram()` call in `internal/app/root.go`
 
-Views communicate intent via messages instead of returning errors:
+### Navigation Messages (`internal/unified/messages.go`)
+
+Views communicate via typed messages instead of return values:
 
 ```go
-// NavigateMsg: Switch to another view
+// Switch to another view
 type NavigateMsg struct {
-    Target string      // "hub", "browse", "shelve", etc.
-    Data   interface{} // Optional context
+    Target   string        // "hub", "browse", "shelve", etc.
+    Data     interface{}   // Optional context
+    BookItem *tui.BookItem // Optional single book for direct-edit flows
 }
 
-// QuitAppMsg: Exit the entire application
+// Exit the application
 type QuitAppMsg struct{}
 
-// ActionRequestMsg: Perform external operation (suspend TUI)
+// Request an operation that suspends the TUI
 type ActionRequestMsg struct {
     Action   tui.BrowserAction
     BookItem *tui.BookItem
     ReturnTo string
 }
-```
 
-**3. View Models** (`internal/unified/hub.go`, `internal/unified/browse.go`)
-
-Each view is a stateful model that can emit navigation messages:
-
-```go
-// Hub view handles menu selection
-func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    switch msg := msg.(type) {
-    case tea.KeyMsg:
-        if msg.String() == "enter" {
-            // User selected an item - emit navigation
-            return m, func() tea.Msg {
-                return NavigateMsg{
-                    Target: selectedItem.Key, // "browse", "shelve", etc.
-                }
-            }
-        }
-    }
-    // ... handle other messages
-}
-
-// Browse view handles book operations
-func (m BrowseModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    switch msg := msg.(type) {
-    case tea.KeyMsg:
-        if msg.String() == "q" || msg.String() == "esc" {
-            // Return to hub - emit navigation
-            return m, func() tea.Msg {
-                return NavigateMsg{Target: "hub"}
-            }
-        }
-    }
-    // ... handle other messages
+// Request a non-TUI command (shelves, index, cache-info, etc.)
+type CommandRequestMsg struct {
+    Command  string
+    ReturnTo string
 }
 ```
 
-**4. Suspend-and-Resume Pattern** (`internal/app/root.go`)
+### View Models (`internal/unified/*.go`)
 
-For operations that need to exit the TUI temporarily (forms, external commands):
+Each view is a self-contained model that:
+- Handles its own key bindings and rendering
+- Emits `NavigateMsg` to switch views (never calls `tea.Quit`)
+- Emits `ActionRequestMsg` or `CommandRequestMsg` for operations needing TUI suspension
 
-```go
-case ActionRequestMsg:
-    // Suspend TUI (exit alt screen)
-    return m, tea.Suspend
+**Fully integrated views** (zero flicker):
+- `hub.go` — Main menu with scrollable details panel
+- `browse.go` — Book browser with multi-select and actions
+- `shelve.go` — File picker and metadata form
+- `edit_book.go` — Book picker and edit form
+- `move_book.go` — Multi-select picker and destination selector
+- `delete_book.go` — Multi-select picker with confirmation
+- `cache_clear.go` — Multi-select picker for cache operations
+- `create_shelf.go` — Shelf creation form
 
-// Later, in root.go command handler:
-func handleActionRequest(action ActionRequestMsg) tea.Cmd {
-    return tea.Suspend(func() error {
-        // TUI is now suspended - terminal is normal
-
-        // Run external operation (form, command, etc.)
-        err := runExternalOperation(action)
-
-        // Print "Press Enter to return..."
-        fmt.Scanln()
-
-        // TUI will automatically resume after this returns
-        return err
-    })
-}
-```
+**Suspend-resume operations** (brief screen clear, then returns):
+- View shelves, generate index, cache info — print output to terminal
+- Import repository, delete shelf — run interactive workflows
 
 ---
 
-## Comparison
+## Shared TUI Utilities (`internal/tui/`)
 
-| Aspect | Old Architecture (main) | New Architecture (develop) |
-|--------|-------------------------|----------------------------|
-| **Program lifetime** | Multiple short-lived programs | Single long-lived program |
-| **View transitions** | Exit → Launch → Redraw | Internal state switch |
-| **Screen behavior** | Clear and redraw on each switch | Seamless instant transition |
-| **Flicker** | 2+ flickers per operation | Zero flicker |
-| **Terminal state** | Reset on each transition | Persists throughout session |
-| **Implementation** | Simple: separate programs | Complex: orchestrator pattern |
-| **Message passing** | Return values and errors | Bubble Tea messages |
-| **CLI compatibility** | Direct command execution | Detection and routing |
+### Footer Highlight (`footer.go`)
 
----
-
-## Technical Deep Dive
-
-### Old Approach: Program Lifecycle
-
-**main branch `root.go` hub loop:**
+Shared across all views. When a shortcut key is pressed, the corresponding footer label highlights for 500ms.
 
 ```go
-func runHub() error {
-    for {
-        // 1. Launch hub as NEW Bubble Tea program
-        action, err := tui.RunHub(ctx)
-        if err != nil {
-            return err
-        }
+// Set highlight and return a 500ms clear timer
+func SetActiveCmd(activeCmd *string, key string) tea.Cmd
 
-        // 2. Hub program EXITS (screen clears here)
-
-        // 3. Execute selected action
-        switch action {
-        case "browse":
-            // Launch browse as NEW program (screen flickers)
-            result, err := tui.RunBrowser(items, ctx)
-            // Browse program EXITS (screen clears again)
-
-        case "shelve":
-            // Launch shelve as NEW program (screen flickers)
-            err := runShelveWorkflow()
-            // Shelve program EXITS (screen clears again)
-        }
-
-        // 4. Loop back to step 1 (screen flickers again)
-        fmt.Println("Press Enter to return to menu...")
-        fmt.Scanln()
-        // Repeat - each iteration is 2+ screen clears
-    }
-}
+// Render footer bar with optional highlight
+func RenderFooterBar(shortcuts []ShortcutEntry, activeCmd string) string
 ```
 
-**Why this caused flicker:**
-- Each `tea.NewProgram()` starts with `tea.WithAltScreen()` (alternative screen buffer)
-- Entering alt screen: terminal clears and switches to alternate buffer
-- Exiting alt screen: terminal restores main buffer (appears as flash/clear)
-- With 3 program launches per operation cycle, users see 3+ flickers
+Each view has an `activeCmd string` field, handles `ClearActiveCmdMsg`, and calls `RenderFooterBar` in its `View()`.
 
-### New Approach: Single Program with View State
+### Reusable Components
 
-**develop branch `unified/model.go` orchestrator:**
+- `list_browser.go` — Browse list with details panel, multi-select, download progress
+- `book_picker.go` — Single and multi-select book pickers
+- `shelf_picker.go` — Shelf selection picker
+- `file_picker.go` — Miller columns file browser with multi-select
+- `edit_form.go` — Metadata edit form with text inputs
+- `shelve_form.go` — Add book form with metadata + cache checkbox
+- `shelf_create_form.go` — New shelf creation form
+- `progress.go` — Download/upload progress bar
 
-```go
-type Model struct {
-    currentView string
-    hub         HubModel
-    browse      BrowseModel
-    // ... other views
-}
-
-func (m Model) Init() tea.Cmd {
-    // Program starts ONCE
-    // Initialize with hub view
-    m.currentView = "hub"
-    return m.hub.Init()
-}
-
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    switch msg := msg.(type) {
-    case NavigateMsg:
-        // Switch view WITHOUT exiting program
-        m.currentView = msg.Target
-        return m, m.initView(msg.Target)
-
-    default:
-        // Delegate to current view
-        switch m.currentView {
-        case "hub":
-            updatedHub, cmd := m.hub.Update(msg)
-            m.hub = updatedHub.(HubModel)
-            return m, cmd
-
-        case "browse":
-            updatedBrowse, cmd := m.browse.Update(msg)
-            m.browse = updatedBrowse.(BrowseModel)
-            return m, cmd
-        }
-    }
-}
-
-func (m Model) View() string {
-    // Render current view
-    switch m.currentView {
-    case "hub":
-        return m.hub.View()
-    case "browse":
-        return m.browse.View()
-    }
-}
-```
-
-**Why this eliminates flicker:**
-- Single call to `tea.NewProgram()` at startup
-- Alt screen entered ONCE and stays active
-- View switches are just state changes (m.currentView = "browse")
-- No screen clears, no buffer switching, no redraw pauses
-- Bubble Tea handles incremental rendering automatically
+All pickers use `picker.Base` from `bubbletea-components` for consistent key handling, window resize, and border rendering.
 
 ---
 
-## Implementation Pattern: Exit-Suspend-Resume
+## Suspend-Resume Pattern
 
-Some operations can't run inside the TUI (forms with complex input, external commands). The unified architecture uses a "exit-perform-restart" pattern:
+For operations that need normal terminal output (tables, external commands):
 
-### Pattern Flow
-
-```go
-// 1. User triggers operation that needs to exit TUI
-case tea.KeyMsg:
-    if key == "enter" && item == "Create Shelf" {
-        return m, func() tea.Msg {
-            return CommandRequestMsg{
-                Command:  "create-shelf",
-                ReturnTo: "hub",
-            }
-        }
-    }
-
-// 2. Unified model receives command request
-case CommandRequestMsg:
-    // Exit alt screen, run operation, return to alt screen
-    return m, tea.Suspend(func() error {
-        // Now in normal terminal mode
-        runCreateShelfForm()
-        fmt.Println("\nPress Enter to return to menu...")
-        fmt.Scanln()
-        // Automatically re-enters alt screen after return
-        return nil
-    })
-
-// 3. After tea.Suspend returns, navigate back to origin view
-return m, func() tea.Msg {
-    return NavigateMsg{Target: msg.ReturnTo}
-}
-```
-
-**Examples:**
-- Create Shelf: launches interactive form, returns to hub
-- Import Repository: runs scan/migrate, returns to hub
-- Cache Info: prints statistics, returns to hub
-
-**Key insight:** We still get a screen clear when suspending, but only for operations that REQUIRE exiting the TUI (forms with special input patterns, commands that need full terminal output). Pure TUI navigation (hub ↔ browse) remains flicker-free.
-
----
-
-## Migration Strategy
-
-### Phase 1: Core Infrastructure ✅
-- Created `internal/unified` package
-- Implemented orchestrator model
-- Added message-based navigation
-- Proved flicker elimination works
-- Hub and browse views functional
-
-### Phase 2: TUI Views ✅
-- Integrated browse view with full functionality
-- Implemented shelve workflow (file picker + form)
-- Implemented edit-book, move, delete-book, cache-clear
-- All TUI operations now flicker-free
-
-### Phase 3: Non-TUI Commands ✅
-- Implemented suspend-resume pattern
-- Routed: shelves, index, cache-info, shelve-url, import-repo, delete-shelf
-- All operations return to hub seamlessly
-
-### Phase 4: Enhancements ✅
-- Added scrollable details panel in hub
-- Implemented create-shelf in TUI
-- Fixed nil pointer bugs
-- Streaming progress for background downloads
-- Context refresh on navigation
-
----
-
-## Current State and Remaining Work
-
-### What's Unified ✅
-
-The following views run **entirely within the unified TUI** with zero flicker:
-- **Hub:** Main menu with scrollable details panel
-- **Browse:** Book browser with multi-select and actions
-- **Shelve:** File picker and metadata form
-- **Edit-book:** Book picker and edit form
-- **Move:** Multi-select picker and destination selector
-- **Delete-book:** Multi-select picker with confirmation
-- **Cache-clear:** Multi-select picker for cache operations
-
-### What Still Uses Exit-Suspend Pattern ⚠️
-
-These operations currently exit the TUI, run in terminal, then return:
-- **Create-shelf:** Form that prompts for shelf details
-- **Import-repository:** Repository scanner and migration workflow
-- **Delete-shelf:** Shelf picker and confirmation
-- **Shelves/Index/Cache-info:** Commands that print table output
-
-### The Problem
-
-Operations marked ⚠️ cause unwanted behavior:
-1. **Terminal drops:** User sees terminal briefly even on cancel
-2. **Screen clears:** Brief flicker when exiting/re-entering alt screen
-3. **Inconsistent UX:** Some forms stay in TUI, others don't
-
-Example: Pressing Escape in create-shelf form:
 ```
 Hub view (in TUI)
-  ↓ Select "Create Shelf"
+  ↓ User selects "View Shelves"
   ↓
-Suspend TUI, exit to terminal
-  ↓ Launch separate form program
+CommandRequestMsg{Command: "shelves", ReturnTo: "hub"}
   ↓
-Form displays (in separate TUI)
-  ↓ Press Escape to cancel
+Orchestrator suspends TUI (exits alt screen)
   ↓
-Form exits, returns to terminal
-  ↓ Brief terminal flash (even with no "Press Enter...")
+Command runs in normal terminal, prints output
   ↓
-Resume unified TUI, return to hub
+"Press Enter to return..."
+  ↓
+TUI resumes, navigates back to hub
 ```
 
-The terminal flash is inevitable with the suspend pattern because we exit and re-enter alt screen.
-
-### The Solution: Complete Unification
-
-**TUI Forms → Unified Views:**
-- Move create-shelf form into `internal/unified/create_shelf.go`
-- Move import-repo workflow into unified views
-- Move delete-shelf picker into unified view
-- These should emit `NavigateMsg` not exit the program
-
-**Terminal Operations → Keep Suspend Pattern:**
-- Commands that print tables (shelves, cache-info)
-- Operations that run external tools (gh commands with output)
-- Index generation (writes HTML file, shows path)
-
-**Result:**
-```
-Hub view (in TUI)
-  ↓ Select "Create Shelf"
-  ↓
-Switch to create-shelf view (internal state, instant)
-  ↓ Fill form or press Escape
-  ↓
-Emit NavigateMsg{Target: "hub"} (instant return, zero flicker)
-```
-
-### Implementation Plan
-
-**Phase 5: Form Unification (In Progress)**
-1. Create `internal/unified/create_shelf.go` view model
-2. Migrate shelf creation form logic from `internal/tui/shelf_create_form.go`
-3. Update orchestrator to route "create-shelf" as a view
-4. Remove CommandRequestMsg handler for "create-shelf"
-5. Keep `shelfctl init` CLI command unchanged
-
-**Phase 6: Workflow Unification (Future)**
-1. Migrate import-repository to unified views
-2. Migrate delete-shelf picker to unified view
-3. Evaluate other suspend-pattern operations
-
-**CLI Compatibility:**
-- `shelfctl init` remains scriptable standalone command
-- `shelfctl import` remains scriptable standalone command
-- Unified TUI provides interactive alternative for these operations
-- Both paths coexist, serving different use cases
-
----
-
-## Benefits
-
-### User Experience
-- **Zero flicker:** Transitions are instant and smooth
-- **Feels native:** Like a single cohesive application
-- **Better flow:** No interruptions or pauses between operations
-- **Professional:** Terminal stays stable throughout session
-
-### Technical
-- **State preservation:** View state persists across navigation
-- **Shared context:** Data flows between views efficiently
-- **Better error handling:** Centralized error state management
-- **Testability:** Single program easier to test than many
-
-### Code Quality
-- **Clear separation:** Views are self-contained models
-- **Message-driven:** Explicit intent via typed messages
-- **Maintainable:** Add new views without touching routing logic
-- **Consistent:** All views follow same patterns
-
----
-
-## Tradeoffs
-
-### Complexity
-- **Old:** Simple - each TUI is independent
-- **New:** Complex - orchestrator coordinates everything
-
-### Debugging
-- **Old:** Easy to test single TUI in isolation
-- **New:** Need to test within orchestrator context
-
-### Code Size
-- **Old:** Minimal routing logic (~50 lines)
-- **New:** Orchestrator model (~850 lines), plus view adapters
-
-### Learning Curve
-- **Old:** Standard Bubble Tea patterns
-- **New:** Requires understanding message-based navigation
-
-**Verdict:** The complexity tradeoff is worth it. The flicker-free experience is a fundamental quality improvement that justifies the additional code.
+This causes one screen clear (unavoidable when exiting alt screen), but only for operations that require terminal output.
 
 ---
 
 ## File Structure
 
-### Old Architecture (main)
 ```
 internal/
 ├── app/
-│   └── root.go         # Hub loop that launches separate programs
-└── tui/
-    ├── hub.go          # Hub menu (separate program)
-    ├── list_browser.go # Browse view (separate program)
-    ├── file_picker.go  # File picker (separate program)
-    └── shelve_form.go  # Add book form (separate program)
-```
-
-Each file's `Run*()` function creates a `tea.NewProgram()` and executes independently.
-
-### New Architecture (develop)
-```
-internal/
-├── app/
-│   └── root.go         # Entry point that launches unified program
+│   └── root.go              # Entry point, launches unified program
 ├── tui/
-│   ├── hub.go          # Hub menu (shared model and renderer)
-│   ├── list_browser.go # Browse view (shared model and renderer)
-│   ├── file_picker.go  # File picker (component)
-│   └── shelve_form.go  # Add book form (component)
+│   ├── footer.go            # Shared footer highlight utilities
+│   ├── list_browser.go      # Browse view (model + renderer)
+│   ├── hub.go               # Hub menu (standalone mode)
+│   ├── book_picker.go       # Book selection pickers
+│   ├── shelf_picker.go      # Shelf selection picker
+│   ├── file_picker.go       # Miller columns file browser
+│   ├── edit_form.go         # Metadata edit form
+│   ├── shelve_form.go       # Add book form
+│   ├── shelf_create_form.go # Shelf creation form
+│   ├── progress.go          # Progress bar
+│   ├── styles.go            # Shared lipgloss styles
+│   ├── keys.go              # Standard key bindings
+│   └── delegate/            # List delegate base component
 └── unified/
-    ├── model.go        # Orchestrator (coordinates all views)
-    ├── hub.go          # Hub view adapter (wraps tui.hub)
-    ├── browse.go       # Browse view adapter (wraps tui.list_browser)
-    └── messages.go     # Navigation message types
+    ├── model.go             # Orchestrator (~850 lines)
+    ├── messages.go          # Navigation message types
+    ├── hub.go               # Hub view (wraps tui.HubModel)
+    ├── browse.go            # Browse view adapter
+    ├── edit_book.go         # Edit book workflow
+    ├── shelve.go            # Shelve workflow
+    ├── move_book.go         # Move book workflow
+    ├── delete_book.go       # Delete book workflow
+    ├── cache_clear.go       # Cache clear workflow
+    └── create_shelf.go      # Create shelf form
 ```
-
-Single `tea.NewProgram()` in root.go. All views integrated via orchestrator.
 
 ---
 
 ## Message Flow Example
 
-### Scenario: User browses library, opens a book, returns to hub
+User browses library, edits a book, returns to hub:
 
 ```
-1. Hub view renders menu
-   User presses ↓ to highlight "Browse Library"
-   User presses Enter
-
+1. Hub renders menu → user presses Enter on "Browse Library"
 2. Hub emits NavigateMsg{Target: "browse"}
-   ↓
-3. Orchestrator receives message
-   Sets currentView = "browse"
-   Initializes browse model with book data
-   ↓
-4. Browse view renders (INSTANT - no flicker)
-   User navigates books with ↑/↓
-   User presses 'o' to open a book
-   ↓
-5. Browse emits ActionRequestMsg{Action: "open", BookItem: selected}
-   ↓
-6. Orchestrator receives action request
-   Calls tea.Suspend (temporarily exit alt screen)
-   ↓
-7. Download and open book in normal terminal mode
-   Show "Press Enter to return..."
-   ↓
-8. User presses Enter, tea.Suspend returns
-   Automatically re-enters alt screen
-   ↓
-9. Orchestrator emits NavigateMsg{Target: "browse"}
-   Browse view re-renders with updated cache status
-   ↓
-10. User presses 'q' in browse view
-    Browse emits NavigateMsg{Target: "hub"}
-    ↓
-11. Orchestrator switches currentView = "hub"
-    Hub view re-renders (INSTANT - no flicker)
-    ↓
-12. Loop continues until user selects "Quit"
+3. Orchestrator sets currentView = "browse", initializes browse model
+4. Browse renders instantly (no flicker)
+5. User presses 'e' on a book
+6. Browse emits NavigateMsg{Target: "edit-book-single", BookItem: selected}
+7. Orchestrator sets currentView = "edit-book", initializes with single book
+8. Edit form renders instantly (no flicker)
+9. User edits metadata, presses Ctrl+S to save
+10. Edit view commits changes, emits NavigateMsg{Target: "browse"}
+11. Browse re-renders with updated metadata (no flicker)
+12. User presses 'q' → NavigateMsg{Target: "hub"} → hub renders instantly
 ```
-
-**Key Points:**
-- Steps 4, 9, 11: Instant view transitions with zero flicker
-- Step 6-8: Screen clear only happens when REQUIRED (external operations)
-- State persists: browse view remembers scroll position, selections, etc.
 
 ---
 
 ## CLI Compatibility
 
-The unified architecture is transparent to CLI users:
+The unified TUI only activates when running `shelfctl` with no arguments. All direct commands work exactly as before:
 
 ```bash
-# Direct command invocation (no unified TUI)
+# Direct commands (no unified TUI)
 shelfctl browse --shelf programming
+shelfctl shelve book.pdf --shelf prog --title "..."
+shelfctl edit-book book-id --title "New Title"
 
-# Hub invocation (unified TUI)
+# Interactive hub (unified TUI)
 shelfctl
-# → Navigate to "Browse Library"
-# → Same browse view, but integrated
 ```
 
-**Implementation:**
-
+Detection in `root.go`:
 ```go
-// root.go entry point
-func Execute() error {
-    if shouldRunUnifiedTUI() {
-        // Launch unified orchestrator
-        return runUnifiedTUI()
-    } else {
-        // Run command directly (old behavior)
-        return rootCmd.Execute()
-    }
-}
-
 func shouldRunUnifiedTUI() bool {
-    // No arguments = hub mode
     return len(os.Args) == 1 && tui.ShouldUseTUI(rootCmd)
 }
 ```
 
-**Result:** Scripts and automation continue to work exactly as before. Only the interactive hub experience changed.
+---
+
+## Adding a New View
+
+1. Create `internal/unified/new_view.go` with a model struct implementing `Init()`, `Update()`, `View()`
+2. Add `activeCmd string` field and `ClearActiveCmdMsg` handler for footer highlights
+3. Emit `NavigateMsg` to navigate away (never `tea.Quit`)
+4. Add model field to `Model` struct in `model.go`
+5. Add routing cases in `Update()`, `View()`, and `initView()`
+6. Add menu item in `hub.go` if accessible from hub
 
 ---
 
-## Performance Characteristics
+## Performance
 
-### Startup Time
-- **Old:** Fast initial launch (~50ms), but repeated launches on each navigation
-- **New:** Single startup (~50ms), subsequent navigation is instantaneous (<1ms)
-
-### Memory Usage
-- **Old:** Single view in memory at a time (~2-5 MB per program)
-- **New:** All view models in memory (~10-15 MB), but persists across session
-
-### Perceived Performance
-- **Old:** Noticeable pause and flicker between views (~200-500ms transition)
-- **New:** Instant view switching (<16ms, limited by terminal refresh rate)
-
-**Verdict:** New architecture feels dramatically faster despite slightly higher memory usage. The instant transitions create a native-app experience.
-
----
-
-## Future Extensibility
-
-### Adding New Views
-
-**Old architecture:**
-1. Create new TUI component
-2. Add case to hub loop
-3. Done
-
-**New architecture:**
-1. Create new TUI component
-2. Create view adapter in `internal/unified`
-3. Add model field to `Model` struct
-4. Add case to `Update()` routing
-5. Add case to `View()` rendering
-6. Add case to `initView()` initialization
-
-**Analysis:** More boilerplate, but benefits:
-- Centralized routing logic
-- Consistent navigation patterns
-- Automatic flicker prevention
-- State preservation across navigation
-
-### Cross-View Communication
-
-**Old:** Impossible (programs are separate)
-
-**New:** Natural via shared orchestrator state:
-
-```go
-// Browse view can access hub context
-if m.hub.shelfCount > 1 {
-    // Show shelf filter
-}
-
-// Hub can refresh after browse operations
-case NavigateMsg:
-    if msg.Target == "hub" {
-        m.hub.context = buildHubContext()
-    }
-```
-
----
-
-## Lessons Learned
-
-### What Worked Well
-1. **Message-based navigation:** Clean separation between views
-2. **Suspend pattern:** Handles forms and external commands elegantly
-3. **Incremental migration:** Core architecture proven before full migration
-4. **State preservation:** Views remember state when navigating away/back
-
-### What Was Challenging
-1. **Model type assertions:** Go's type system requires careful model unwrapping
-2. **Initialization timing:** Views need data before first render
-3. **Error propagation:** Errors bubble differently in orchestrator vs separate programs
-4. **Nil pointer bugs:** More state to track = more nil-check edge cases
-
-### Best Practices Emerged
-1. Always emit `NavigateMsg` instead of `tea.Quit` in views
-2. Use `CommandRequestMsg` for operations requiring TUI suspension
-3. Refresh context when navigating back to hub
-4. Handle window resize at orchestrator level and propagate to views
-5. Clear terminal between TUI ↔ form transitions to prevent artifacts
-
----
-
-## Migration Checklist (Completed)
-
-- [x] Core orchestrator infrastructure
-- [x] Hub view integration
-- [x] Browse view integration
-- [x] Shelve workflow integration (file picker + form)
-- [x] Edit-book integration (picker + form)
-- [x] Move-book integration (multi-picker + destination selector)
-- [x] Delete-book integration (multi-picker + confirmation)
-- [x] Cache-clear integration (multi-picker)
-- [x] Non-TUI commands (shelves, index, cache-info, etc.)
-- [x] Create-shelf integration (form)
-- [x] Import-repository integration (scan + migrate)
-- [x] Delete-shelf integration (picker + confirmation)
-- [x] CLI mode compatibility verification
-- [x] Scrollable details panel enhancement
-- [x] Background download progress streaming
-- [x] Context refresh on navigation
-- [x] Nil pointer bug fixes
-- [x] Display corruption fixes
-
----
-
-## Conclusion
-
-The unified TUI architecture represents a complete redesign of how shelfctl's interactive mode works. While more complex internally, it delivers a dramatically better user experience with zero screen flicker and seamless navigation.
-
-**User-facing impact:**
-- Flicker-free navigation between all views
-- Feels like a professional native application
-- Faster perceived performance
-- More pleasant to use for extended sessions
-
-**Developer impact:**
-- More code to maintain (~3000 lines added)
-- Clear architectural patterns for adding views
-- Better separation of concerns
-- Worth the complexity for UX gains
-
-**Backward compatibility:**
-- CLI mode unchanged
-- Scripts and automation unaffected
-- Only the interactive hub experience improved
-
-The architecture is production-ready and all features have been successfully migrated with 100% feature parity.
+- **Startup:** ~50ms (single program launch)
+- **View transitions:** <1ms (internal state change)
+- **Memory:** ~10-15 MB (all view models in memory)
+- **Terminal:** Alt screen entered once, persists until quit

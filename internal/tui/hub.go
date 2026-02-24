@@ -17,8 +17,16 @@ type MenuItem struct {
 	Key         string
 	Label       string
 	Description string
+	Icon        string
 	Available   bool // whether this feature is implemented
 }
+
+// MenuSeparator is a non-interactive section header between menu groups
+type MenuSeparator struct {
+	Title string
+}
+
+func (s MenuSeparator) FilterValue() string { return "" }
 
 // FilterValue implements list.Item
 func (m MenuItem) FilterValue() string {
@@ -59,36 +67,88 @@ type HubContext struct {
 	CacheDir      string
 }
 
-// GetMenuItems returns the menu items for use in unified mode
+// menuSection groups related menu items under a title
+type menuSection struct {
+	Title string
+	Items []MenuItem
+}
+
+// menuSections defines the menu grouped by category
+var menuSections = []menuSection{
+	{Title: "Library", Items: []MenuItem{
+		{Key: "browse", Icon: "▶", Label: "Browse", Description: "View and search your books", Available: true},
+		{Key: "shelve", Icon: "+", Label: "Add Book", Description: "Add a new book to your library", Available: true},
+		{Key: "shelve-url", Icon: "↓", Label: "Add from URL", Description: "Download and add a book from URL", Available: true},
+		{Key: "edit-book", Icon: "~", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
+	}},
+	{Title: "Organize", Items: []MenuItem{
+		{Key: "move", Icon: "→", Label: "Move Book", Description: "Transfer a book to another shelf or release", Available: true},
+		{Key: "delete-book", Icon: "✕", Label: "Delete Book", Description: "Remove a book from your library", Available: true},
+	}},
+	{Title: "Shelves", Items: []MenuItem{
+		{Key: "shelves", Icon: "≡", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
+		{Key: "create-shelf", Icon: "+", Label: "Create Shelf", Description: "Add a new shelf repository to your library", Available: true},
+		{Key: "delete-shelf", Icon: "✕", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
+	}},
+	{Title: "Tools", Items: []MenuItem{
+		{Key: "import-repo", Icon: "↻", Label: "Import from Repo", Description: "Migrate books from another repo", Available: true},
+		{Key: "index", Icon: "#", Label: "HTML Index", Description: "Create web page for local browsing", Available: true},
+	}},
+	{Title: "Cache", Items: []MenuItem{
+		{Key: "cache-info", Icon: "i", Label: "Cache Info", Description: "View cache statistics and disk usage", Available: true},
+		{Key: "cache-clear", Icon: "⊗", Label: "Clear Cache", Description: "Remove books from local cache", Available: true},
+	}},
+}
+
+// GetMenuItems returns all menu items flattened for backward compatibility
 func GetMenuItems() []MenuItem {
-	return menuItems
+	var items []MenuItem
+	for _, section := range menuSections {
+		items = append(items, section.Items...)
+	}
+	return items
 }
 
-// menuItems defines the menu in frequency-of-use order
-var menuItems = []MenuItem{
-	// Most frequent
-	{Key: "browse", Label: "Browse Library", Description: "View and search your books", Available: true},
-	{Key: "shelve", Label: "Add Book", Description: "Add a new book to your library", Available: true},
-	{Key: "edit-book", Label: "Edit Book", Description: "Update metadata for a book", Available: true},
-	// Fairly frequent
-	{Key: "cache-info", Label: "Cache Info", Description: "View cache statistics and disk usage", Available: true},
-	{Key: "cache-clear", Label: "Clear Cache", Description: "Remove books from local cache", Available: true},
-	// Occasional
-	{Key: "shelves", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
-	{Key: "index", Label: "Generate HTML Index", Description: "Create web page for local browsing", Available: true},
-	{Key: "shelve-url", Label: "Add from URL", Description: "Download and add a book from URL", Available: true},
-	// Rare
-	{Key: "move", Label: "Move Book", Description: "Transfer a book to another shelf or release", Available: true},
-	{Key: "delete-book", Label: "Delete Book", Description: "Remove a book from your library", Available: true},
-	{Key: "import-repo", Label: "Import from Repository", Description: "Migrate books from another repo", Available: true},
-	{Key: "create-shelf", Label: "Create Shelf", Description: "Add a new shelf repository to your library", Available: true},
-	{Key: "delete-shelf", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
-	// Exit
-	{Key: "quit", Label: "Quit", Description: "Exit shelfctl", Available: true},
+// BuildFilteredMenuItems returns a []list.Item with MenuSeparator headers,
+// filtered based on context (no shelves, no books).
+func BuildFilteredMenuItems(ctx HubContext) []list.Item {
+	var result []list.Item
+	for _, section := range menuSections {
+		var sectionItems []list.Item
+		for _, item := range section.Items {
+			// Hide shelf-dependent actions when no shelves configured
+			if ctx.ShelfCount == 0 {
+				switch item.Key {
+				case "browse", "shelves", "shelve", "shelve-url", "edit-book", "delete-book", "delete-shelf":
+					continue
+				}
+			}
+			// Hide book-dependent actions when no books exist
+			if ctx.BookCount == 0 {
+				switch item.Key {
+				case "browse", "edit-book", "move", "delete-book":
+					continue
+				}
+			}
+			sectionItems = append(sectionItems, item)
+		}
+		if len(sectionItems) > 0 {
+			result = append(result, MenuSeparator{Title: section.Title})
+			result = append(result, sectionItems...)
+		}
+	}
+	return result
 }
 
-// renderMenuItem renders a menu item in the hub
+// renderMenuItem renders a menu item or section separator in the hub
 func renderMenuItem(w io.Writer, m list.Model, index int, item list.Item) {
+	// Render section separator
+	if sep, ok := item.(MenuSeparator); ok {
+		line := lipgloss.NewStyle().Foreground(ColorGray).Render("─── " + sep.Title + " ───")
+		_, _ = fmt.Fprint(w, "  "+line)
+		return
+	}
+
 	menuItem, ok := item.(MenuItem)
 	if !ok {
 		return
@@ -96,11 +156,14 @@ func renderMenuItem(w io.Writer, m list.Model, index int, item list.Item) {
 
 	isSelected := index == m.Index()
 
-	// Format label and description
-	label := menuItem.Label
+	// Icon + label padded to fixed width, then description
+	icon := menuItem.Icon
+	if icon == "" {
+		icon = " "
+	}
+	label := icon + " " + menuItem.Label
 	desc := StyleHelp.Render(menuItem.Description)
-
-	display := fmt.Sprintf("%-25s   %s", label, desc)
+	display := fmt.Sprintf("%-27s  %s", label, desc)
 
 	if isSelected {
 		_, _ = fmt.Fprint(w, StyleHighlight.Render("› "+display))
@@ -415,21 +478,7 @@ func (m hubModel) View() string {
 // RunHub launches the interactive hub menu
 // Returns the selected action key, or error if canceled
 func RunHub(ctx HubContext) (string, error) {
-	// Filter menu items based on context
-	var items []list.Item
-	for _, item := range menuItems {
-		// Hide shelf-related actions if no shelves configured
-		if ctx.ShelfCount == 0 {
-			if item.Key == "browse" || item.Key == "shelves" || item.Key == "shelve" || item.Key == "edit-book" || item.Key == "delete-book" || item.Key == "delete-shelf" {
-				continue
-			}
-		}
-		// Hide browse, edit-book, move, and delete-book if there are no books
-		if ctx.BookCount == 0 && (item.Key == "browse" || item.Key == "edit-book" || item.Key == "move" || item.Key == "delete-book") {
-			continue
-		}
-		items = append(items, item)
-	}
+	items := BuildFilteredMenuItems(ctx)
 
 	// Create list
 	d := delegate.NewWithSpacing(renderMenuItem, 1)

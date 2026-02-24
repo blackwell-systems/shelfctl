@@ -59,27 +59,7 @@ var hubKeyMap = hubKeys{
 
 // NewHubModel creates a new hub model for unified mode
 func NewHubModel(ctx tui.HubContext) HubModel {
-	// Filter menu items based on context
-	menuItems := tui.GetMenuItems()
-	var items []list.Item
-	for _, item := range menuItems {
-		// Hide shelf-related actions if no shelves configured
-		if ctx.ShelfCount == 0 {
-			key := item.GetKey()
-			if key == "browse" || key == "shelves" || key == "shelve" ||
-				key == "edit-book" || key == "delete-book" || key == "delete-shelf" {
-				continue
-			}
-		}
-		// Hide browse, edit-book, move, and delete-book if there are no books
-		if ctx.BookCount == 0 {
-			key := item.GetKey()
-			if key == "browse" || key == "edit-book" || key == "move" || key == "delete-book" {
-				continue
-			}
-		}
-		items = append(items, item)
-	}
+	items := tui.BuildFilteredMenuItems(ctx)
 
 	// Create list with custom delegate
 	d := delegate.New(renderHubMenuItem)
@@ -198,7 +178,15 @@ func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Check if we should show details panel
-	if item, ok := m.list.SelectedItem().(tui.MenuItem); ok {
+	selectedItem := m.list.SelectedItem()
+	if _, isSep := selectedItem.(tui.MenuSeparator); isSep {
+		// Separator selected — hide details panel
+		m.showDetails = false
+		m.detailsType = ""
+		m.detailsFocused = false
+		m.detailsScroll = 0
+		m.updateListSize()
+	} else if item, ok := selectedItem.(tui.MenuItem); ok {
 		itemKey := item.GetKey()
 		prevDetailsType := m.detailsType
 		if itemKey == "shelves" || itemKey == "cache-info" {
@@ -226,25 +214,25 @@ func (m HubModel) View() string {
 	outerStyle := lipgloss.NewStyle().
 		Padding(2, 4)
 
-	// Create header
-	header := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("86")).
-		Padding(0, 1).
-		Render("shelfctl - Personal Library Manager")
+	// Two-tone wordmark header
+	wordmark := lipgloss.NewStyle().Bold(true).Foreground(tui.ColorOrange).Render("shelf") +
+		lipgloss.NewStyle().Bold(true).Foreground(tui.ColorTealLight).Render("ctl")
+	header := lipgloss.NewStyle().Padding(0, 1).Render(wordmark + "  " +
+		lipgloss.NewStyle().Foreground(tui.ColorGray).Render("Personal Library Manager"))
 
-	// Create status bar if we have context
+	// Stat pills status bar
 	var statusBar string
 	if m.context.ShelfCount > 0 {
-		status := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render(fmt.Sprintf("  %d shelves", m.context.ShelfCount))
+		num := lipgloss.NewStyle().Foreground(tui.ColorTealLight).Bold(true)
+		dim := lipgloss.NewStyle().Foreground(tui.ColorGray)
+		stat := "  " + num.Render(fmt.Sprintf("%d", m.context.ShelfCount)) + dim.Render(" shelves")
 		if m.context.BookCount > 0 {
-			status = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("240")).
-				Render(fmt.Sprintf("  %d shelves · %d books", m.context.ShelfCount, m.context.BookCount))
+			stat += "  " + num.Render(fmt.Sprintf("%d", m.context.BookCount)) + dim.Render(" books")
 		}
-		statusBar = status
+		if m.context.CachedCount > 0 {
+			stat += "  " + num.Render(fmt.Sprintf("%d", m.context.CachedCount)) + dim.Render(" cached")
+		}
+		statusBar = stat
 	}
 
 	// Combine header, status, and list
@@ -507,6 +495,13 @@ func formatBytes(b int64) string {
 }
 
 func renderHubMenuItem(w io.Writer, m list.Model, index int, item list.Item) {
+	// Render section separator
+	if sep, ok := item.(tui.MenuSeparator); ok {
+		line := lipgloss.NewStyle().Foreground(tui.ColorGray).Render("─── " + sep.Title + " ───")
+		_, _ = fmt.Fprint(w, "  "+line)
+		return
+	}
+
 	menuItem, ok := item.(tui.MenuItem)
 	if !ok {
 		return
@@ -514,11 +509,13 @@ func renderHubMenuItem(w io.Writer, m list.Model, index int, item list.Item) {
 
 	isSelected := index == m.Index()
 
-	// Format label and description
-	label := menuItem.GetLabel()
+	icon := menuItem.Icon
+	if icon == "" {
+		icon = " "
+	}
+	label := icon + " " + menuItem.GetLabel()
 	desc := tui.StyleHelp.Render(menuItem.GetDescription())
-
-	display := fmt.Sprintf("%-25s   %s", label, desc)
+	display := fmt.Sprintf("%-27s  %s", label, desc)
 
 	if isSelected {
 		_, _ = fmt.Fprint(w, tui.StyleHighlight.Render("› "+display))

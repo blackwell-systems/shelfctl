@@ -4,7 +4,7 @@ shelfctl includes three production-ready Bubble Tea components designed for reus
 
 ---
 
-## 🎯 Why These Components?
+## Why These Components?
 
 Building complex TUIs with Bubble Tea involves repetitive boilerplate for common patterns: pickers, multi-selection, hierarchical navigation. These components eliminate that boilerplate while providing consistent behavior and keyboard shortcuts.
 
@@ -17,7 +17,7 @@ Building complex TUIs with Bubble Tea involves repetitive boilerplate for common
 
 ---
 
-## 📦 Component Overview
+## Component Overview
 
 | Component | Purpose | Savings | Lines |
 |-----------|---------|---------|-------|
@@ -234,7 +234,7 @@ mc := millercolumns.New(millercolumns.Config{
 
 ---
 
-## 🚀 Extraction Ready
+## Extraction Ready
 
 All three components are designed for extraction to standalone repositories:
 
@@ -263,7 +263,7 @@ require (
 
 ---
 
-## 📚 Component Documentation
+## Component Documentation
 
 Each component has comprehensive documentation:
 
@@ -293,7 +293,7 @@ Each component has comprehensive documentation:
 
 ---
 
-## 🎨 Standard Keys Module
+## Standard Keys Module
 
 In addition to the three components, shelfctl provides standard key binding sets in `internal/tui/keys.go`:
 
@@ -321,7 +321,7 @@ keys := tui.NewFormKeys()
 
 ---
 
-## 💡 Real-World Usage in shelfctl
+## Real-World Usage in shelfctl
 
 These components power all of shelfctl's interactive features:
 
@@ -345,7 +345,7 @@ These components power all of shelfctl's interactive features:
 
 ---
 
-## 🔄 Migration Impact
+## Migration Impact
 
 Before introducing these components, shelfctl had significant code duplication across pickers:
 
@@ -377,7 +377,7 @@ Duplication:       Minimal
 
 ---
 
-## 🏗️ Architecture Benefits
+## Architecture Benefits
 
 ### Before: Traditional Approach
 ```
@@ -407,7 +407,7 @@ Your code provides:
 
 ---
 
-## 🧪 Testing Story
+## Testing Story
 
 Components are easier to test in isolation:
 
@@ -439,7 +439,7 @@ func TestBasePicker(t *testing.T) {
 
 ---
 
-## 📖 Learning Path
+## Learning Path
 
 **New to these components?** Start here:
 
@@ -452,7 +452,7 @@ func TestBasePicker(t *testing.T) {
 
 ---
 
-## 🎁 Open Source Ready
+## Open Source Ready
 
 These components represent production-grade Bubble Tea patterns that solve real problems. They're currently part of shelfctl but designed for independence.
 
@@ -466,7 +466,7 @@ These components represent production-grade Bubble Tea patterns that solve real 
 
 ---
 
-## 💬 Questions or Ideas?
+## Questions or Ideas?
 
 Have feedback on these components? Want to see additional reusable components? Open an issue at:
 https://github.com/blackwell-systems/shelfctl/issues

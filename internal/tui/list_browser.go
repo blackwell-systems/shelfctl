@@ -102,6 +102,7 @@ const (
 	minShelfWidth  = 5
 	maxShelfWidth  = 16
 	minCachedWidth = 7
+	maxCachedWidth = 10
 	columnGap      = 1
 )
 
@@ -129,6 +130,9 @@ func computeColumnWidths(totalWidth int) (titleW, authorW, tagW, shelfW, cachedW
 	}
 	tagW = remaining * 25 / 100
 	cachedW = remaining - authorW - tagW - shelfW // remainder
+	if cachedW > maxCachedWidth {
+		cachedW = maxCachedWidth
+	}
 
 	// Enforce minimums
 	if titleW < minTitleWidth {

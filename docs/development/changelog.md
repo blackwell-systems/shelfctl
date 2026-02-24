@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Refactor**: split `internal/app/root.go` (896 lines) into `init_wizard.go` (interactive init wizard + legacy hub loop) and `hub_runner.go` (unified TUI runner, URL/repo import helpers); `root.go` reduced to 199 lines of command wiring and output helpers
 - **Refactor**: split `internal/tui/list_browser.go` (1150 lines) into three focused files — `book_item.go` (BookItem type, column layout helpers, `renderBookItem`), `browser_render.go` (View, details pane, footer), `list_browser.go` (model, Update, download logic, constructors); main file reduced to 685 lines
 - **Refactor**: split `internal/unified/move_book.go` (915 lines) into `move_book_ops.go` (async move operations) and `move_book_render.go` (View and render helpers); main file reduced to 435 lines
 - **Refactor**: split `internal/unified/shelve.go` (1217 lines) into `shelve_ops.go` (async ingest/commit operations) and `shelve_render.go` (View and render helpers); main file reduced to 716 lines

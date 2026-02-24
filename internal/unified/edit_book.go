@@ -86,6 +86,12 @@ type EditBookModel struct {
 	inCarousel     bool
 	carouselCursor int // highlighted card index while browsing carousel
 
+	// Bulk-edit overlay (shown on top of carousel)
+	inBulkEdit        bool
+	bulkFieldIdx      int // selected operation index (0-3)
+	bulkFieldSelected bool // true once operation chosen, now entering value
+	bulkInput         textinput.Model
+
 	// Results
 	successCount int
 	failCount    int
@@ -215,6 +221,9 @@ func (m EditBookModel) Update(msg tea.Msg) (EditBookModel, tea.Cmd) {
 			return m.updatePicking(msg)
 		case editBookEditing:
 			if m.inCarousel {
+				if m.inBulkEdit {
+					return m.updateBulkEdit(msg)
+				}
 				return m.updateCarouselView(msg)
 			}
 			return m.updateEditing(msg)
@@ -718,6 +727,61 @@ func (m EditBookModel) renderEditForm() string {
 	outerPad := lipgloss.NewStyle().Padding(2, 4)
 	innerPad := lipgloss.NewStyle().Padding(0, 2, 0, 1)
 	return outerPad.Render(tui.StyleBorder.Render(innerPad.Render(body)))
+}
+
+// applyBulkEdit merges a single bulk operation into all formStates.
+// opIdx: 0=add tag, 1=remove tag, 2=set author, 3=set year.
+func (m *EditBookModel) applyBulkEdit(opIdx int, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return
+	}
+	for i := range m.formStates {
+		switch opIdx {
+		case 0: // Add tag — append if not already present
+			tags := splitTags(m.formStates[i].tags)
+			found := false
+			for _, t := range tags {
+				if t == value {
+					found = true
+					break
+				}
+			}
+			if !found {
+				tags = append(tags, value)
+			}
+			m.formStates[i].tags = strings.Join(tags, ",")
+		case 1: // Remove tag — filter out
+			tags := splitTags(m.formStates[i].tags)
+			filtered := tags[:0]
+			for _, t := range tags {
+				if t != value {
+					filtered = append(filtered, t)
+				}
+			}
+			m.formStates[i].tags = strings.Join(filtered, ",")
+		case 2: // Set author
+			m.formStates[i].author = value
+		case 3: // Set year
+			m.formStates[i].year = value
+		}
+	}
+}
+
+// splitTags parses a comma-separated tag string into trimmed, non-empty parts.
+func splitTags(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := parts[:0]
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // commitEditsAsync commits all edits in background

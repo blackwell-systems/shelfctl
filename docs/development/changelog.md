@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `shelfctl index --open` — open the generated HTML index in the default browser immediately after generation; OS-aware (`open` on macOS, `xdg-open` on Linux, `rundll32` on Windows)
 - Subtle SVG teal texture on HTML index sticky nav header (autumn chevron pattern at 4% opacity)
+- **Carousel bulk edit** — press `a` from the carousel to open a bulk-edit overlay; pick an operation (Add tag, Remove tag, Set author, Set year) then type a value; applied to all books in the batch, merging with per-book edits already in progress
 
 ## [0.2.4] - 2026-02-24
 

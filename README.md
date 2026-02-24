@@ -18,7 +18,7 @@
   <img src="assets/shelf.png" alt="shelfctl architecture" width="800">
 </p>
 
-**Organize the PDFs and books you already have scattered across GitHub.**
+<p align="center"><strong>Organize the PDFs and books you already have scattered across GitHub.</strong></p>
 
 <p align="center">
   <img src="assets/tui_demo.gif" alt="shelfctl TUI demo" width="800">

@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/blackwell-systems/bubbletea-components/commandpalette"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
@@ -24,6 +25,8 @@ type HubModel struct {
 	detailsType    string
 	detailsFocused bool // true when focus is on details panel
 	detailsScroll  int  // scroll offset for details panel (line number)
+	palette        commandpalette.Model
+	paletteOpen    bool
 }
 
 type hubKeys struct {
@@ -32,6 +35,7 @@ type hubKeys struct {
 	switchFocus key.Binding
 	scrollUp    key.Binding
 	scrollDown  key.Binding
+	palette     key.Binding
 }
 
 var hubKeyMap = hubKeys{
@@ -55,6 +59,10 @@ var hubKeyMap = hubKeys{
 		key.WithKeys("down", "j"),
 		key.WithHelp("↓/j", "scroll down"),
 	),
+	palette: key.NewBinding(
+		key.WithKeys("ctrl+p"),
+		key.WithHelp("ctrl+p", "command palette"),
+	),
 }
 
 // NewHubModel creates a new hub model for unified mode
@@ -71,7 +79,7 @@ func NewHubModel(ctx tui.HubContext) HubModel {
 
 	// Set help
 	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{hubKeyMap.selectItem}
+		return []key.Binding{hubKeyMap.selectItem, hubKeyMap.palette}
 	}
 
 	// Start cursor on first real item (index 0 is a separator)
@@ -85,6 +93,7 @@ func NewHubModel(ctx tui.HubContext) HubModel {
 	return HubModel{
 		list:    l,
 		context: ctx,
+		palette: buildHubPalette(ctx),
 	}
 }
 
@@ -105,7 +114,31 @@ func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case commandpalette.ActionSelectedMsg:
+		m.paletteOpen = false
+		return m, msg.Action.Run
+
 	case tea.KeyMsg:
+		// Command palette routing — intercepts all keys while open
+		if m.paletteOpen {
+			switch msg.String() {
+			case "esc", "ctrl+c":
+				m.paletteOpen = false
+				return m, nil
+			default:
+				var cmd tea.Cmd
+				m.palette, cmd = m.palette.Update(msg)
+				return m, cmd
+			}
+		}
+
+		// Open palette with ctrl+p (before filtering check so it always works)
+		if key.Matches(msg, hubKeyMap.palette) {
+			m.paletteOpen = true
+			m.palette.Reset()
+			return m, m.palette.Focus()
+		}
+
 		// Don't handle keys when filtering
 		if m.list.FilterState() == list.Filtering {
 			break
@@ -188,6 +221,7 @@ func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.updateListSize()
+		m.palette.SetSize(msg.Width, msg.Height)
 	}
 
 	// Only update list if not focused on details
@@ -327,7 +361,19 @@ func (m HubModel) View() string {
 	innerPadding := lipgloss.NewStyle().
 		Padding(0, 2, 0, 1)
 
-	return outerStyle.Render(tui.StyleBorder.Render(innerPadding.Render(content)))
+	base := outerStyle.Render(tui.StyleBorder.Render(innerPadding.Render(content)))
+
+	if m.paletteOpen {
+		overlay := m.palette.View()
+		return lipgloss.Place(
+			m.width, m.height,
+			lipgloss.Center, lipgloss.Center,
+			overlay,
+			lipgloss.WithWhitespaceChars(" "),
+		)
+	}
+
+	return base
 }
 
 func (m *HubModel) updateListSize() {
@@ -546,6 +592,33 @@ func formatBytes(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// buildHubPalette creates a command palette pre-populated with actions from the hub menu.
+func buildHubPalette(ctx tui.HubContext) commandpalette.Model {
+	items := tui.BuildFilteredMenuItems(ctx)
+	var actions []commandpalette.Action
+	for _, item := range items {
+		mi, ok := item.(tui.MenuItem)
+		if !ok {
+			continue // skip separators
+		}
+		itemKey := mi.GetKey()
+		actions = append(actions, commandpalette.Action{
+			Label:    mi.GetLabel() + "  " + mi.GetDescription(),
+			Keywords: []string{itemKey, mi.GetDescription()},
+			Run: func() tea.Msg {
+				if itemKey == "quit" {
+					return QuitAppMsg{}
+				}
+				return NavigateMsg{Target: itemKey}
+			},
+		})
+	}
+	return commandpalette.New(commandpalette.Config{
+		Actions:     actions,
+		ActiveColor: tui.ColorOrange,
+	})
 }
 
 func renderHubMenuItem(w io.Writer, m list.Model, index int, item list.Item) {

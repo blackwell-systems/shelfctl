@@ -463,8 +463,7 @@ func (m hubModel) View() string {
 		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
 
 	// Two-tone wordmark header
-	wordmark := lipgloss.NewStyle().Bold(true).Foreground(ColorOrange).Render("shelf") +
-		lipgloss.NewStyle().Bold(true).Foreground(ColorTealLight).Render("ctl")
+	wordmark := lipgloss.NewStyle().Bold(true).Foreground(ColorOrange).Render("shelf") + lipgloss.NewStyle().Bold(true).Foreground(ColorTealLight).Render("ctl")
 	header := lipgloss.NewStyle().Padding(0, 1).Render(wordmark + "  " +
 		lipgloss.NewStyle().Foreground(ColorGray).Render("Personal Library Manager"))
 

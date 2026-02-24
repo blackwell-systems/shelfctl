@@ -591,8 +591,12 @@ func (m EditBookModel) renderCarouselView() string {
 	if centerW < 24 {
 		centerW = 24
 	}
-	// Give all leftover space to the peek slots so they fill the sides.
+	// Give leftover space to the peek slots, but cap at half the card width
+	// so adjacent cards never show more than half of themselves.
 	peekW := (usable - centerW - 2*gap) / 2
+	if maxPeek := (centerW + 2) / 2; peekW > maxPeek {
+		peekW = maxPeek
+	}
 	if peekW < minPeekW {
 		peekW = minPeekW
 	}

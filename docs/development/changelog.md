@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`shelfctl status` Command**
+  - Per-shelf summary: book counts, cached count, modified count
+  - `--verbose` flag for per-book status lines (cached/modified/remote)
+  - `--shelf` flag to filter to a specific shelf
+  - `--json` flag for machine-readable output
+
 ### Fixed
 - **Footer Command Highlighting on All TUI Screens**
   - 500ms key-press highlight now works on shelve, edit book, delete book, move book, cache clear, and create shelf views

@@ -136,6 +136,7 @@ The hub provides access to all core operations and loops continuously until you 
 All other shelfctl commands remain available via direct invocation:
 
 ```bash
+shelfctl status          # Library sync status overview
 shelfctl info <id>       # View book details
 shelfctl open <id>       # Open a book
 shelfctl move <id>       # Move books between shelves

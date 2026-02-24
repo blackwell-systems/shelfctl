@@ -27,6 +27,7 @@ Zero-infrastructure document library using GitHub repos and releases as storage.
 - [Add a book](reference/commands.md#shelve) - `shelfctl shelve ~/book.pdf --shelf programming`
 - [Browse your library](reference/commands.md#browse) - `shelfctl browse --tag algorithms`
 - [Generate HTML index](reference/commands.md#index) - `shelfctl index` for web browsing
+- [Library status](reference/commands.md#status) - `shelfctl status` for sync overview
 - [Manage cache](reference/commands.md#cache) - `shelfctl cache info` and `shelfctl cache clear`
 - [Edit a book](reference/commands.md#edit-book) - `shelfctl edit-book book-id`
 - [Open a book](reference/commands.md#open) - `shelfctl open book-id`

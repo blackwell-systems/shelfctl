@@ -103,6 +103,70 @@ Shelf: history  (user/shelf-history)
 
 ---
 
+## status
+
+Show library sync status and statistics.
+
+```bash
+shelfctl status [flags]
+```
+
+### Flags
+
+- `--shelf`: Show status for a specific shelf
+- `-v, --verbose`: Show per-book status lines
+- `--json`: Output as JSON
+
+### Examples
+
+```bash
+# Summary of all shelves
+shelfctl status
+
+# Per-book status lines
+shelfctl status --verbose
+
+# Filter to one shelf
+shelfctl status --shelf programming
+
+# Machine-readable output for scripting
+shelfctl status --json
+```
+
+### Default Output
+
+```
+Shelf: programming (user/shelf-programming)
+  12 books, 8 cached, 1 modified
+
+Shelf: history (user/shelf-history)
+  5 books, 2 cached
+
+Total: 17 books, 10 cached (142 MiB), 1 modified
+```
+
+### Verbose Output
+
+```
+Shelf: programming (user/shelf-programming)
+  ✓ cached    design-patterns.pdf
+  ✓ cached    sicp.pdf
+  ✗ modified  clean-code.pdf
+  · remote    golang-spec.pdf
+
+Total: 4 books, 3 cached (89 MiB), 1 modified
+```
+
+### Status Icons
+
+| Icon | Meaning |
+|------|---------|
+| `✓` | Cached locally, matches remote |
+| `✗` | Cached locally, has local modifications |
+| `·` | Remote only, not cached |
+
+---
+
 ## shelve
 
 Add a book to your library.

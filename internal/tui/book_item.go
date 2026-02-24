@@ -94,7 +94,7 @@ const (
 	minTitleWidth  = 12
 	maxTitleWidth  = 48
 	minAuthorWidth = 8
-	maxAuthorWidth = 45
+	maxAuthorWidth = 26
 	minTagWidth    = 6
 	minShelfWidth  = 5
 	maxShelfWidth  = 16

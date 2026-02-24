@@ -98,7 +98,7 @@ Generate a web-based library viewer with cover thumbnails, tag filters, and live
 Interactive visual browser with keyboard navigation, or scriptable command-line interface for automation and shell workflows.
 
 ### Reusable TUI components
-shelfctl includes three production-ready [Bubble Tea](https://github.com/charmbracelet/bubbletea) components that can be extracted and used in other projects: **Base Picker** (eliminates picker boilerplate), **Multi-Select** (checkbox wrapper for any list), and **Miller Columns** (hierarchical navigation layout). Zero dependencies on shelfctl internals. See [docs/COMPONENTS.md](docs/COMPONENTS.md) for details.
+shelfctl uses three production-ready [Bubble Tea](https://github.com/charmbracelet/bubbletea) components that have been extracted to a standalone package: **Base Picker** (eliminates picker boilerplate), **Multi-Select** (checkbox wrapper for any list), and **Miller Columns** (hierarchical navigation layout). Available at [github.com/blackwell-systems/bubbletea-components](https://github.com/blackwell-systems/bubbletea-components). See [docs/COMPONENTS.md](docs/COMPONENTS.md) for details.
 
 ---
 

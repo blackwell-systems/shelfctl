@@ -74,6 +74,14 @@ func NewHubModel(ctx tui.HubContext) HubModel {
 		return []key.Binding{hubKeyMap.selectItem}
 	}
 
+	// Start cursor on first real item (index 0 is a separator)
+	for i, item := range items {
+		if _, isSep := item.(tui.MenuSeparator); !isSep {
+			l.Select(i)
+			break
+		}
+	}
+
 	return HubModel{
 		list:    l,
 		context: ctx,
@@ -85,6 +93,17 @@ func (m HubModel) Init() tea.Cmd {
 }
 
 func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Track navigation direction so we can skip separators after list update
+	navDir := 0
+	if keyMsg, ok := msg.(tea.KeyMsg); ok && m.list.FilterState() != list.Filtering && !m.detailsFocused {
+		switch keyMsg.String() {
+		case "up", "k":
+			navDir = -1
+		case "down", "j":
+			navDir = 1
+		}
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// Don't handle keys when filtering
@@ -175,6 +194,24 @@ func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	if !m.detailsFocused {
 		m.list, cmd = m.list.Update(msg)
+	}
+
+	// Skip over separators: if navigation landed on one, keep stepping
+	if navDir != 0 {
+		if _, isSep := m.list.SelectedItem().(tui.MenuSeparator); isSep {
+			items := m.list.Items()
+			idx := m.list.Index()
+			for {
+				idx += navDir
+				if idx < 0 || idx >= len(items) {
+					break
+				}
+				if _, isSep := items[idx].(tui.MenuSeparator); !isSep {
+					m.list.Select(idx)
+					break
+				}
+			}
+		}
 	}
 
 	// Check if we should show details panel

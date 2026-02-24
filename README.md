@@ -95,7 +95,7 @@ Built-in tools to scan existing repos, reorganize into topic-based shelves, and 
 Generate a web-based library viewer with cover thumbnails, tag filters, and live search. Works offline in any browser without running shelfctl.
 
 ### TUI + CLI
-Interactive visual browser with keyboard navigation, or scriptable command-line interface for automation and shell workflows.
+`shelfctl` (no arguments) launches an interactive visual hub. `shelfctl --help` lists all CLI commands. Every command supports `--json` output and `--no-interactive` for scripting and automation — the two modes share the same feature set.
 
 ### Reusable TUI components
 shelfctl uses three production-ready [Bubble Tea](https://github.com/charmbracelet/bubbletea) components that have been extracted to a standalone package: **Base Picker** (eliminates picker boilerplate), **Multi-Select** (checkbox wrapper for any list), and **Miller Columns** (hierarchical navigation layout). Available at [github.com/blackwell-systems/bubbletea-components](https://github.com/blackwell-systems/bubbletea-components). See [docs/development/components.md](docs/development/components.md) for details.
@@ -233,9 +233,14 @@ Not required - shelfctl works fine without it. Covers are extracted automaticall
 
 **Note**: Complete the [Prerequisites](#prerequisites), [Install](#install), and [Authentication](#authentication) sections first.
 
-### Interactive Mode (Easiest)
+shelfctl has two entry points:
 
-Run `shelfctl` with no arguments to launch an interactive menu:
+- **`shelfctl`** (no arguments) — launches the interactive TUI hub. Browse, add, edit, move, and delete books without typing any commands or flags.
+- **`shelfctl --help`** — shows all CLI commands. Every command works non-interactively, supports `--json` output, and can be piped or scripted.
+
+Both entry points are full-featured. The TUI is not a wrapper around a subset — everything available in the CLI is also reachable from the hub.
+
+### Interactive mode
 
 ```bash
 shelfctl
@@ -245,15 +250,17 @@ shelfctl
   <img src="assets/tui_screenshot.png" alt="shelfctl interactive TUI hub menu" width="600">
 </p>
 
-This provides a visual interface with:
-- 🎯 **Guided workflows** - No need to remember commands or flags
-- 📚 **Browse Library** - Visual book browser with search
-- ➕ **Add Book** - File picker + metadata form
-- 📊 **Status dashboard** - See shelf and book counts at a glance
-
 See [docs/guides/hub.md](docs/guides/hub.md) for full details.
 
-### Command-Line Mode
+### Command-line mode
+
+```bash
+shelfctl --help
+```
+
+<p align="center">
+  <img src="assets/cli_screenshot.png" alt="shelfctl CLI help output" width="600">
+</p>
 
 **Already have PDFs in GitHub repos?** Organize them:
 

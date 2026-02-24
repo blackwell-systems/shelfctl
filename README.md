@@ -289,14 +289,25 @@ shelfctl open sicp
 # On another machine? Same command fetches it on-demand from GitHub
 shelfctl open sicp
 
-# Generate static HTML index for web browsing
-shelfctl index
-open ~/.local/share/shelfctl/cache/index.html  # Opens in default browser
-
 # Add annotations/highlights, then sync back to GitHub
 open sicp  # Annotate in your PDF reader
 shelfctl sync sicp  # Upload annotated version (replaces original, no versioning)
 ```
+
+### HTML Library Index
+
+Generate a static HTML page from your cached books — no server required. Open it in any browser for a visual, searchable view of your library that works completely offline.
+
+```bash
+shelfctl index
+open ~/.local/share/shelfctl/cache/index.html
+```
+
+- Visual book grid with cover thumbnails
+- Real-time search by title, author, or tags
+- Clickable tag filters with book counts
+- Sort by recently added, title, author, or year
+- Organized by shelf — click any book to open it locally
 
 <p align="center">
   <img src="assets/html_viewer.jpeg" alt="shelfctl HTML index with tag filters and book grid" width="800">

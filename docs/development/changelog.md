@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Refactor**: extracted carousel logic (`updateCarouselView`, `renderCarouselView`, `renderCarouselCard`, `peekLeft`, `peekRight`, `ghostCard`) from `edit_book.go` into a dedicated `carousel.go` file; `edit_book.go` reduced from 1030 → 802 lines
+- Fixed column header alignment in browse view (1-space prefix corrects TitleBar indentation offset)
+- Fixed `carousel.go` nav hint: replaced `if/else if` chain with tagged `switch` (staticcheck QF1003)
 - **Brand color theming** applied across all TUI views
   - Added `ColorOrange` (`#fb6820`), `ColorTeal` (`#1b8487`), `ColorTealLight` (`#2ecfd4`), `ColorTealDim` (`#0d3536`) to the shared color palette
   - `StyleHighlight` updated from yellow → orange; `StyleTag` updated from cyan → teal-light; `StyleBorder` border color updated to teal — affects all views globally

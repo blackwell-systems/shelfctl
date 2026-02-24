@@ -306,8 +306,7 @@ shelfctl sync sicp  # Upload annotated version (replaces original, no versioning
 Generate a static HTML page from your cached books — no server required. Open it in any browser for a visual, searchable view of your library that works completely offline.
 
 ```bash
-shelfctl index
-open ~/.local/share/shelfctl/cache/index.html
+shelfctl index --open
 ```
 
 - Visual book grid with cover thumbnails

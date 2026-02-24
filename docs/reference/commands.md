@@ -1180,16 +1180,25 @@ shelfctl index
 - **Responsive layout** for mobile/desktop
 - **Dark theme** matching shelfctl aesthetic
 
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--open` | Open the generated index in the default browser immediately after generation |
+
 ### Usage
 
 ```bash
 # Generate index
 shelfctl index
 
-# Open in browser (macOS)
+# Generate and open in browser
+shelfctl index --open
+
+# Open manually (macOS)
 open ~/.local/share/shelfctl/cache/index.html
 
-# Open in browser (Linux)
+# Open manually (Linux)
 xdg-open ~/.local/share/shelfctl/cache/index.html
 ```
 

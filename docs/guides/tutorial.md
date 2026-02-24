@@ -231,6 +231,10 @@ shelfctl browse
 Create a visual web page to browse your library in any browser:
 
 ```bash
+# Generate and open in one step
+shelfctl index --open
+
+# Or generate only
 shelfctl index
 ```
 
@@ -240,15 +244,7 @@ This generates `~/.local/share/shelfctl/cache/index.html` with:
 - Click books to open them
 - Works offline, no shelfctl needed
 
-Open the index:
-
-```bash
-# macOS
-open ~/.local/share/shelfctl/cache/index.html
-
-# Linux
-xdg-open ~/.local/share/shelfctl/cache/index.html
-```
+The `--open` flag launches the index in your default browser automatically (macOS, Linux, and Windows supported). Without it, the path is printed to the terminal.
 
 The index shows only cached books, so download books first to include them.
 

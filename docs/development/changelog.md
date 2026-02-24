@@ -8,9 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- **Bulk Edit Carousel**
-  - Carousel cards now use `Height(8)` with vertical padding for an index card appearance
-  - Pressing `↓` on a bottom-row card selects it (equivalent to Enter), dropping back into the edit form
+- **Bulk Edit Carousel** — fully redesigned as a peeking single-row layout
+  - Replaced multi-row grid with a centered card flanked by adjacent cards peeking in from each side
+  - Adjacent cards are clipped to at most half their width, giving a clear "there's more" hint
+  - Ghost cards (dimmed border, no content) appear at the edges of the batch to maintain visual rhythm
+  - Card aspect ratio approximates a 3×5 library card (height derived from width using terminal char ratio)
+  - Peek slots dynamically fill available terminal width; capped so cards never show more than half
+  - Dot position indicator (`○ ● ○`) shows current position in the batch
+  - Selecting multiple books in the picker now opens the carousel immediately instead of the first card's form
+  - Pressing `↓` or `Enter` selects the current card and drops into its edit form
+  - Pressing `Esc` from the carousel returns to the edit form for the current card
+  - Terminal resize artifacts fixed globally by wrapping all view output in `lipgloss.Place`
+  - Fixed panic when Esc was pressed before any card had been opened (uninitialised form inputs)
 
 ## [0.2.3] - 2026-02-24
 

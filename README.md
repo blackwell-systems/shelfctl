@@ -97,6 +97,9 @@ Generate a web-based library viewer with cover thumbnails, tag filters, and live
 ### TUI + CLI
 Interactive visual browser with keyboard navigation, or scriptable command-line interface for automation and shell workflows.
 
+### Reusable TUI components
+shelfctl includes three production-ready [Bubble Tea](https://github.com/charmbracelet/bubbletea) components that can be extracted and used in other projects: **Base Picker** (eliminates picker boilerplate), **Multi-Select** (checkbox wrapper for any list), and **Miller Columns** (hierarchical navigation layout). Zero dependencies on shelfctl internals. See [docs/COMPONENTS.md](docs/COMPONENTS.md) for details.
+
 ---
 
 ## How it works
@@ -367,10 +370,13 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 - **[Tutorial](docs/TUTORIAL.md)** - Step-by-step walkthrough from installation to advanced workflows
 - **[Architecture Guide](docs/ARCHITECTURE.md)** - How shelves work, organization strategies, schemas, and configuration
 - **[Interactive Hub](docs/HUB.md)** - Guide to the interactive TUI menu
-- **[TUI Architecture](docs/TUI_ARCHITECTURE.md)** - Technical deep dive into the unified TUI design
 - **[Commands Reference](docs/COMMANDS.md)** - Complete documentation for all commands
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Contributing](CONTRIBUTING.md)** - Development guidelines
+
+### For Developers
+- **[Reusable Bubble Tea Components](docs/COMPONENTS.md)** - Production-ready TUI components (picker, multi-select, miller columns)
+- **[TUI Architecture](docs/TUI_ARCHITECTURE.md)** - Technical deep dive into the unified TUI design
 
 ---
 

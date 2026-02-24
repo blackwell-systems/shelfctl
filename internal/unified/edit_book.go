@@ -88,7 +88,7 @@ type EditBookModel struct {
 
 	// Bulk-edit overlay (shown on top of carousel)
 	inBulkEdit        bool
-	bulkFieldIdx      int // selected operation index (0-3)
+	bulkFieldIdx      int  // selected operation index (0-3)
 	bulkFieldSelected bool // true once operation chosen, now entering value
 	bulkInput         textinput.Model
 

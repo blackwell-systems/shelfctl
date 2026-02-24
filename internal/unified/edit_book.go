@@ -440,6 +440,12 @@ func (m EditBookModel) updateCarouselView(msg tea.KeyMsg) (EditBookModel, tea.Cm
 	case "down", "j":
 		if m.carouselCursor+cols < n {
 			m.carouselCursor += cols
+		} else {
+			// At the bottom row — select and return to form
+			m.editIndex = m.carouselCursor
+			m.inCarousel = false
+			m.initFormForBook(m.editIndex)
+			return m, textinput.Blink
 		}
 
 	case "enter", " ":

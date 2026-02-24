@@ -247,11 +247,13 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 
-	// Skip over separators: if navigation landed on one, keep stepping
+	// Skip over separators: if navigation landed on one, keep stepping.
+	// If no real item exists in that direction, stay put (no wrap past edges).
 	if navDir != 0 {
 		if _, isSep := m.list.SelectedItem().(MenuSeparator); isSep {
 			items := m.list.Items()
 			idx := m.list.Index()
+			found := false
 			for {
 				idx += navDir
 				if idx < 0 || idx >= len(items) {
@@ -259,7 +261,22 @@ func (m hubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				if _, isSep := items[idx].(MenuSeparator); !isSep {
 					m.list.Select(idx)
+					found = true
 					break
+				}
+			}
+			if !found {
+				// Restore to nearest real item in opposite direction
+				idx = m.list.Index()
+				for {
+					idx -= navDir
+					if idx < 0 || idx >= len(items) {
+						break
+					}
+					if _, isSep := items[idx].(MenuSeparator); !isSep {
+						m.list.Select(idx)
+						break
+					}
 				}
 			}
 		}

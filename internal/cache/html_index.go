@@ -51,6 +51,16 @@ func generateHTML(books []IndexBook) string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>shelfctl Library</title>
     <style>
+        :root {
+            --orange: #fb6820;
+            --orange-dark: #d45610;
+            --teal: #1b8487;
+            --teal-light: #2ecfd4;
+            --teal-dim: #0d3536;
+            --teal-card: #1c2829;
+            --teal-border: #1e3a3c;
+            --teal-nav-border: #1b4e50;
+        }
         * {
             margin: 0;
             padding: 0;
@@ -69,7 +79,7 @@ func generateHTML(books []IndexBook) string {
             z-index: 1000;
             background: #1a1a1a;
             padding: 20px 20px 10px;
-            border-bottom: 2px solid #333;
+            border-bottom: 2px solid var(--teal-nav-border);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
         header {
@@ -79,6 +89,14 @@ func generateHTML(books []IndexBook) string {
         h1 {
             font-size: 2rem;
             margin-bottom: 10px;
+        }
+        h1 .brand-shelf {
+            color: var(--orange);
+        }
+        h1 .brand-ctl {
+            color: var(--teal-light);
+        }
+        h1 .brand-suffix {
             color: #fff;
         }
         .subtitle {
@@ -110,7 +128,7 @@ func generateHTML(books []IndexBook) string {
         }
         #sort-by:focus {
             outline: none;
-            border-color: #4a9eff;
+            border-color: var(--teal-light);
         }
         #search {
             width: 100%;
@@ -123,7 +141,7 @@ func generateHTML(books []IndexBook) string {
         }
         #search:focus {
             outline: none;
-            border-color: #4a9eff;
+            border-color: var(--teal-light);
         }
         .tag-filters {
             max-width: 1200px;
@@ -154,14 +172,18 @@ func generateHTML(books []IndexBook) string {
             user-select: none;
         }
         .tag-filter:hover {
-            border-color: #4a9eff;
+            border-color: var(--orange);
             background: #333;
         }
         .tag-filter.active {
-            background: #4a9eff;
-            border-color: #4a9eff;
+            background: var(--orange);
+            border-color: var(--orange);
             color: #fff;
             font-weight: 600;
+        }
+        .tag-filter.active:hover {
+            background: var(--orange-dark);
+            border-color: var(--orange-dark);
         }
         .tag-count {
             color: #888;
@@ -172,9 +194,9 @@ func generateHTML(books []IndexBook) string {
             color: rgba(255,255,255,0.8);
         }
         .clear-filters {
-            background: #d32f2f;
-            border: 2px solid #d32f2f;
-            color: #fff;
+            background: #3a2020;
+            border: 2px solid #6b2c2c;
+            color: #e07070;
             padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
@@ -184,14 +206,15 @@ func generateHTML(books []IndexBook) string {
             display: none;
         }
         .clear-filters:hover {
-            background: #b71c1c;
-            border-color: #b71c1c;
+            background: #4a2020;
+            border-color: #8b3c3c;
+            color: #f08080;
         }
         .clear-filters.visible {
             display: inline-block;
         }
         .filter-count {
-            color: #4a9eff;
+            color: var(--teal-light);
             font-size: 0.85rem;
             margin-left: 10px;
         }
@@ -202,8 +225,8 @@ func generateHTML(books []IndexBook) string {
         .shelf-title {
             font-size: 1.3rem;
             margin-bottom: 15px;
-            color: #4a9eff;
-            border-bottom: 2px solid #333;
+            color: var(--orange);
+            border-bottom: 2px solid var(--teal-border);
             padding-bottom: 8px;
         }
         .book-grid {
@@ -212,8 +235,8 @@ func generateHTML(books []IndexBook) string {
             gap: 20px;
         }
         .book-card {
-            background: #2a2a2a;
-            border: 1px solid #333;
+            background: var(--teal-card);
+            border: 1px solid var(--teal-border);
             border-radius: 8px;
             padding: 15px;
             cursor: pointer;
@@ -224,8 +247,8 @@ func generateHTML(books []IndexBook) string {
         }
         .book-card:hover {
             transform: translateY(-2px);
-            border-color: #4a9eff;
-            box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+            border-color: var(--orange);
+            box-shadow: 0 4px 12px rgba(251, 104, 32, 0.2);
         }
         .book-cover {
             width: 100%;
@@ -269,8 +292,8 @@ func generateHTML(books []IndexBook) string {
             gap: 5px;
         }
         .tag {
-            background: #333;
-            color: #4a9eff;
+            background: var(--teal-dim);
+            color: var(--teal-light);
             padding: 3px 8px;
             border-radius: 4px;
             font-size: 0.8rem;
@@ -297,7 +320,7 @@ func generateHTML(books []IndexBook) string {
 <body>
     <div class="sticky-nav">
         <header>
-            <h1>📚 shelfctl Library</h1>
+            <h1>📚 <span class="brand-shelf">shelf</span><span class="brand-ctl">ctl</span> <span class="brand-suffix">Library</span></h1>
             <div class="subtitle">` + fmt.Sprintf("%d books", len(books)) + `</div>
         </header>
 

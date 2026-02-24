@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Bulk Edit Carousel**
+  - Carousel cards now use `Height(8)` with vertical padding for an index card appearance
+  - Pressing `↓` on a bottom-row card selects it (equivalent to Enter), dropping back into the edit form
+
 ## [0.2.3] - 2026-02-24
 
 ### Changed

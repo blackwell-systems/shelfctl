@@ -157,7 +157,7 @@ This version refines curvature, shading, and bottom edge behavior while preservi
 
 ## Brand Colors
 
-- **Shelf**: `#ee481f` (warm red-orange)
+- **Shelf**: `#fb6820` (warm red-orange)
 - **ctl**: `#1b8487` (teal)
 
 ## Style Language

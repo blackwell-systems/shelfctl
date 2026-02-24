@@ -47,48 +47,12 @@ Eliminate screen flicker when navigating between views by implementing a single 
 - Background downloads with streaming progress
 - Navigation: q/esc returns to hub via NavigateMsg
 
-**Create Shelf View** ✅ (Just Completed)
+**Create Shelf View** ✅
 - Text inputs for shelf name and repo name
 - Checkboxes for create repo and private flags
 - Async shelf creation with progress indicator
 - Instant cancel returns to hub (zero flicker)
 - Navigation: esc returns to hub via NavigateMsg
-
----
-
-## 🚧 Phase 3: Multi-Step Workflows (NOT YET MIGRATED)
-
-These operations still use the **exit-restart pattern** (terminal drops on cancel):
-
-### Add Book (Shelve) View ❌ NEEDS MIGRATION
-- **Current:** ShelveRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
-- **Workflow:** Shelf picker → file picker → metadata form (per file) → upload → catalog commit
-- **Complexity:** Multi-step with multiple separate TUI programs
-- **Status:** NOT UNIFIED
-
-### Edit Book View ❌ NEEDS MIGRATION
-- **Current:** EditRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
-- **Workflow:** Book picker (multi-select) → edit form (per book) → catalog commit
-- **Complexity:** Two-step with picker + forms
-- **Status:** NOT UNIFIED
-
-### Move Book View ❌ NEEDS MIGRATION
-- **Current:** MoveRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
-- **Workflow:** Book picker (multi-select) → destination picker → confirmation → move → commit
-- **Complexity:** Three-step with pickers + confirmation
-- **Status:** NOT UNIFIED
-
-### Delete Book View ❌ NEEDS MIGRATION
-- **Current:** DeleteRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
-- **Workflow:** Book picker (multi-select) → confirmation → delete → commit
-- **Complexity:** Two-step with picker + confirmation
-- **Status:** NOT UNIFIED
-
-### Cache Clear View ❌ NEEDS MIGRATION
-- **Current:** CacheClearRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
-- **Workflow:** Book picker (multi-select) → confirmation → cache clear
-- **Complexity:** Two-step with picker + confirmation
-- **Status:** NOT UNIFIED
 
 ---
 
@@ -139,149 +103,153 @@ Hub → NavigateMsg{Target: "create-shelf"} → Show form view
 
 ---
 
-## 🚧 Phase 5: Remaining Work
+## ✅ Phase 5: Multi-Step Workflow Migrations (IN PROGRESS)
 
-### Delete-Shelf View (Optional)
+### Cache Clear View ✅ COMPLETED
 
-Currently uses CommandRequestMsg → suspend pattern.
+Successfully migrated cache-clear from exit-restart pattern to unified view.
 
-**Current behavior:**
-- Exit TUI → Run delete command → Return to hub
-- Terminal drop, screen clear
+**Before:**
+```
+Hub → CacheClearRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
+(Terminal drop, screen flicker on cancel)
+```
 
-**Should migrate to:** Unified view (same pattern as delete-book)
-- [x] Currently uses suspend
-- [ ] Create `internal/unified/delete_shelf.go`
-- [ ] Shelf picker → confirmation → deletion
-- [ ] NavigateMsg on complete/cancel
+**After:**
+```
+Hub → NavigateMsg{Target: "cache-clear"} → Picking → Confirming → Processing → Hub
+(Zero screen clears, instant cancel with Esc)
+```
 
-**Priority:** LOW - delete-shelf is rarely used, suspend pattern acceptable
+**Implementation:**
+- [x] Created `internal/unified/cache_clear.go` - Three-phase view (picking → confirming → processing)
+- [x] Added `NewBookPickerMultiModel()` and `CollectSelectedBooks()` to `tui/book_picker.go`
+- [x] Added `CacheClearCompleteMsg` to messages
+- [x] Integrated into orchestrator (Update, View, updateCurrentView, handleNavigation)
+- [x] Removed cache-clear handler from root.go
+- [x] Removed dead code: `runCacheClearFromUnified()`, `CacheClearRequestMsg`
+- [x] Feature parity: modified book protection, multi-select, confirmation, size reporting
 
-### Import-Repository (Keep Suspend Pattern)
+### Delete Book View ✅ COMPLETED
 
-Complex multi-step workflow with terminal output:
-1. Scan repository for files
-2. Show Miller columns for path selection
-3. Display migration progress table
-4. Print final statistics
+Successfully migrated delete-book from exit-restart pattern to unified view.
 
-**Decision:** **Keep suspend pattern** because:
-- Needs rich terminal output (tables, progress bars)
-- Multi-step workflow benefits from terminal visibility
-- Users may want to copy/paste paths or IDs
-- Acceptable UX for infrequent operation
+**Before:**
+```
+Hub → DeleteRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
+(Terminal drop, screen flicker on cancel)
+```
 
-**No migration needed.**
+**After:**
+```
+Hub → NavigateMsg{Target: "delete-book"} → Picking → Confirming → Processing → Hub
+(Zero screen clears, instant cancel with Esc)
+```
 
-### What Should Stay Suspended
-
-Operations that **need terminal output** should keep suspend pattern:
-- Shelves table (formatted output)
-- Cache info (statistics table)
-- Index generation (file creation, path output)
-- Shelve-url (runs gh commands)
-
-**Reason:** Terminal output is the feature. CLI and TUI should show identical formatted output.
+**Implementation:**
+- [x] Created `internal/unified/delete_book.go` - Three-phase view (picking → confirming → processing)
+- [x] Created `internal/operations/readme.go` - Shared README manipulation functions
+- [x] Updated `internal/app/shelf_readme_template.go` - Thin wrappers to operations package
+- [x] Added `DeleteBookCompleteMsg` to messages
+- [x] Integrated into orchestrator (Update, View, updateCurrentView, handleNavigation)
+- [x] Removed delete handler from root.go
+- [x] Removed dead code: `runDeleteFromUnified()`, `DeleteRequestMsg`
+- [x] Feature parity: multi-select, destructive warnings, asset deletion, catalog update, cache clear, README update
 
 ---
 
-## 📋 Remaining Optional Work
+## ✅ Phase 5 (continued): Remaining Migrations (COMPLETED)
 
-### Delete-Shelf View Migration (Optional, Low Priority)
+All operations have been migrated from the exit-restart pattern:
 
-Currently uses CommandRequestMsg → suspend pattern. Could be migrated to unified view for consistency.
+### Edit Book View ✅ COMPLETED
 
-**Would require:**
-- Create `internal/unified/delete_shelf.go`
-- Shelf picker → confirmation → deletion
-- Emit NavigateMsg on complete/cancel
-- Keep `shelfctl delete-shelf` CLI unchanged
+Successfully migrated edit-book from exit-restart pattern to unified view.
 
-**Justification for keeping suspend:**
-- Rarely used operation (most users never delete shelves)
-- Current UX is acceptable
-- Not worth the effort unless user requests it
-
-**Recommendation:** Keep suspend pattern, migrate only if requested
-
----
-
-## 📦 Implementation Summary
-
-### What Was Completed in This Session
-
-**Primary Goal Achieved:** ✅ Eliminate terminal drops on cancel in create-shelf form
-
-**Files Created:**
-1. **`internal/unified/create_shelf.go`** (234 lines)
-   - Unified view for shelf creation form
-   - Text inputs: shelf name, repository name
-   - Checkboxes: create repo (default: yes), private (default: yes)
-   - Async shelf creation with `CreateShelfCompleteMsg`
-   - Instant navigation with NavigateMsg (zero flicker)
-
-2. **`internal/operations/shelf.go`** (172 lines)
-   - Extracted shared shelf creation logic
-   - Avoids import cycle between `app` and `unified` packages
-   - Single source of truth for shelf creation
-   - Used by both CLI and TUI
-
-**Files Modified:**
-1. **`internal/unified/model.go`**
-   - Added `ViewCreateShelf` constant
-   - Added `createShelf CreateShelfModel` field to orchestrator
-   - Routed "create-shelf" in Init(), Update(), View() methods
-   - Passes gh and cfg dependencies to view
-
-2. **`internal/unified/messages.go`**
-   - Added `CreateShelfCompleteMsg` for async completion
-   - Removed "create-shelf" from CommandRequestMsg comment
-
-3. **`internal/app/root.go`**
-   - Deleted "create-shelf" case from CommandRequestMsg handler (lines 659-661)
-   - No longer uses suspend pattern for this operation
-
-4. **`UNIFIED_TUI_PLAN.md`** (this file)
-   - Updated Phase 4 status to completed
-   - Updated progress to 95%
-   - Documented remaining optional work
-
-5. **`docs/TUI_ARCHITECTURE.md`**
-   - Added "Current State and Remaining Work" section
-   - Documented what's unified vs what still uses suspend
-   - Explained the terminal drop problem and solution
-
-### Technical Approach
-
-**Navigation Flow:**
+**Before:**
 ```
-Before: Hub → CommandRequestMsg → tea.Suspend → separate TUI → cancel → terminal drop → resume
-After:  Hub → NavigateMsg → create-shelf view → cancel → NavigateMsg → hub (instant, zero flicker)
+Hub → EditRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
+(Terminal drop, screen flicker on cancel)
 ```
 
-**Key Pattern:**
-- Esc key emits: `NavigateMsg{Target: "hub"}` instead of `tea.Quit`
-- Form submission runs async via tea.Cmd
-- Completion emits: `CreateShelfCompleteMsg{Err: error}`
-- Success or error stays in TUI, no terminal involvement
-
-**Import Cycle Resolution:**
-- Problem: `unified` needs `app` functions, `app` imports `unified`
-- Solution: Extract shared logic to `operations` package
-- Both `app` and `unified` can now import `operations` without cycle
-
-### CLI Compatibility Preserved
-
-The standalone `shelfctl init` command works unchanged:
-```bash
-# Interactive prompting
-shelfctl init --repo shelf-books --name books --create-repo
-
-# Fully specified (scriptable)
-shelfctl init --owner johndoe --repo shelf-tech --name tech --create-repo --private=false
+**After:**
+```
+Hub → NavigateMsg{Target: "edit-book"} → Picking → Editing (per book) → Processing → Hub
+(Zero screen clears, instant cancel with Esc)
 ```
 
-CLI and TUI both call `operations.CreateShelf()` for consistency.
+**Implementation:**
+- [x] Created `internal/unified/edit_book.go` - Three-phase view (picking → editing → processing)
+- [x] Embedded text inputs for title, author, year, tags with tab navigation
+- [x] Sequential editing with [N/M] progress for multi-select
+- [x] Batch commit optimization: one commit per shelf
+- [x] Added `EditBookCompleteMsg` to edit_book.go
+- [x] Integrated into orchestrator (Update, View, updateCurrentView, handleNavigation)
+- [x] Removed edit handler from root.go
+- [x] Removed dead code: `runEditFromUnified()`, `EditRequestMsg`
+- [x] Feature parity: multi-select, per-book forms, batch commit, README update
+
+### Move Book View ✅ COMPLETED
+
+Successfully migrated move-book from exit-restart pattern to unified view.
+
+**Before:**
+```
+Hub → MoveRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
+(Terminal drop, screen flicker on cancel)
+```
+
+**After:**
+```
+Hub → NavigateMsg{Target: "move"} → BookPicking → TypePicking → DestPicking → Confirming → Processing → Hub
+(Zero screen clears, instant cancel with Esc)
+```
+
+**Implementation:**
+- [x] Created `internal/unified/move_book.go` - Five-phase view (book picking → type picking → dest picking → confirming → processing)
+- [x] Multi-select book picker (reuses existing multiselect pattern)
+- [x] Move type selection: different shelf or different release
+- [x] Shelf picker for cross-shelf moves, text input for release moves
+- [x] Cross-shelf move: download asset → upload to destination → delete old → update both catalogs → clear cache → update READMEs → migrate covers
+- [x] Same-shelf release move: download → upload → delete old → update catalog release field
+- [x] Added `MoveBookCompleteMsg` to move_book.go
+- [x] Integrated into orchestrator (Update, View, updateCurrentView, handleNavigation)
+- [x] Removed `MoveRequestMsg` from messages.go
+- [x] Removed `pendingMove` handling from model.go and root.go
+- [x] Removed dead code: `runMoveFromUnified()` from move.go
+- [x] Feature parity: multi-select, cross-shelf moves, same-shelf release moves, asset transfer, catalog updates, README updates, cache clearing, cover migration
+- [x] CLI `shelfctl move` unchanged and fully scriptable
+
+### Add Book (Shelve) View ✅ COMPLETED
+
+Successfully migrated shelve from exit-restart pattern to unified view.
+
+**Before:**
+```
+Hub → ShelveRequestMsg → tea.Quit → exit TUI → run workflow → restart TUI
+(Terminal drop, screen flicker on cancel)
+```
+
+**After:**
+```
+Hub → NavigateMsg{Target: "shelve"} → ShelfPicking → FilePicking → Setup → Ingesting → Form → Uploading → Committing → Hub
+(Zero screen clears, instant cancel with Esc)
+```
+
+**Implementation:**
+- [x] Exported `FilePickerModel` in `tui/file_picker.go` with `NewFilePickerModel()` constructor and accessors
+- [x] Added `NewShelfDelegate()` export to `tui/shelf_picker.go`
+- [x] Created `internal/unified/shelve.go` - Seven-phase view (shelf picking → file picking → setup → ingesting → form → uploading → committing)
+- [x] Channel-based upload progress forwarding with inline progress bar
+- [x] Embedded text inputs for metadata form (title, author, tags, ID, cache checkbox)
+- [x] PDF metadata extraction for form defaults
+- [x] Added `ShelveCompleteMsg` to shelve.go
+- [x] Integrated into orchestrator (Update, View, updateCurrentView, handleNavigation)
+- [x] Removed `ShelveRequestMsg` from messages.go
+- [x] Removed `pendingShelve` handling from model.go and root.go
+- [x] Removed dead code: `runShelveFromUnified()`, `runShelveInteractive()` from shelve.go
+- [x] Feature parity: shelf picker, Miller columns file picker, PDF metadata, duplicate checking, asset collision handling, upload with progress, local caching, batch catalog commit, README update
+- [x] CLI `shelfctl shelve` unchanged and fully scriptable
 
 ---
 
@@ -304,101 +272,35 @@ All commands work independently for scripting:
 
 ---
 
-## 🎯 Summary: Actual State
+## 📊 Progress Summary
 
-### What's Actually Unified ✅
-
-**Only 3 operations:**
-- Hub (main menu)
-- Browse (library browser)
-- Create-shelf (just completed)
-
-### What Still Needs Migration ❌
-
-**5 operations still use exit-restart (terminal drops on cancel):**
-- Shelve (add books) - Multi-step: shelf picker → file picker → forms
-- Edit books - Two-step: book picker → edit forms
-- Move books - Three-step: book picker → dest picker → confirmation
-- Delete books - Two-step: book picker → confirmation
-- Cache clear - Two-step: book picker → confirmation
-
-**Current actual completion: ~40%** (3/8 operations unified)
-
-### Critical Work Remaining
-
-**Priority 1: Simple Operations** (~5-6 hours)
-1. **Delete books** - Book picker + confirmation (LOW complexity)
-2. **Cache clear** - Book picker + confirmation (LOW complexity)
-
-**Priority 2: Medium Operations** (~8-10 hours)
-3. **Edit books** - Book picker + forms loop (MEDIUM complexity)
-4. **Move books** - Book picker + dest picker + confirmation (MEDIUM complexity)
-
-**Priority 3: Complex Operation** (~6-8 hours)
-5. **Shelve (add books)** - Shelf picker + file picker + forms + upload (HIGH complexity)
-
-**Total Remaining: 19-24 hours**
-
-### Recommended Approach
-
-**Option A: Complete Migration** ✅ RECOMMENDED
-- Migrate all 5 remaining operations
-- Achieve true unified experience
-- Zero terminal drops across entire app
-- Consistent UX
-- **Effort:** ~20 hours
-- **Result:** Production-ready unified TUI
-
-**Option B: Partial Ship** ⚠️ NOT RECOMMENDED
-- Ship with only hub/browse/create-shelf unified
-- Users still see terminal drops for shelve/edit/move/delete/cache
-- Inconsistent UX defeats purpose of unified TUI
-- Would need to complete later anyway
-
-**Option C: Incremental Migration**
-- Migrate in priority order (delete → cache → edit → move → shelve)
-- Test and commit after each
-- Ship when comfortable with progress
-- **Effort:** Same ~20 hours, but staged
-
-### Verdict
-
-**Cannot ship at 40% completion.** The most frequently used operations (shelve, edit, delete) still cause terminal drops, which was the original problem we're solving.
-
-**Recommend:** Complete the migration (Option A or C) before shipping.
-
----
-
-## 📊 Progress Summary - CORRECTED
-
-### Actual Completion Status
+### Completion Status
 
 | Phase | Status | Progress |
 |-------|--------|----------|
 | **Phase 1:** Core Infrastructure | ✅ Complete | 100% |
 | **Phase 2:** Core Views (hub, browse, create-shelf) | ✅ Complete | 100% |
 | **Phase 3:** Non-TUI Commands (suspend pattern) | ✅ Complete | 100% |
-| **Phase 4:** Multi-step workflows | ❌ Not Started | 0% |
+| **Phase 4:** Form Unification (create-shelf) | ✅ Complete | 100% |
+| **Phase 5:** Multi-step workflows | ✅ Complete | 100% (5/5) |
 
-**Overall Progress: ~40%** (3/8 operations unified)
+**Overall Progress: 100%** (8/8 operations unified)
 
 ### What's Done ✅
 
 - Hub menu (main view with details panel)
 - Browse library (book browser with all features)
 - Create shelf (form with checkboxes)
+- Cache clear (picker → confirmation → processing)
+- Delete book (picker → confirmation → processing)
+- Edit book (picker → form per book → batch commit)
+- Shelve / add book (shelf picker → file picker → form per file → upload with progress → batch commit)
+- Move book (book picker → type picker → dest picker → confirmation → batch move)
 - Terminal output commands (shelves, index, cache-info)
 
 ### What Remains ❌
 
-**Critical operations still using exit-restart:**
-1. **Shelve (add books)** - Most used operation, HIGH complexity
-2. **Edit books** - Frequently used, MEDIUM complexity
-3. **Move books** - Occasionally used, MEDIUM complexity
-4. **Delete books** - Occasionally used, LOW complexity
-5. **Cache clear** - Occasionally used, LOW complexity
-
-**Estimated remaining effort: 19-24 hours**
+All operations have been unified. No remaining exit-restart operations.
 
 ---
 
@@ -409,24 +311,24 @@ All commands work independently for scripting:
 | Operation | Status | Notes |
 |-----------|--------|-------|
 | Hub → Browse → Hub | ✅ Zero flicker | Fully unified |
-| Hub → Create Shelf → Hub | ✅ Zero flicker | Just completed |
-| Hub → Shelve → Hub | ❌ Has flicker | Still uses exit-restart |
-| Hub → Edit → Hub | ❌ Has flicker | Still uses exit-restart |
-| Hub → Move → Hub | ❌ Has flicker | Still uses exit-restart |
-| Hub → Delete → Hub | ❌ Has flicker | Still uses exit-restart |
-| Hub → Cache Clear → Hub | ❌ Has flicker | Still uses exit-restart |
+| Hub → Create Shelf → Hub | ✅ Zero flicker | Unified form |
+| Hub → Cache Clear → Hub | ✅ Zero flicker | Unified picker + confirm |
+| Hub → Delete → Hub | ✅ Zero flicker | Unified picker + confirm |
+| Hub → Edit → Hub | ✅ Zero flicker | Unified form |
+| Hub → Shelve → Hub | ✅ Zero flicker | Fully unified |
+| Hub → Move → Hub | ✅ Zero flicker | Fully unified |
 
 ### Cancel Behavior
 
 | Operation | Status | Notes |
 |-----------|--------|-------|
 | Cancel in browse | ✅ Instant return | Fully unified |
-| Cancel in create-shelf | ✅ Instant return | Just fixed |
-| Cancel in shelve | ❌ Terminal drop | Needs migration |
-| Cancel in edit | ❌ Terminal drop | Needs migration |
-| Cancel in move | ❌ Terminal drop | Needs migration |
-| Cancel in delete | ❌ Terminal drop | Needs migration |
-| Cancel in cache-clear | ❌ Terminal drop | Needs migration |
+| Cancel in create-shelf | ✅ Instant return | Unified form |
+| Cancel in cache-clear | ✅ Instant return | Unified picker |
+| Cancel in delete | ✅ Instant return | Unified picker |
+| Cancel in edit | ✅ Instant return | Unified form |
+| Cancel in shelve | ✅ Instant return | Unified view |
+| Cancel in move | ✅ Instant return | Unified view |
 
 ### CLI Compatibility ✅
 - [x] All commands work standalone
@@ -436,23 +338,61 @@ All commands work independently for scripting:
 
 ---
 
-## 📋 Definition of Done - IN PROGRESS
+## 📋 Definition of Done
 
 The unified TUI migration will be complete when:
 
 - [x] Core infrastructure (orchestrator, navigation, messages)
 - [x] Hub view with zero flicker
 - [x] Browse view with zero flicker
-- [x] Create-shelf view with zero flicker ✅ JUST COMPLETED
-- [ ] **Shelve (add books) migrated to unified view**
-- [ ] **Edit books migrated to unified view**
-- [ ] **Move books migrated to unified view**
-- [ ] **Delete books migrated to unified view**
-- [ ] **Cache clear migrated to unified view**
+- [x] Create-shelf view with zero flicker
+- [x] Cache clear migrated to unified view ✅
+- [x] Delete books migrated to unified view ✅
+- [x] Edit books migrated to unified view ✅
+- [x] Move books migrated to unified view ✅
+- [x] Shelve (add books) migrated to unified view ✅
 - [x] Non-TUI commands use suspend pattern appropriately
 - [x] CLI mode 100% backward compatible
 
-**Current Status:** 40% complete (3/8 operations unified)
+**Current Status:** 100% complete (8/8 operations unified)
+
+---
+
+## 📦 Implementation Files
+
+### Created Files
+
+| File | Purpose | Phase |
+|------|---------|-------|
+| `internal/unified/model.go` | Orchestrator (~850 lines) | Phase 1 |
+| `internal/unified/hub.go` | Hub view | Phase 2 |
+| `internal/unified/browse.go` | Browse view | Phase 2 |
+| `internal/unified/messages.go` | Navigation messages | Phase 1 |
+| `internal/unified/create_shelf.go` | Create shelf form | Phase 4 |
+| `internal/unified/cache_clear.go` | Cache clear view | Phase 5 |
+| `internal/unified/delete_book.go` | Delete book view | Phase 5 |
+| `internal/unified/edit_book.go` | Edit book view (embedded form) | Phase 5 |
+| `internal/unified/shelve.go` | Shelve (add book) view (~1200 lines) | Phase 5 |
+| `internal/unified/move_book.go` | Move book view (~600 lines) | Phase 5 |
+| `internal/operations/shelf.go` | Shared shelf creation | Phase 4 |
+| `internal/operations/readme.go` | Shared README operations | Phase 5 |
+
+### Shared Operations Pattern
+
+To avoid import cycles (`unified` → `app` → `unified`), shared business logic lives in `internal/operations/`:
+
+- `shelf.go` - `CreateShelf()` used by both CLI init and TUI create-shelf
+- `readme.go` - `UpdateShelfREADMEStats()`, `AppendToShelfREADME()`, `RemoveFromShelfREADME()` used by both CLI commands and TUI views
+
+### Unified View Pattern
+
+All unified views follow the same three-phase state machine:
+
+```
+Picking → Confirming → Processing → NavigateMsg{Target: "hub"}
+```
+
+Each phase handles its own key events and rendering. Async operations return completion messages via `tea.Cmd`.
 
 ---
 

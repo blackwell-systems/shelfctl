@@ -269,6 +269,79 @@ func renderBookPickerItemMulti(w io.Writer, m list.Model, index int, item list.I
 // RunBookPickerMulti launches an interactive book picker with multi-select support.
 // Users can toggle checkboxes with spacebar and confirm with enter.
 // Returns a slice of selected BookItems or error if canceled.
+// NewBookPickerMultiModel creates a configured multiselect model for book picking
+// without running it. Used by unified TUI views that embed the picker.
+func NewBookPickerMultiModel(books []BookItem, title string) (multiselect.Model, error) {
+	if len(books) == 0 {
+		return multiselect.Model{}, fmt.Errorf("no books to display")
+	}
+
+	// Convert BookItems to list.Items (as pointers so selection state persists)
+	items := make([]list.Item, len(books))
+	for i := range books {
+		items[i] = &books[i]
+	}
+
+	// Create base list with temporary delegate
+	tempDelegate := delegate.New(func(w io.Writer, m list.Model, index int, item list.Item) {})
+	l := list.New(items, tempDelegate, 0, 0)
+	if title != "" {
+		l.Title = title
+	} else {
+		l.Title = "Select books"
+	}
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(true)
+	l.Styles.Title = StyleHeader
+	l.Styles.HelpStyle = StyleHelp
+
+	// Wrap with multi-select
+	ms := multiselect.New(l)
+	ms.SetTitle(title)
+
+	// Create proper delegate with multi-select support
+	d := delegate.New(func(w io.Writer, m list.Model, index int, item list.Item) {
+		renderBookPickerItemMulti(w, m, index, item, &ms)
+	})
+	ms.List.SetDelegate(d)
+
+	// Set help keybindings
+	toggleKey := key.NewBinding(
+		key.WithKeys(" "),
+		key.WithHelp("space", "toggle"),
+	)
+	selectKey := key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "select"),
+	)
+	ms.List.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{toggleKey, selectKey}
+	}
+
+	// Restore selection state
+	ms.RestoreSelectionState()
+
+	return ms, nil
+}
+
+// CollectSelectedBooks returns the selected BookItems from a multiselect model
+func CollectSelectedBooks(ms *multiselect.Model) []BookItem {
+	var selected []BookItem
+	items := ms.List.Items()
+	for _, item := range items {
+		if bookItem, ok := item.(*BookItem); ok && bookItem.IsSelected() {
+			selected = append(selected, *bookItem)
+		}
+	}
+	// Fallback: if nothing checked, select current item
+	if len(selected) == 0 {
+		if item, ok := ms.List.SelectedItem().(*BookItem); ok {
+			selected = []BookItem{*item}
+		}
+	}
+	return selected
+}
+
 func RunBookPickerMulti(books []BookItem, title string) ([]BookItem, error) {
 	if len(books) == 0 {
 		return nil, fmt.Errorf("no books to display")

@@ -21,6 +21,13 @@ func (s ShelfOption) FilterValue() string {
 	return s.Name + " " + s.Repo
 }
 
+// NewShelfDelegate creates a delegate for rendering shelf options in a list.
+// This can be used both by the standalone RunShelfPicker and by unified views
+// that embed a shelf list directly.
+func NewShelfDelegate() delegate.Base {
+	return delegate.New(renderShelfOption)
+}
+
 // renderShelfOption renders a shelf option in the picker list
 func renderShelfOption(w io.Writer, m list.Model, index int, item list.Item) {
 	shelfItem, ok := item.(ShelfOption)

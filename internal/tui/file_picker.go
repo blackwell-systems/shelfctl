@@ -93,7 +93,9 @@ func newFileDelegate(ms *multiselect.Model) fileDelegate {
 	}
 }
 
-type filePickerModel struct {
+// FilePickerModel is the Bubble Tea model for the Miller columns file browser.
+// It supports multi-select via checkboxes, hidden file toggling, and filtering.
+type FilePickerModel struct {
 	mc            millercolumns.Model
 	quitting      bool
 	err           error
@@ -150,11 +152,11 @@ var fileKeys = filePickerKeys{
 	),
 }
 
-func (m filePickerModel) Init() tea.Cmd {
+func (m FilePickerModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m FilePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	col := m.mc.FocusedColumn()
 	if col == nil {
 		return m, nil
@@ -260,11 +262,61 @@ func (m filePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m filePickerModel) View() string {
+func (m FilePickerModel) View() string {
 	if m.quitting {
 		return ""
 	}
 	return m.mc.View()
+}
+
+// IsQuitting returns true if the picker has finished (either by selection or cancellation).
+func (m FilePickerModel) IsQuitting() bool { return m.quitting }
+
+// SelectedFiles returns the selected file paths (empty if cancelled).
+func (m FilePickerModel) SelectedFiles() []string { return m.selectedMulti }
+
+// Error returns any error (non-nil if cancelled by user).
+func (m FilePickerModel) Error() error { return m.err }
+
+// NewFilePickerModel creates a FilePickerModel for embedding in other views.
+// The model is ready to use with Update/View but does not launch a separate program.
+func NewFilePickerModel(startPath string) (FilePickerModel, error) {
+	if startPath == "" {
+		var err error
+		startPath, err = os.Getwd()
+		if err != nil {
+			startPath = os.Getenv("HOME")
+		}
+	}
+
+	// Expand ~ to home directory
+	if strings.HasPrefix(startPath, "~/") {
+		home := os.Getenv("HOME")
+		startPath = filepath.Join(home, startPath[2:])
+	}
+
+	m := FilePickerModel{
+		showHidden: false, // Hidden files are hidden by default
+	}
+
+	// Create initial list for start path
+	initialList, err := createListForPath(startPath, m.showHidden)
+	if err != nil {
+		return FilePickerModel{}, fmt.Errorf("loading start path: %w", err)
+	}
+
+	// Create miller columns model with custom styling
+	mc := millercolumns.New(millercolumns.Config{
+		MaxVisibleColumns:    3,
+		FocusedBorderColor:   lipgloss.Color("6"),   // Cyan
+		UnfocusedBorderColor: lipgloss.Color("240"), // Gray
+		BorderStyle:          StyleBorder,
+	})
+	mc.PushColumn(startPath, initialList)
+
+	m.mc = mc
+
+	return m, nil
 }
 
 // buildDirectoryItems creates list items for the given directory
@@ -359,7 +411,7 @@ func createListForPath(path string, showHidden bool) (*multiselect.Model, error)
 }
 
 // pushColumn adds a new column for the given directory
-func (m filePickerModel) pushColumn(path string) (tea.Model, tea.Cmd) {
+func (m FilePickerModel) pushColumn(path string) (tea.Model, tea.Cmd) {
 	listModel, err := createListForPath(path, m.showHidden)
 	if err != nil {
 		// On error, show message in current column but don't crash
@@ -381,7 +433,7 @@ func (m filePickerModel) pushColumn(path string) (tea.Model, tea.Cmd) {
 }
 
 // replaceColumn replaces the column at the given index with a new path
-func (m filePickerModel) replaceColumn(index int, path string) (tea.Model, tea.Cmd) {
+func (m FilePickerModel) replaceColumn(index int, path string) (tea.Model, tea.Cmd) {
 	listModel, err := createListForPath(path, m.showHidden)
 	if err != nil {
 		return m, nil
@@ -394,7 +446,7 @@ func (m filePickerModel) replaceColumn(index int, path string) (tea.Model, tea.C
 }
 
 // rebuildAllColumns rebuilds all visible columns with current showHidden setting
-func (m filePickerModel) rebuildAllColumns() (tea.Model, tea.Cmd) {
+func (m FilePickerModel) rebuildAllColumns() (tea.Model, tea.Cmd) {
 	// Get all current column paths
 	columns := m.mc.Columns()
 	if len(columns) == 0 {
@@ -445,7 +497,7 @@ func (m filePickerModel) rebuildAllColumns() (tea.Model, tea.Cmd) {
 }
 
 // collectSelectedFiles gathers all selected files across all columns
-func (m *filePickerModel) collectSelectedFiles() []string {
+func (m *FilePickerModel) collectSelectedFiles() []string {
 	var selected []string
 	for _, col := range m.mc.Columns() {
 		if ms, ok := col.List.(*multiselect.Model); ok {
@@ -462,7 +514,7 @@ func (m *filePickerModel) collectSelectedFiles() []string {
 
 // resizeAllColumns resizes all multiselect column lists to fit the terminal.
 // Should be called after pushing/replacing columns or on window resize.
-func (m *filePickerModel) resizeAllColumns() {
+func (m *FilePickerModel) resizeAllColumns() {
 	if m.width == 0 || m.height == 0 {
 		return // No size set yet, wait for WindowSizeMsg
 	}
@@ -509,42 +561,10 @@ func RunFilePicker(startPath string) (string, error) {
 // Uses Miller columns (hierarchical view) for navigation.
 // Returns a slice of selected file paths, or error if canceled.
 func RunFilePickerMulti(startPath string) ([]string, error) {
-	if startPath == "" {
-		var err error
-		startPath, err = os.Getwd()
-		if err != nil {
-			startPath = os.Getenv("HOME")
-		}
-	}
-
-	// Expand ~ to home directory
-	if strings.HasPrefix(startPath, "~/") {
-		home := os.Getenv("HOME")
-		startPath = filepath.Join(home, startPath[2:])
-	}
-
-	// Create file picker model first (needed for showHidden flag)
-	m := filePickerModel{
-		showHidden: false, // Hidden files are hidden by default
-	}
-
-	// Create initial list for start path
-	initialList, err := createListForPath(startPath, m.showHidden)
+	m, err := NewFilePickerModel(startPath)
 	if err != nil {
-		return nil, fmt.Errorf("loading start path: %w", err)
+		return nil, err
 	}
-
-	// Create miller columns model with custom styling
-	mc := millercolumns.New(millercolumns.Config{
-		MaxVisibleColumns:    3,
-		FocusedBorderColor:   lipgloss.Color("6"),   // Cyan
-		UnfocusedBorderColor: lipgloss.Color("240"), // Gray
-		BorderStyle:          StyleBorder,
-	})
-	mc.PushColumn(startPath, initialList)
-
-	// Assign miller columns to model
-	m.mc = mc
 
 	// Run the program
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -553,7 +573,7 @@ func RunFilePickerMulti(startPath string) ([]string, error) {
 		return nil, fmt.Errorf("running file picker: %w", err)
 	}
 
-	fm, ok := finalModel.(filePickerModel)
+	fm, ok := finalModel.(FilePickerModel)
 	if !ok {
 		return nil, fmt.Errorf("unexpected model type")
 	}

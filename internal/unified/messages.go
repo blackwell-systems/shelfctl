@@ -18,36 +18,16 @@ type ActionRequestMsg struct {
 	ReturnTo string // Which view to return to after action completes
 }
 
-// ShelveRequestMsg is emitted when user wants to add books
-type ShelveRequestMsg struct {
-	ShelfName string // Optional: pre-selected shelf
-	ReturnTo  string // Which view to return to after completion
-}
-
-// MoveRequestMsg is emitted when user wants to move books
-type MoveRequestMsg struct {
-	ReturnTo string // Which view to return to after completion
-}
-
-// DeleteRequestMsg is emitted when user wants to delete books
-type DeleteRequestMsg struct {
-	ReturnTo string // Which view to return to after completion
-}
-
-// EditRequestMsg is emitted when user wants to edit books
-type EditRequestMsg struct {
-	ReturnTo string // Which view to return to after completion
-}
-
-// CacheClearRequestMsg is emitted when user wants to clear cache
-type CacheClearRequestMsg struct {
-	ReturnTo string // Which view to return to after completion
-}
-
 // CommandRequestMsg is emitted when user wants to run a non-TUI command
 type CommandRequestMsg struct {
 	Command  string // Command name: "shelves", "index", "cache-info", "shelve-url", "import-repo", "delete-shelf"
 	ReturnTo string // Which view to return to after completion
+}
+
+// CacheClearCompleteMsg is emitted when cache clearing finishes
+type CacheClearCompleteMsg struct {
+	SuccessCount int
+	FailCount    int
 }
 
 // CreateShelfCompleteMsg is emitted when shelf creation finishes

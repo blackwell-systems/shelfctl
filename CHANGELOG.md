@@ -42,6 +42,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All features migrated with 100% feature parity - no functionality lost
 
 ### Added
+- **Cache Clear Unified View (Zero Flicker)**
+  - Cache clear now runs entirely within the unified TUI (no terminal drop)
+  - Three-phase workflow: book picker → confirmation → processing
+  - Modified book protection: skipped books shown in confirmation screen
+  - Shows space to be freed in human-readable format
+  - Esc returns instantly to hub (zero flicker, no screen clear)
+  - Full feature parity with CLI `cache clear` command
+- **Delete Book Unified View (Zero Flicker)**
+  - Delete book now runs entirely within the unified TUI (no terminal drop)
+  - Three-phase workflow: book picker → confirmation → processing
+  - Destructive action warnings with red styling and "THIS CANNOT BE UNDONE"
+  - Full deletion: removes asset from GitHub release, updates catalog, clears cache, updates README
+  - Esc returns instantly to hub (zero flicker, no screen clear)
+  - Full feature parity with CLI `delete-book` command
+- **Edit Book Unified View (Zero Flicker)**
+  - Edit book now runs entirely within the unified TUI (no terminal drop)
+  - Multi-phase workflow: book picker → edit form (per book) → batch commit
+  - Embedded text inputs for title, author, year, tags with tab navigation
+  - Sequential editing: for multi-select, shows form for each book with [N/M] progress
+  - Batch commit optimization: one catalog commit per shelf (not per book)
+  - README automatically updated with edited metadata
+  - Esc returns instantly to hub (zero flicker, no screen clear)
+  - Full feature parity with CLI `edit-book` command
+- **Shelve (Add Book) Unified View (Zero Flicker)**
+  - Add book now runs entirely within the unified TUI (no terminal drop)
+  - Seven-phase workflow: shelf picker → file picker → setup → metadata ingestion → edit form → upload → commit
+  - Miller columns file picker embedded directly in unified TUI
+  - PDF metadata extraction pre-fills form defaults (title, author)
+  - Channel-based upload progress with inline progress bar
+  - Embedded text inputs for title, author, tags, ID, and cache checkbox
+  - Duplicate checking and asset collision handling
+  - Batch catalog commit and README update per shelf
+  - Esc returns instantly to hub from any phase (zero flicker, no screen clear)
+  - Full feature parity with CLI `shelve` command
+- **Move Book Unified View (Zero Flicker)**
+  - Move book now runs entirely within the unified TUI (no terminal drop)
+  - Five-phase workflow: book picker → type picker → destination picker → confirmation → processing
+  - Supports cross-shelf moves: downloads asset → uploads to destination → deletes original → updates both catalogs → clears cache → updates READMEs → migrates covers
+  - Supports same-shelf release moves: downloads asset → uploads to new release → deletes original → updates catalog
+  - Multi-select book picker for batch moves
+  - Shelf picker for cross-shelf destination, text input for release destination
+  - Esc returns instantly to hub from any phase (zero flicker, no screen clear)
+  - Full feature parity with CLI `move` command
+- **Shared README Operations Package**
+  - Extracted `UpdateShelfREADMEStats`, `AppendToShelfREADME`, `RemoveFromShelfREADME` to `internal/operations/readme.go`
+  - Shared between CLI (`app` package) and unified TUI (`unified` package)
+  - Eliminates import cycle between packages
 - **Create Shelf in TUI**
   - New "Create Shelf" option in hub menu for adding shelves interactively
   - Interactive form collects shelf name, repository name, and configuration flags

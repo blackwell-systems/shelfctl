@@ -40,6 +40,11 @@ type Model struct {
 	hub         HubModel
 	browse      BrowseModel
 	createShelf CreateShelfModel
+	cacheClear  CacheClearModel
+	deleteBook  DeleteBookModel
+	editBook    EditBookModel
+	shelve      ShelveModel
+	moveBook    MoveBookModel
 
 	// Context passed between views
 	hubContext tui.HubContext
@@ -51,11 +56,6 @@ type Model struct {
 
 	// Pending action (used when TUI needs to exit to perform action)
 	pendingAction      *ActionRequestMsg
-	pendingShelve      *ShelveRequestMsg
-	pendingMove        *MoveRequestMsg
-	pendingDelete      *DeleteRequestMsg
-	pendingEdit        *EditRequestMsg
-	pendingCacheClear  *CacheClearRequestMsg
 	pendingCommand     *CommandRequestMsg
 	shouldRestart      bool
 	restartAtView      View
@@ -137,77 +137,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Quit
 
-	case ShelveRequestMsg:
-		// Store shelve request and exit TUI to perform it
-		m.pendingShelve = &msg
-		m.shouldRestart = true
-		// Map ReturnTo string to View
-		switch msg.ReturnTo {
-		case "browse":
-			m.restartAtView = ViewBrowse
-		case "hub":
-			m.restartAtView = ViewHub
-		default:
-			m.restartAtView = ViewHub
-		}
-		return m, tea.Quit
-
-	case MoveRequestMsg:
-		// Store move request and exit TUI to perform it
-		m.pendingMove = &msg
-		m.shouldRestart = true
-		switch msg.ReturnTo {
-		case "browse":
-			m.restartAtView = ViewBrowse
-		case "hub":
-			m.restartAtView = ViewHub
-		default:
-			m.restartAtView = ViewHub
-		}
-		return m, tea.Quit
-
-	case EditRequestMsg:
-		// Store edit request and exit TUI to perform it
-		m.pendingEdit = &msg
-		m.shouldRestart = true
-		switch msg.ReturnTo {
-		case "browse":
-			m.restartAtView = ViewBrowse
-		case "hub":
-			m.restartAtView = ViewHub
-		default:
-			m.restartAtView = ViewHub
-		}
-		return m, tea.Quit
-
-	case DeleteRequestMsg:
-		// Store delete request and exit TUI to perform it
-		m.pendingDelete = &msg
-		m.shouldRestart = true
-		switch msg.ReturnTo {
-		case "browse":
-			m.restartAtView = ViewBrowse
-		case "hub":
-			m.restartAtView = ViewHub
-		default:
-			m.restartAtView = ViewHub
-		}
-		return m, tea.Quit
-
-	case CacheClearRequestMsg:
-		// Store cache clear request and exit TUI to perform it
-		m.pendingCacheClear = &msg
-		m.shouldRestart = true
-		switch msg.ReturnTo {
-		case "browse":
-			m.restartAtView = ViewBrowse
-		case "hub":
-			m.restartAtView = ViewHub
-		default:
-			m.restartAtView = ViewHub
-		}
-		return m, tea.Quit
-
 	case CommandRequestMsg:
 		// Store command request and exit TUI to perform it
 		m.pendingCommand = &msg
@@ -236,10 +165,16 @@ func (m Model) View() string {
 		return m.browse.View()
 	case ViewCreateShelf:
 		return m.createShelf.View()
-	case ViewShelve, ViewEdit, ViewMove, ViewDelete, ViewCacheClear:
-		// These views use exit-perform-restart pattern
-		// Should never be rendered, but return placeholder just in case
-		return "Loading..."
+	case ViewCacheClear:
+		return m.cacheClear.View()
+	case ViewDelete:
+		return m.deleteBook.View()
+	case ViewEdit:
+		return m.editBook.View()
+	case ViewShelve:
+		return m.shelve.View()
+	case ViewMove:
+		return m.moveBook.View()
 	default:
 		return "Unknown view"
 	}
@@ -261,9 +196,26 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var createShelfModel CreateShelfModel
 		createShelfModel, cmd = m.createShelf.Update(msg)
 		m.createShelf = createShelfModel
-	case ViewShelve, ViewEdit, ViewMove, ViewDelete, ViewCacheClear:
-		// These views use exit-perform-restart pattern, never rendered in unified TUI
-		// If we somehow reach here, do nothing
+	case ViewCacheClear:
+		var cacheClearModel CacheClearModel
+		cacheClearModel, cmd = m.cacheClear.Update(msg)
+		m.cacheClear = cacheClearModel
+	case ViewDelete:
+		var deleteBookModel DeleteBookModel
+		deleteBookModel, cmd = m.deleteBook.Update(msg)
+		m.deleteBook = deleteBookModel
+	case ViewEdit:
+		var editBookModel EditBookModel
+		editBookModel, cmd = m.editBook.Update(msg)
+		m.editBook = editBookModel
+	case ViewShelve:
+		var shelveModel ShelveModel
+		shelveModel, cmd = m.shelve.Update(msg)
+		m.shelve = shelveModel
+	case ViewMove:
+		var moveBookModel MoveBookModel
+		moveBookModel, cmd = m.moveBook.Update(msg)
+		m.moveBook = moveBookModel
 	}
 
 	return m, cmd
@@ -339,50 +291,63 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		)
 
 	case "shelve":
-		// Shelve requires file picker and forms (separate TUI programs)
-		// Exit unified TUI and run shelve workflow
-		return m, func() tea.Msg {
-			return ShelveRequestMsg{
-				ShelfName: "", // Will prompt user
-				ReturnTo:  "hub",
-			}
-		}
+		// Shelve as unified view (no terminal drop)
+		m.currentView = ViewShelve
+		m.shelve = NewShelveModel(m.gh, m.cfg, m.cacheMgr)
+		return m, tea.Batch(
+			m.shelve.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "edit-book":
-		// Edit requires book picker and form (separate TUI program)
-		// Exit unified TUI and run edit workflow
-		return m, func() tea.Msg {
-			return EditRequestMsg{
-				ReturnTo: "hub",
-			}
-		}
+		// Edit as unified view (no terminal drop)
+		m.currentView = ViewEdit
+		books := m.collectBooks()
+		m.editBook = NewEditBookModel(books, m.gh, m.cfg, m.cacheMgr)
+		return m, tea.Batch(
+			m.editBook.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "move":
-		// Move requires book picker (separate TUI program)
-		// Exit unified TUI and run move workflow
-		return m, func() tea.Msg {
-			return MoveRequestMsg{
-				ReturnTo: "hub",
-			}
-		}
+		// Move as unified view (no terminal drop)
+		m.currentView = ViewMove
+		books := m.collectBooks()
+		m.moveBook = NewMoveBookModel(books, m.gh, m.cfg, m.cacheMgr)
+		return m, tea.Batch(
+			m.moveBook.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "delete-book":
-		// Delete requires book picker and confirmation (separate TUI program)
-		// Exit unified TUI and run delete workflow
-		return m, func() tea.Msg {
-			return DeleteRequestMsg{
-				ReturnTo: "hub",
-			}
-		}
+		// Delete as unified view (no terminal drop)
+		m.currentView = ViewDelete
+		books := m.collectBooks()
+		m.deleteBook = NewDeleteBookModel(books, m.gh, m.cfg, m.cacheMgr)
+		return m, tea.Batch(
+			m.deleteBook.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "cache-clear":
-		// Cache clear requires book picker (separate TUI program)
-		// Exit unified TUI and run cache clear workflow
-		return m, func() tea.Msg {
-			return CacheClearRequestMsg{
-				ReturnTo: "hub",
-			}
-		}
+		// Cache clear as unified view (no terminal drop)
+		m.currentView = ViewCacheClear
+		books := m.collectBooks()
+		m.cacheClear = NewCacheClearModel(books, m.cacheMgr)
+		return m, tea.Batch(
+			m.cacheClear.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "hub":
 		// Refresh hub context and return to hub
@@ -610,7 +575,7 @@ func (m Model) handleEditBook(item *tui.BookItem) error {
 
 // HasPendingAction returns true if there's a pending action to perform
 func (m Model) HasPendingAction() bool {
-	return m.pendingAction != nil || m.pendingShelve != nil
+	return m.pendingAction != nil
 }
 
 // GetPendingAction returns the pending action and clears it
@@ -618,66 +583,6 @@ func (m *Model) GetPendingAction() *ActionRequestMsg {
 	action := m.pendingAction
 	m.pendingAction = nil
 	return action
-}
-
-// HasPendingShelve returns true if there's a pending shelve request
-func (m Model) HasPendingShelve() bool {
-	return m.pendingShelve != nil
-}
-
-// GetPendingShelve returns the pending shelve request and clears it
-func (m *Model) GetPendingShelve() *ShelveRequestMsg {
-	shelve := m.pendingShelve
-	m.pendingShelve = nil
-	return shelve
-}
-
-// HasPendingMove returns true if there's a pending move request
-func (m Model) HasPendingMove() bool {
-	return m.pendingMove != nil
-}
-
-// GetPendingMove returns the pending move request and clears it
-func (m *Model) GetPendingMove() *MoveRequestMsg {
-	move := m.pendingMove
-	m.pendingMove = nil
-	return move
-}
-
-// HasPendingDelete returns true if there's a pending delete request
-func (m Model) HasPendingDelete() bool {
-	return m.pendingDelete != nil
-}
-
-// GetPendingDelete returns the pending delete request and clears it
-func (m *Model) GetPendingDelete() *DeleteRequestMsg {
-	del := m.pendingDelete
-	m.pendingDelete = nil
-	return del
-}
-
-// HasPendingEdit returns true if there's a pending edit request
-func (m Model) HasPendingEdit() bool {
-	return m.pendingEdit != nil
-}
-
-// GetPendingEdit returns the pending edit request and clears it
-func (m *Model) GetPendingEdit() *EditRequestMsg {
-	edit := m.pendingEdit
-	m.pendingEdit = nil
-	return edit
-}
-
-// HasPendingCacheClear returns true if there's a pending cache clear request
-func (m Model) HasPendingCacheClear() bool {
-	return m.pendingCacheClear != nil
-}
-
-// GetPendingCacheClear returns the pending cache clear request and clears it
-func (m *Model) GetPendingCacheClear() *CacheClearRequestMsg {
-	clear := m.pendingCacheClear
-	m.pendingCacheClear = nil
-	return clear
 }
 
 // HasPendingCommand returns true if there's a pending command request

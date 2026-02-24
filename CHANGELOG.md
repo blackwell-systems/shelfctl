@@ -307,27 +307,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Error isolation: failed moves don't abort the batch
   - Summary output: "Successfully moved 5 books, 2 failed"
   - Backward compatible: CLI mode (`shelfctl move book-id --to-shelf foo`) unchanged
-- **Reusable TUI Components** (All Ready for Extraction)
-  - New `millercolumns` package: Generic Miller columns layout component
+- **Reusable TUI Components** (Extracted to External Package)
+  - Created `millercolumns` package: Generic Miller columns layout component
     - Pure layout/rendering component for hierarchical views
     - Works with any model type (list.Model, multiselect.Model, custom models)
     - Manages column stack, focus, and responsive width allocation
     - Zero dependencies on shelfctl internals - only requires `lipgloss`
-    - Can be extracted to standalone repo without code changes
-    - Fully documented in `internal/tui/millercolumns/README.md` with examples
-  - New `multiselect` package: Generic multi-select wrapper for any bubbles list
+    - Extracted to github.com/blackwell-systems/bubbletea-components
+    - Fully documented with examples
+  - Created `multiselect` package: Generic multi-select wrapper for any bubbles list
     - Checkbox UI with state persistence
     - Customizable appearance
     - Works with any `list.Item` implementation
-    - Can be used in other projects
-    - Fully documented in `internal/tui/multiselect/README.md`
-  - New `picker` package: Base picker component reduces boilerplate by 60-70%
+    - Extracted to github.com/blackwell-systems/bubbletea-components
+    - Fully documented with examples
+  - Created `picker` package: Base picker component reduces boilerplate by 60-70%
     - Standard key handling (quit, select)
     - Window resize handling
     - Border rendering
     - Error handling
     - Custom behavior via handlers
-    - Fully documented in `internal/tui/picker/README.md`
+    - Extracted to github.com/blackwell-systems/bubbletea-components
   - Standard key bindings in `keys.go`:
     - `PickerKeys` - Basic selection (quit, select)
     - `NavigablePickerKeys` - Selection with navigation (quit, select, back)

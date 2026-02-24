@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	xansi "github.com/charmbracelet/x/ansi"
 )
 
 // editBookPhase tracks the current phase of the edit workflow
@@ -408,17 +409,22 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 	return m, nil
 }
 
-// updateCarouselView handles key events in the full-screen carousel
+// updateCarouselView handles key events in the peeking carousel
 func (m EditBookModel) updateCarouselView(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
-	cols := m.carouselColumns()
 	n := len(m.toEdit)
+
+	selectCurrent := func() (EditBookModel, tea.Cmd) {
+		m.editIndex = m.carouselCursor
+		m.inCarousel = false
+		m.initFormForBook(m.editIndex)
+		return m, textinput.Blink
+	}
 
 	switch msg.String() {
 	case "ctrl+c":
 		return m, func() tea.Msg { return QuitAppMsg{} }
 
 	case "esc":
-		// Return to form without changing selection
 		m.inCarousel = false
 		return m, textinput.Blink
 
@@ -432,48 +438,11 @@ func (m EditBookModel) updateCarouselView(msg tea.KeyMsg) (EditBookModel, tea.Cm
 			m.carouselCursor++
 		}
 
-	case "up", "k":
-		if m.carouselCursor-cols >= 0 {
-			m.carouselCursor -= cols
-		}
-
-	case "down", "j":
-		if m.carouselCursor+cols < n {
-			m.carouselCursor += cols
-		} else {
-			// At the bottom row — select and return to form
-			m.editIndex = m.carouselCursor
-			m.inCarousel = false
-			m.initFormForBook(m.editIndex)
-			return m, textinput.Blink
-		}
-
-	case "enter", " ":
-		// Select this card, drop back into the form
-		m.editIndex = m.carouselCursor
-		m.inCarousel = false
-		m.initFormForBook(m.editIndex)
-		return m, textinput.Blink
+	case "down", "j", "enter", " ":
+		return selectCurrent()
 	}
 
 	return m, nil
-}
-
-// carouselColumns returns the number of columns that fit the terminal width
-func (m EditBookModel) carouselColumns() int {
-	const minCardWidth = 28 // minimum usable card width
-	usable := m.width - 4   // outer padding
-	cols := usable / minCardWidth
-	if cols < 1 {
-		cols = 1
-	}
-	if cols > 4 {
-		cols = 4
-	}
-	if cols > len(m.toEdit) {
-		cols = len(m.toEdit)
-	}
-	return cols
 }
 
 func (m EditBookModel) submitCurrentBook() (EditBookModel, tea.Cmd) {
@@ -601,13 +570,17 @@ func (m EditBookModel) renderMessage(title, help string) string {
 	return style.Render(tui.StyleBorder.Render(innerPadding.Render(b.String())))
 }
 
-// renderCarouselView renders the full-screen card grid for navigating between books
+// renderCarouselView renders the peeking single-row carousel.
+// The active card is shown full-width in the center; adjacent cards peek in
+// from the sides showing only their near edge.
 func (m EditBookModel) renderCarouselView() string {
-	cols := m.carouselColumns()
-	usable := m.width - 4
-	cardW := usable/cols - 2 // subtract gap between cards
-	if cardW < 20 {
-		cardW = 20
+	const peekW = 18 // visible chars of each adjacent card
+	const gap = 2    // space between peek and center card
+
+	usable := m.width - 6 // outer padding from StyleBorder + outerPad
+	centerW := usable - 2*(peekW+gap)
+	if centerW < 24 {
+		centerW = 24
 	}
 
 	saved := 0
@@ -617,46 +590,69 @@ func (m EditBookModel) renderCarouselView() string {
 		}
 	}
 
-	// Header
+	cur := m.carouselCursor
+	n := len(m.toEdit)
+
+	// Header: card position indicator
+	dots := make([]string, n)
+	for i := range dots {
+		if i == cur {
+			dots[i] = lipgloss.NewStyle().Foreground(lipgloss.Color("#fb6820")).Render("●")
+		} else {
+			dots[i] = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("○")
+		}
+	}
+	indicator := strings.Join(dots, " ")
+
 	var header strings.Builder
 	header.WriteString(tui.StyleHeader.Render("Select a book to edit"))
 	header.WriteString("  ")
-	header.WriteString(tui.StyleHelp.Render(fmt.Sprintf("%d/%d saved", saved, len(m.toEdit))))
+	header.WriteString(tui.StyleHelp.Render(fmt.Sprintf("%d/%d saved", saved, n)))
+	header.WriteString("\n")
+	header.WriteString(indicator)
 	header.WriteString("\n\n")
 
-	// Card grid
-	var gridRows []string
-	for rowStart := 0; rowStart < len(m.toEdit); rowStart += cols {
-		var rowCards []string
-		for col := 0; col < cols; col++ {
-			i := rowStart + col
-			if i >= len(m.toEdit) {
-				// Empty placeholder to keep grid aligned
-				placeholder := lipgloss.NewStyle().
-					Width(cardW).
-					Height(8).
-					Border(lipgloss.HiddenBorder()).
-					Render("")
-				rowCards = append(rowCards, placeholder)
-			} else {
-				rowCards = append(rowCards, m.renderCarouselCard(i, cardW))
-			}
-		}
-		gridRows = append(gridRows, lipgloss.JoinHorizontal(lipgloss.Top, rowCards...))
+	// Render the three slots
+	centerCard := m.renderCarouselCard(cur, centerW, true)
+
+	gapBlock := strings.Repeat(" ", gap)
+
+	var leftPeek, rightPeek string
+	if cur > 0 {
+		rendered := m.renderCarouselCard(cur-1, centerW, false)
+		leftPeek = peekRight(rendered, peekW)
+	} else {
+		leftPeek = blankBlock(peekW, lipgloss.Height(centerCard))
+	}
+	if cur < n-1 {
+		rendered := m.renderCarouselCard(cur+1, centerW, false)
+		rightPeek = peekLeft(rendered, peekW)
+	} else {
+		rightPeek = blankBlock(peekW, lipgloss.Height(centerCard))
 	}
 
-	grid := strings.Join(gridRows, "\n")
+	row := lipgloss.JoinHorizontal(lipgloss.Top,
+		leftPeek, gapBlock, centerCard, gapBlock, rightPeek,
+	)
 
 	// Footer
+	var navHint string
+	if cur == 0 {
+		navHint = "→ Navigate"
+	} else if cur == n-1 {
+		navHint = "← Navigate"
+	} else {
+		navHint = "←→ Navigate"
+	}
 	footer := tui.RenderFooterBar([]tui.ShortcutEntry{
-		{Key: "tab", Label: "↑↓←→ Navigate"},
-		{Key: "enter", Label: "Enter Select"},
+		{Key: "tab", Label: navHint},
+		{Key: "enter", Label: "Enter/↓ Select"},
 		{Key: "", Label: "Esc Back"},
 	}, m.activeCmd)
 
 	var b strings.Builder
 	b.WriteString(header.String())
-	b.WriteString(grid)
+	b.WriteString(row)
 	b.WriteString("\n\n")
 	b.WriteString(footer)
 
@@ -664,14 +660,15 @@ func (m EditBookModel) renderCarouselView() string {
 	return tui.StyleBorder.Render(outerPad.Render(b.String()))
 }
 
-// renderCarouselCard renders a single card in the full-screen carousel
-func (m EditBookModel) renderCarouselCard(i, cardW int) string {
+// renderCarouselCard renders a single card. active=true uses the orange border.
+func (m EditBookModel) renderCarouselCard(i, cardW int, active bool) string {
 	book := m.toEdit[i]
 	fs := m.formStates[i]
 
-	titleText := carouselTruncate(book.Book.Title, cardW-2)
-	authorText := carouselTruncate(book.Book.Author, cardW-2)
-	tagsText := carouselTruncate(strings.Join(book.Book.Tags, ", "), cardW-2)
+	inner := cardW - 2 // subtract padding
+	titleText := xansi.Truncate(book.Book.Title, inner, "…")
+	authorText := xansi.Truncate(book.Book.Author, inner, "…")
+	tagsText := xansi.Truncate(strings.Join(book.Book.Tags, ", "), inner, "…")
 
 	var statusText string
 	if fs.saved {
@@ -682,50 +679,59 @@ func (m EditBookModel) renderCarouselCard(i, cardW int) string {
 
 	content := titleText + "\n" + authorText + "\n" + tagsText + "\n" + statusText
 
-	isActive := i == m.carouselCursor
-
 	var style lipgloss.Style
 	switch {
-	case isActive:
+	case active:
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#fb6820")).
-			Width(cardW).
-			Height(8).
-			Padding(1, 1)
+			Width(cardW).Height(8).Padding(1, 1)
 	case fs.saved:
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("28")).
 			Foreground(lipgloss.Color("242")).
-			Width(cardW).
-			Height(8).
-			Padding(1, 1)
+			Width(cardW).Height(8).Padding(1, 1)
 	default:
 		style = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("240")).
 			Foreground(lipgloss.Color("242")).
-			Width(cardW).
-			Height(8).
-			Padding(1, 1)
+			Width(cardW).Height(8).Padding(1, 1)
 	}
 
 	return style.Render(content)
 }
 
-// carouselTruncate truncates a string to fit within a carousel card
-func carouselTruncate(s string, maxWidth int) string {
-	if maxWidth <= 0 {
-		return ""
+// peekLeft clips a rendered multi-line block to the first n visible columns (left edge peek).
+func peekLeft(s string, n int) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = xansi.Truncate(line, n, "")
 	}
-	if len(s) <= maxWidth {
-		return s
+	return strings.Join(lines, "\n")
+}
+
+// peekRight clips a rendered multi-line block to the last n visible columns (right edge peek).
+func peekRight(s string, n int) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		w := xansi.StringWidth(line)
+		if w > n {
+			lines[i] = xansi.TruncateLeft(line, w-n, "")
+		}
 	}
-	if maxWidth <= 1 {
-		return "…"
+	return strings.Join(lines, "\n")
+}
+
+// blankBlock returns a blank block of width w and height h.
+func blankBlock(w, h int) string {
+	line := strings.Repeat(" ", w)
+	lines := make([]string, h)
+	for i := range lines {
+		lines[i] = line
 	}
-	return s[:maxWidth-1] + "…"
+	return strings.Join(lines, "\n")
 }
 
 func (m EditBookModel) renderEditForm() string {

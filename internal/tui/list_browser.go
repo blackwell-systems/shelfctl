@@ -76,9 +76,26 @@ func (b BookItem) IsSelectable() bool {
 	return true
 }
 
-// Column width minimums
+// browserTitle derives a title from the books' shelf names.
+// If all books belong to one shelf, returns "Shelf: <name>".
+// If books span multiple shelves, returns "All Shelves".
+func browserTitle(books []BookItem) string {
+	shelves := make(map[string]struct{})
+	for _, b := range books {
+		shelves[b.ShelfName] = struct{}{}
+	}
+	if len(shelves) == 1 {
+		for name := range shelves {
+			return "Shelf: " + name
+		}
+	}
+	return "All Shelves"
+}
+
+// Column width constraints
 const (
 	minTitleWidth  = 12
+	maxTitleWidth  = 48
 	minAuthorWidth = 8
 	minTagWidth    = 6
 	minShelfWidth  = 5
@@ -96,10 +113,14 @@ func computeColumnWidths(totalWidth int) (titleW, authorW, tagW, shelfW, cachedW
 		return minTitleWidth, minAuthorWidth, minTagWidth, minShelfWidth, minCachedWidth
 	}
 	titleW = usable * 45 / 100
-	authorW = usable * 20 / 100
-	tagW = usable * 15 / 100
-	shelfW = usable * 10 / 100
-	cachedW = usable - titleW - authorW - tagW - shelfW // remainder
+	if titleW > maxTitleWidth {
+		titleW = maxTitleWidth
+	}
+	remaining := usable - titleW
+	authorW = remaining * 35 / 100
+	tagW = remaining * 25 / 100
+	shelfW = remaining * 20 / 100
+	cachedW = remaining - authorW - tagW - shelfW // remainder
 
 	// Enforce minimums
 	if titleW < minTitleWidth {
@@ -340,6 +361,9 @@ type BrowserModel struct {
 
 	// Footer command highlight
 	activeCmd string // Key that was just pressed for footer highlight
+
+	// Base title (without column header)
+	baseTitle string
 }
 
 func (m BrowserModel) Init() tea.Cmd {
@@ -684,7 +708,7 @@ func (m *BrowserModel) updateListSize() {
 	}
 
 	// Update column header in title (rendered by list above items)
-	m.list.Title = StyleHeader.Render("Books") + "\n" + RenderColumnHeader(m.list.Width())
+	m.list.Title = StyleHeader.Render(m.baseTitle) + "\n" + RenderColumnHeader(m.list.Width())
 	m.list.Styles.Title = lipgloss.NewStyle() // Clear title style so inner styles are preserved
 }
 
@@ -1016,7 +1040,8 @@ func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, er
 	// Create the list
 	d := delegate.New(renderBookItem)
 	l := list.New(items, d, 0, 0)
-	l.Title = "Books"
+	title := browserTitle(books)
+	l.Title = title
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false) // Disable built-in help, we'll render custom footer
@@ -1032,6 +1057,7 @@ func RunListBrowser(books []BookItem, downloader Downloader) (*BrowserResult, er
 		showDetails: false, // Details pane off by default
 		downloader:  downloader,
 		progress:    prog,
+		baseTitle:   title,
 	}
 
 	// Run the program with alt screen
@@ -1064,7 +1090,8 @@ func NewBrowserModel(books []BookItem, downloader Downloader, unifiedMode bool) 
 	// Create the list
 	d := delegate.New(renderBookItem)
 	l := list.New(items, d, 0, 0)
-	l.Title = "Books"
+	title := browserTitle(books)
+	l.Title = title
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false) // Disable built-in help, we'll render custom footer
@@ -1081,6 +1108,7 @@ func NewBrowserModel(books []BookItem, downloader Downloader, unifiedMode bool) 
 		downloader:  downloader,
 		progress:    prog,
 		unifiedMode: unifiedMode,
+		baseTitle:   title,
 	}
 }
 

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Column Headers on Browse and Picker Screens**
+  - TITLE, AUTHOR, TAGS, SHELF, CACHE headers displayed above list items
+  - Underlined header row updates dynamically on terminal resize
+  - Applied to: browse list, edit book picker, delete book picker, cache clear picker, move book picker
+- **Shelf-Aware Browse Title**
+  - Browse screen title now shows "Shelf: \<name\>" when viewing a single shelf
+  - Shows "All Shelves" when viewing books across multiple shelves
+
+### Changed
+- **Compact Title Column**
+  - Title column capped at 48 characters max width to keep the display compact
+  - Longer titles truncate with ellipsis; extra space redistributed to other columns
+- **Shelf Creation Form: Auto `shelf-` Prefix**
+  - Repository name field now shows `shelf-` as a fixed prefix
+  - Users only type the suffix (e.g., "programming" instead of "shelf-programming")
+  - Reduces confusion and enforces naming convention
+- **TUI Architecture Docs Rewritten**
+  - `docs/TUI_ARCHITECTURE.md` rewritten as a clean post-migration architecture reference
+  - Removed all migration history, phase tracking, and old/new comparisons
+- Removed `docs/UNIFIED_TUI_PLAN.md` (migration complete)
+
 ## [0.2.0] - 2026-02-23
 
 ### Added

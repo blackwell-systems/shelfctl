@@ -55,9 +55,9 @@ func NewCreateShelfModel(gh *github.Client, cfg *config.Config) CreateShelfModel
 	m.inputs[0].Width = inputWidth
 	m.inputs[0].Prompt = ""
 
-	// Repo name field
+	// Repo name field (suffix after "shelf-" prefix)
 	m.inputs[1] = textinput.New()
-	m.inputs[1].Placeholder = "e.g., shelf-programming (include 'shelf-' prefix)"
+	m.inputs[1].Placeholder = "e.g., programming, history"
 	m.inputs[1].CharLimit = 100
 	m.inputs[1].Width = inputWidth
 	m.inputs[1].Prompt = ""
@@ -97,16 +97,18 @@ func (m CreateShelfModel) Update(msg tea.Msg) (CreateShelfModel, tea.Cmd) {
 		case "enter":
 			// Validate and submit
 			shelfName := strings.TrimSpace(m.inputs[0].Value())
-			repoName := strings.TrimSpace(m.inputs[1].Value())
+			repoSuffix := strings.TrimSpace(m.inputs[1].Value())
 
 			if shelfName == "" {
 				m.err = fmt.Errorf("shelf name is required")
 				return m, nil
 			}
-			if repoName == "" {
+			if repoSuffix == "" {
 				m.err = fmt.Errorf("repo name is required")
 				return m, nil
 			}
+
+			repoName := "shelf-" + repoSuffix
 
 			// Start async creation
 			m.processing = true
@@ -207,18 +209,26 @@ func (m CreateShelfModel) View() string {
 		b.WriteString("\n\n")
 	}
 
-	// Text input fields
-	textFields := []string{"Shelf Name", "Repository Name"}
-	for i, label := range textFields {
-		if i == m.focused {
-			b.WriteString(tui.StyleHighlight.Render("› " + label + ":"))
-		} else {
-			b.WriteString(tui.StyleNormal.Render("  " + label + ":"))
-		}
-		b.WriteString("\n  ")
-		b.WriteString(m.inputs[i].View())
-		b.WriteString("\n\n")
+	// Shelf Name field
+	if m.focused == 0 {
+		b.WriteString(tui.StyleHighlight.Render("› Shelf Name:"))
+	} else {
+		b.WriteString(tui.StyleNormal.Render("  Shelf Name:"))
 	}
+	b.WriteString("\n  ")
+	b.WriteString(m.inputs[0].View())
+	b.WriteString("\n\n")
+
+	// Repository Name field (with shelf- prefix shown)
+	if m.focused == 1 {
+		b.WriteString(tui.StyleHighlight.Render("› Repository Name:"))
+	} else {
+		b.WriteString(tui.StyleNormal.Render("  Repository Name:"))
+	}
+	b.WriteString("\n  ")
+	b.WriteString(tui.StyleHelp.Render("shelf-"))
+	b.WriteString(m.inputs[1].View())
+	b.WriteString("\n\n")
 
 	// Checkbox fields
 	checkboxes := []struct {

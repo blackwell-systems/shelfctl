@@ -216,6 +216,63 @@ The `✓` mark indicates the book is cached locally.
 
 ---
 
+## tags
+
+List and manage tags across your library.
+
+### tags list
+
+List all tags with book counts (default when running `shelfctl tags` with no subcommand).
+
+```bash
+shelfctl tags [list] [flags]
+```
+
+#### Flags
+
+- `--shelf`: List tags for a specific shelf
+- `--json`: Output as JSON
+
+#### Example Output
+
+```
+  programming              (12)
+  algorithms               (8)
+  machine-learning         (5)
+  fiction                   (3)
+  history                   (2)
+
+5 tags across 3 shelves
+```
+
+### tags rename
+
+Rename all occurrences of a tag across shelves.
+
+```bash
+shelfctl tags rename <old> <new> [flags]
+```
+
+#### Flags
+
+- `--shelf`: Rename only within a specific shelf
+- `--dry-run`: Show what would be renamed without saving
+
+#### Examples
+
+```bash
+# Rename a tag across all shelves
+shelfctl tags rename "prog" "programming"
+
+# Preview changes first
+shelfctl tags rename ml machine-learning --dry-run
+
+# Rename within one shelf only
+shelfctl tags rename "cs" "computer-science" --shelf research
+```
+
+---
+
 ## shelve
 
 Add a book to your library.

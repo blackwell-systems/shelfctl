@@ -28,6 +28,7 @@ Zero-infrastructure document library using GitHub repos and releases as storage.
 - [Browse your library](reference/commands.md#browse) - `shelfctl browse --tag algorithms`
 - [Generate HTML index](reference/commands.md#index) - `shelfctl index` for web browsing
 - [Search books](reference/commands.md#search) - `shelfctl search "neural networks"`
+- [Manage tags](reference/commands.md#tags) - `shelfctl tags` to list, `shelfctl tags rename` to bulk rename
 - [Library status](reference/commands.md#status) - `shelfctl status` for sync overview
 - [Manage cache](reference/commands.md#cache) - `shelfctl cache info` and `shelfctl cache clear`
 - [Edit a book](reference/commands.md#edit-book) - `shelfctl edit-book book-id`

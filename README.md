@@ -319,6 +319,7 @@ shelfctl sync sicp  # Upload annotated version (replaces original, no versioning
 | `index` | Generate local HTML index for web browsing |
 | `search` | Search books by title, author, or tags |
 | `status` | Show library sync status and statistics |
+| `tags` | List all tags with counts, rename tags in bulk |
 | `verify` | Detect catalog vs release mismatches, auto-fix with `--fix` |
 | `sync` | Upload locally modified books (annotations/highlights) to GitHub |
 | `cache clear` | Remove books from local cache without deleting from shelves |

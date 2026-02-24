@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`shelfctl tags` Command**
+  - `shelfctl tags` / `shelfctl tags list` — list all tags with book counts, sorted by frequency
+  - `shelfctl tags rename <old> <new>` — bulk rename a tag across all books and shelves
+  - `--shelf` flag to scope to a single shelf, `--dry-run` for preview, `--json` for output
+- **`shelfctl completion` Command**
+  - Generate shell autocompletion scripts (bash, zsh, fish, powershell)
+  - Was documented but not registered; now wired up
 - **`shelfctl search` Command**
   - Full-text search across title, author, and tags (case-insensitive)
   - `--tag`, `--format`, `--shelf` flags to narrow results

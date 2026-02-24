@@ -617,18 +617,20 @@ func (m EditBookModel) renderCarouselView() string {
 
 	gapBlock := strings.Repeat(" ", gap)
 
+	cardH := lipgloss.Height(centerCard)
+
 	var leftPeek, rightPeek string
 	if cur > 0 {
 		rendered := m.renderCarouselCard(cur-1, centerW, false)
 		leftPeek = peekRight(rendered, peekW)
 	} else {
-		leftPeek = blankBlock(peekW, lipgloss.Height(centerCard))
+		leftPeek = peekRight(ghostCard(centerW, cardH), peekW)
 	}
 	if cur < n-1 {
 		rendered := m.renderCarouselCard(cur+1, centerW, false)
 		rightPeek = peekLeft(rendered, peekW)
 	} else {
-		rightPeek = blankBlock(peekW, lipgloss.Height(centerCard))
+		rightPeek = peekLeft(ghostCard(centerW, cardH), peekW)
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top,
@@ -724,14 +726,15 @@ func peekRight(s string, n int) string {
 	return strings.Join(lines, "\n")
 }
 
-// blankBlock returns a blank block of width w and height h.
-func blankBlock(w, h int) string {
-	line := strings.Repeat(" ", w)
-	lines := make([]string, h)
-	for i := range lines {
-		lines[i] = line
-	}
-	return strings.Join(lines, "\n")
+// ghostCard renders a blank card with a very dim border — used at the edges
+// of the carousel to maintain visual rhythm when there's no adjacent card.
+func ghostCard(cardW, cardH int) string {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("235")).
+		Width(cardW).
+		Height(cardH - 2). // Height excludes border rows
+		Render("")
 }
 
 func (m EditBookModel) renderEditForm() string {

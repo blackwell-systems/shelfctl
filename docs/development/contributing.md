@@ -101,7 +101,7 @@ chore: update dependencies
 
 ### Features
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for schemas and package structure.
+See [architecture.md](../reference/architecture.md) for schemas and package structure.
 
 ## Questions?
 

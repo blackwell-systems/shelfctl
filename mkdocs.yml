@@ -35,17 +35,17 @@ theme:
 nav:
   - Home: index.md
   - Getting Started:
-      - Tutorial: TUTORIAL.md
-      - Hub Interface: HUB.md
+      - Tutorial: guides/tutorial.md
+      - Hub Interface: guides/hub.md
   - Reference:
-      - Commands: COMMANDS.md
-      - Architecture: ARCHITECTURE.md
-      - Troubleshooting: TROUBLESHOOTING.md
+      - Commands: reference/commands.md
+      - Architecture: reference/architecture.md
+      - Troubleshooting: reference/troubleshooting.md
   - Development:
-      - Contributing: contributing.md
-      - Reusable Components: COMPONENTS.md
-      - TUI Architecture: TUI_ARCHITECTURE.md
-      - Changelog: changelog.md
+      - Contributing: development/contributing.md
+      - Reusable Components: development/components.md
+      - TUI Architecture: development/tui-architecture.md
+      - Changelog: development/changelog.md
 
 markdown_extensions:
   - admonition

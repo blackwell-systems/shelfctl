@@ -390,7 +390,7 @@ func TestBasePicker(t *testing.T) {
 3. **Add Multi-Select** - Once you have a picker, add checkbox selection
 4. **Use Miller Columns** - For hierarchical navigation needs
 
-**Want to see them in action?** Check out shelfctl's [TUI Architecture Guide](../internal/tui/ARCHITECTURE.md) to see how these components are used in production.
+**Want to see them in action?** Check out shelfctl's [TUI Architecture Guide](tui-architecture.md) to see how these components are used in production.
 
 ---
 

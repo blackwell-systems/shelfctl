@@ -632,7 +632,7 @@ func runHub() error {
 			fmt.Printf("  %s\n\n", color.CyanString("export GITHUB_TOKEN=ghp_your_token_here"))
 			fmt.Println("Then run 'shelfctl' again.")
 			fmt.Println()
-			fmt.Println("For more details, see docs/TUTORIAL.md or run 'shelfctl init --help'")
+			fmt.Println("For more details, see docs/guides/tutorial.md or run 'shelfctl init --help'")
 			return nil
 		} else if !hasShelves {
 			fmt.Println("Next step: Create your first shelf")
@@ -668,7 +668,7 @@ func runHub() error {
 					fmt.Printf("  %s\n\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
 					fmt.Println("Then run 'shelfctl' again to use the interactive menu.")
 					fmt.Println()
-					fmt.Println("For more details, see docs/TUTORIAL.md or run 'shelfctl init --help'")
+					fmt.Println("For more details, see docs/guides/tutorial.md or run 'shelfctl init --help'")
 					return nil
 				}
 			} else {
@@ -677,7 +677,7 @@ func runHub() error {
 				fmt.Printf("  %s\n\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
 				fmt.Println("Then run 'shelfctl' again to use the interactive menu.")
 				fmt.Println()
-				fmt.Println("For more details, see docs/TUTORIAL.md or run 'shelfctl init --help'")
+				fmt.Println("For more details, see docs/guides/tutorial.md or run 'shelfctl init --help'")
 				return nil
 			}
 		}

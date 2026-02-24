@@ -2,30 +2,19 @@
 
 This directory contains all documentation for shelfctl.
 
-## Structure
-
-```
-docs/
-├── index.md              # Documentation home page
-├── TUTORIAL.md           # Step-by-step guide for new users
-├── ARCHITECTURE.md       # Architecture, organization, and schemas
-├── COMMANDS.md           # Complete command reference
-├── HUB.md                # Interactive TUI guide
-├── TROUBLESHOOTING.md   # Common issues and solutions
-└── nav.yml              # Navigation structure for doc generators
-```
-
 ## For Users
 
 Start with [index.md](index.md) or jump to:
-- [Tutorial](TUTORIAL.md) - Learn by doing
-- [Commands](COMMANDS.md) - Look up specific commands
-- [Troubleshooting](TROUBLESHOOTING.md) - Fix problems
+- [Tutorial](guides/tutorial.md) - Learn by doing
+- [Commands](reference/commands.md) - Look up specific commands
+- [Troubleshooting](reference/troubleshooting.md) - Fix problems
 
 ## For Developers
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Schemas and configuration reference
-- [contributing.md](contributing.md) - Development setup
+- [architecture.md](reference/architecture.md) - Schemas and configuration reference
+- [contributing.md](development/contributing.md) - Development setup
+- [components.md](development/components.md) - Reusable TUI components
+- [tui-architecture.md](development/tui-architecture.md) - Unified TUI design
 
 ## Building Documentation Site
 

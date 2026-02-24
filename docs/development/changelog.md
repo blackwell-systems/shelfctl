@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When a shortcut key is pressed, the corresponding label in the footer briefly highlights (500ms)
   - Shared `RenderFooterBar` and `SetActiveCmd` utilities in `internal/tui/footer.go`
   - Applied to: browse, hub, edit book, delete book, cache clear, move book, create shelf, shelve form, standalone edit form, standalone shelve form
-- **Mouse Support Plan** — documented in `docs/MOUSE_SUPPORT_PLAN.md`
+- **Mouse Support Plan** — documented in `docs/development/mouse-support-plan.md`
 
 ### Changed
 - Browse detail panel now off by default (toggle with tab)
@@ -73,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - More complex architecture and debugging
     - Worth it: UX improvement is dramatic and user-facing
   - **Performance:** Instant view transitions (<1ms) vs old visible flicker (~200-500ms)
-  - See [docs/TUI_ARCHITECTURE.md](docs/TUI_ARCHITECTURE.md) for complete technical deep dive
+  - See [tui-architecture.md](tui-architecture.md) for complete technical deep dive
   - All features migrated with 100% feature parity - no functionality lost
 
 ### Added

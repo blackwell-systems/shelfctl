@@ -98,7 +98,7 @@ Generate a web-based library viewer with cover thumbnails, tag filters, and live
 Interactive visual browser with keyboard navigation, or scriptable command-line interface for automation and shell workflows.
 
 ### Reusable TUI components
-shelfctl uses three production-ready [Bubble Tea](https://github.com/charmbracelet/bubbletea) components that have been extracted to a standalone package: **Base Picker** (eliminates picker boilerplate), **Multi-Select** (checkbox wrapper for any list), and **Miller Columns** (hierarchical navigation layout). Available at [github.com/blackwell-systems/bubbletea-components](https://github.com/blackwell-systems/bubbletea-components). See [docs/COMPONENTS.md](docs/COMPONENTS.md) for details.
+shelfctl uses three production-ready [Bubble Tea](https://github.com/charmbracelet/bubbletea) components that have been extracted to a standalone package: **Base Picker** (eliminates picker boilerplate), **Multi-Select** (checkbox wrapper for any list), and **Miller Columns** (hierarchical navigation layout). Available at [github.com/blackwell-systems/bubbletea-components](https://github.com/blackwell-systems/bubbletea-components). See [docs/development/components.md](docs/development/components.md) for details.
 
 ---
 
@@ -251,7 +251,7 @@ This provides a visual interface with:
 - ➕ **Add Book** - File picker + metadata form
 - 📊 **Status dashboard** - See shelf and book counts at a glance
 
-See [docs/HUB.md](docs/HUB.md) for full details.
+See [docs/guides/hub.md](docs/guides/hub.md) for full details.
 
 ### Command-Line Mode
 
@@ -367,16 +367,16 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 
 ## Documentation
 
-- **[Tutorial](docs/TUTORIAL.md)** - Step-by-step walkthrough from installation to advanced workflows
-- **[Architecture Guide](docs/ARCHITECTURE.md)** - How shelves work, organization strategies, schemas, and configuration
-- **[Interactive Hub](docs/HUB.md)** - Guide to the interactive TUI menu
-- **[Commands Reference](docs/COMMANDS.md)** - Complete documentation for all commands
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Contributing](docs/contributing.md)** - Development guidelines
+- **[Tutorial](docs/guides/tutorial.md)** - Step-by-step walkthrough from installation to advanced workflows
+- **[Architecture Guide](docs/reference/architecture.md)** - How shelves work, organization strategies, schemas, and configuration
+- **[Interactive Hub](docs/guides/hub.md)** - Guide to the interactive TUI menu
+- **[Commands Reference](docs/reference/commands.md)** - Complete documentation for all commands
+- **[Troubleshooting](docs/reference/troubleshooting.md)** - Common issues and solutions
+- **[Contributing](docs/development/contributing.md)** - Development guidelines
 
 ### For Developers
-- **[Reusable Bubble Tea Components](docs/COMPONENTS.md)** - Production-ready TUI components (picker, multi-select, miller columns)
-- **[TUI Architecture](docs/TUI_ARCHITECTURE.md)** - Technical deep dive into the unified TUI design
+- **[Reusable Bubble Tea Components](docs/development/components.md)** - Production-ready TUI components (picker, multi-select, miller columns)
+- **[TUI Architecture](docs/development/tui-architecture.md)** - Technical deep dive into the unified TUI design
 
 ---
 
@@ -407,7 +407,7 @@ shelfctl is a specialized management tool designed to help developers organize t
 If you find shelfctl useful:
 - ⭐ **Star the repo** on GitHub
 - 🐛 **Report issues** or suggest features
-- 🤝 **Contribute** improvements (see [contributing.md](docs/contributing.md))
+- 🤝 **Contribute** improvements (see [contributing.md](docs/development/contributing.md))
 - ☕ **Buy me a coffee** via the badge above
 
 ---

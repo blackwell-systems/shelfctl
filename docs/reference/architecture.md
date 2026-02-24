@@ -337,9 +337,9 @@ Do I need a new shelf?
 ## Getting Help
 
 - Type `help` or `?` during interactive init
-- Read `docs/TUTORIAL.md` for walkthrough
+- Read [tutorial.md](../guides/tutorial.md) for walkthrough
 - Run `shelfctl split --help` for split options
-- See `docs/COMMANDS.md` for all commands
+- See [commands.md](commands.md) for all commands
 
 ## Summary
 

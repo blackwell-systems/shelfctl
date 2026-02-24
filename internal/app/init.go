@@ -35,7 +35,7 @@ Quick start:
   2. Then: shelfctl shelve (launches interactive workflow)
   3. Or: shelfctl shelve ~/book.pdf --shelf books --title "My Book"
 
-For more details, see: shelfctl --help or docs/TUTORIAL.md`,
+For more details, see: shelfctl --help or docs/guides/tutorial.md`,
 		Example: `  # Create a new shelf with repo and release
   shelfctl init --repo shelf-programming --name programming --create-repo
 

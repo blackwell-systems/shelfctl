@@ -523,10 +523,10 @@ shelfctl works identically with private repos.
 
 ## Next steps
 
-- Read [COMMANDS.md](COMMANDS.md) for complete command reference
-- Read [ARCHITECTURE.md](ARCHITECTURE.md) for schemas and configuration reference
-- Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if you hit issues
-- Contribute improvements via [contributing.md](contributing.md)
+- Read [commands.md](../reference/commands.md) for complete command reference
+- Read [architecture.md](../reference/architecture.md) for schemas and configuration reference
+- Check [troubleshooting.md](../reference/troubleshooting.md) if you hit issues
+- Contribute improvements via [contributing.md](../development/contributing.md)
 
 ## Example: Complete setup from scratch
 

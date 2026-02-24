@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blackwell-systems/bubbletea-components/carousel"
 	"github.com/blackwell-systems/bubbletea-components/multiselect"
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
@@ -83,8 +84,8 @@ type EditBookModel struct {
 	formStates []editFormState
 
 	// Full-screen carousel sub-view
-	inCarousel     bool
-	carouselCursor int // highlighted card index while browsing carousel
+	inCarousel    bool
+	carouselModel carousel.Model
 
 	// Bulk-edit overlay (shown on top of carousel)
 	inBulkEdit        bool
@@ -194,6 +195,7 @@ func (m EditBookModel) Update(msg tea.Msg) (EditBookModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.carouselModel.SetSize(msg.Width, msg.Height)
 
 		if m.phase == editBookPicking {
 			h, v := tui.StyleBorder.GetFrameSize()
@@ -224,12 +226,18 @@ func (m EditBookModel) Update(msg tea.Msg) (EditBookModel, tea.Cmd) {
 				if m.inBulkEdit {
 					return m.updateBulkEdit(msg)
 				}
-				return m.updateCarouselView(msg)
+				return m.updateCarouselFromMsg(msg)
 			}
 			return m.updateEditing(msg)
 		case editBookProcessing:
 			return m, nil
 		}
+
+	case carousel.ItemSelectedMsg:
+		m.editIndex = msg.Index
+		m.inCarousel = false
+		m.initFormForBook(m.editIndex)
+		return m, textinput.Blink
 
 	case EditBookCompleteMsg:
 		m.successCount = msg.SuccessCount
@@ -285,7 +293,9 @@ func (m EditBookModel) updatePicking(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 		m.formStates = initFormStates(selected)
 		m.phase = editBookEditing
 		if len(selected) > 1 {
-			m.carouselCursor = 0
+			m.carouselModel = newCarouselModel()
+			m.carouselModel.SetSize(m.width, m.height)
+			m.rebuildCarouselItems()
 			m.inCarousel = true
 			return m, tui.SetActiveCmd(&m.activeCmd, "enter")
 		}
@@ -389,7 +399,8 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 			// Up from the first field in multi-book edit: open carousel
 			if msg.String() == "up" && m.focused == 0 && len(m.toEdit) > 1 {
 				m.saveCurrentFormToState()
-				m.carouselCursor = m.editIndex
+				m.rebuildCarouselItems() // refresh saved state before showing
+				m.carouselModel.SetCursor(m.editIndex)
 				m.inCarousel = true
 				return m, highlightCmd
 			}
@@ -459,6 +470,7 @@ func (m EditBookModel) submitCurrentBook() (EditBookModel, tea.Cmd) {
 
 	if m.editIndex < len(m.formStates) {
 		m.formStates[m.editIndex].saved = true
+		m.rebuildCarouselItems() // keep carousel borders in sync with saved state
 	}
 
 	return m.advanceToNextBook()
@@ -524,7 +536,11 @@ func (m EditBookModel) View() string {
 
 	case editBookEditing:
 		if m.inCarousel {
-			return m.renderCarouselView()
+			outerPad := lipgloss.NewStyle().Padding(1, 2)
+			if m.inBulkEdit {
+				return tui.StyleBorder.Render(outerPad.Render(m.renderBulkEditOverlay()))
+			}
+			return tui.StyleBorder.Render(outerPad.Render(m.carouselModel.View()))
 		}
 		return m.renderEditForm()
 

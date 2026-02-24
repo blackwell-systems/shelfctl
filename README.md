@@ -20,6 +20,10 @@
 
 **Organize the PDFs and books you already have scattered across GitHub.**
 
+<p align="center">
+  <img src="assets/tui_demo.gif" alt="shelfctl TUI demo" width="800">
+</p>
+
 If you use GitHub, you've probably hit this: one monolithic "books" repo with hundreds of PDFs, or files scattered across random repos and gists. Eventually you hit GitHub's 100MB limit, or you bolt on Git LFS and discover it's expensive and annoying for a personal library.
 
 Once PDFs land in git history, every clone stays heavy forever. Even after you delete the files, git history never forgets.

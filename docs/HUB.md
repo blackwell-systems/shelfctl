@@ -23,6 +23,18 @@ The hub displays:
 - **Search** - Press `/` to filter menu items
 - **Help** - Shows keybindings at the bottom
 
+### Scrollable Details Panel
+
+When highlighting "View Shelves" or "Cache Info" menu items, the hub displays a details panel on the right side. For large libraries with many shelves or modified books:
+
+- Press `tab` or `→` to focus the details panel
+- Use `↑`/`↓` or `j`/`k` to scroll through content
+- Press `←` or `esc` to return focus to the menu
+- Focused panel shows thick cyan border and scroll position indicator
+- Menu border dims when details panel is focused
+
+This allows you to review all your shelves or cache statistics without truncation, even if the list extends beyond one screen.
+
 ### Available Operations
 
 The hub provides access to all core operations and loops continuously until you quit:
@@ -95,6 +107,17 @@ The hub provides access to all core operations and loops continuously until you 
 - Clears from local cache automatically
 - Returns to hub menu after completion
 - Hidden when no books exist
+
+**Create Shelf**
+- Interactive form for adding a new shelf repository
+- Collects shelf name and repository name
+- Checkboxes for configuration options:
+  - Create GitHub repository (default: yes)
+  - Make repository private (default: yes)
+  - Create 'library' release tag (default: yes)
+- Creates repo via GitHub API, generates README.md, adds to config
+- No need to exit to CLI or remember `init` command syntax
+- Returns to hub menu after completion
 
 **Delete Shelf**
 - Interactive shelf picker
@@ -215,36 +238,58 @@ It will display the standard CLI help instead.
 
 ## Keyboard Controls
 
+**Main Menu:**
 - **↑ / ↓** or **j / k** - Navigate menu items
 - **/** - Filter/search menu items
 - **Enter** - Select highlighted item
+- **Tab** or **→** - Focus details panel (when available)
 - **q** or **Esc** or **Ctrl+C** - Quit
+
+**Details Panel** (when focused):
+- **↑ / ↓** or **j / k** - Scroll content up/down
+- **←** or **Esc** - Return focus to main menu
 
 ## Visual Design
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│  shelfctl - Personal Library Manager                     │
-│  3 shelves · 42 books                                    │
-├──────────────────────────────────────────────────────────┤
-│                                                           │
-│  › Browse Library    View and search your books          │
-│                                                           │
-│    Add Book          Add a new book to your library      │
-│                                                           │
-│    Edit Book         Update metadata for a book          │
-│                                                           │
-│    Delete Book       Remove a book from your library     │
-│                                                           │
-│    Delete Shelf      Remove a shelf from configuration   │
-│                                                           │
-│    Quit              Exit shelfctl                       │
-│                                                           │
-│  ↑/↓: navigate  enter: select  /: filter  q: quit        │
-└──────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  shelfctl - Personal Library Manager                                │
+│  3 shelves · 42 books                                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  › Browse Library              View and search your books           │
+│                                                                      │
+│    Add Book                    Add a new book to your library       │
+│                                                                      │
+│    Edit Book                   Update metadata for a book           │
+│                                                                      │
+│    Cache Info                  View cache statistics and usage      │
+│                                                                      │
+│    Clear Cache                 Remove books from local cache        │
+│                                                                      │
+│    View Shelves                Show all configured shelves          │
+│                                                                      │
+│    Generate HTML Index         Create web page for browsing         │
+│                                                                      │
+│    Add from URL                Download and add a book from URL     │
+│                                                                      │
+│    Move Book                   Transfer a book to another shelf     │
+│                                                                      │
+│    Delete Book                 Remove a book from your library      │
+│                                                                      │
+│    Import from Repository      Migrate books from another repo      │
+│                                                                      │
+│    Create Shelf                Add a new shelf repository           │
+│                                                                      │
+│    Delete Shelf                Remove a shelf from configuration    │
+│                                                                      │
+│    Quit                        Exit shelfctl                        │
+│                                                                      │
+│  ↑/↓: navigate  enter: select  tab: focus details  /: filter  q: quit │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-Clean, focused, and functional. The menu dynamically shows only available operations (e.g., "Delete Book" is hidden when no books exist). Additional commands are available via `shelfctl <command>`.
+Clean, focused, and functional. The menu dynamically shows only available operations (e.g., "Delete Book" is hidden when no books exist). Menu items are ordered by frequency of use. Additional commands are available via `shelfctl <command>`.
 
 ## CLI Compatibility
 

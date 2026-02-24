@@ -367,6 +367,7 @@ See [`config.example.yml`](config.example.yml) for a complete example.
 - **[Tutorial](docs/TUTORIAL.md)** - Step-by-step walkthrough from installation to advanced workflows
 - **[Architecture Guide](docs/ARCHITECTURE.md)** - How shelves work, organization strategies, schemas, and configuration
 - **[Interactive Hub](docs/HUB.md)** - Guide to the interactive TUI menu
+- **[TUI Architecture](docs/TUI_ARCHITECTURE.md)** - Technical deep dive into the unified TUI design
 - **[Commands Reference](docs/COMMANDS.md)** - Complete documentation for all commands
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Contributing](CONTRIBUTING.md)** - Development guidelines

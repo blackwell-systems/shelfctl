@@ -43,6 +43,7 @@ nav:
       - Troubleshooting: TROUBLESHOOTING.md
   - Development:
       - Contributing: contributing.md
+      - TUI Architecture: TUI_ARCHITECTURE.md
       - Changelog: changelog.md
 
 markdown_extensions:

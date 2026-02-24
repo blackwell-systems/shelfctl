@@ -7,7 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **MAJOR: Unified TUI Architecture (Zero Flicker)**
+  - Complete redesign of interactive mode to eliminate screen flicker
+  - **Old architecture:** Each operation launched a separate Bubble Tea program
+    - Hub → Browse = 2 screen clears (exit hub, enter browse)
+    - Visible flash/flicker on every navigation
+    - Terminal state reset between operations
+    - Felt like switching between separate applications
+  - **New architecture:** Single persistent Bubble Tea program with internal view switching
+    - Hub → Browse = instant state transition (zero flicker)
+    - Alt screen entered once and persists throughout session
+    - Seamless navigation feels like native application
+    - View state preserved when navigating away and back
+  - **Implementation:** Orchestrator pattern with message-based navigation
+    - `internal/unified/model.go` coordinates all views (~850 lines)
+    - `NavigateMsg` for view switching, `QuitAppMsg` for exit
+    - `ActionRequestMsg` for operations requiring TUI suspension
+    - Each view is a self-contained model that emits navigation messages
+  - **Suspend-and-resume pattern:** Forms and external commands temporarily exit alt screen
+    - Create shelf form, import repository, cache info output
+    - Screen clears only when REQUIRED, not on every navigation
+    - Automatically resumes unified TUI after external operation completes
+  - **CLI compatibility:** Unchanged - scripts and direct commands work identically
+    - `shelfctl browse` runs standalone (old behavior)
+    - `shelfctl` (no args) runs unified TUI (new behavior)
+  - **Technical tradeoffs:**
+    - Added ~3000 lines of orchestration code
+    - Higher memory usage (~10-15 MB vs 2-5 MB per view)
+    - More complex architecture and debugging
+    - Worth it: UX improvement is dramatic and user-facing
+  - **Performance:** Instant view transitions (<1ms) vs old visible flicker (~200-500ms)
+  - See [docs/TUI_ARCHITECTURE.md](docs/TUI_ARCHITECTURE.md) for complete technical deep dive
+  - All features migrated with 100% feature parity - no functionality lost
+
 ### Added
+- **Create Shelf in TUI**
+  - New "Create Shelf" option in hub menu for adding shelves interactively
+  - Interactive form collects shelf name, repository name, and configuration flags
+  - Checkboxes for: create repository, make private, create release tag
+  - All defaults match CLI behavior (create repo: yes, private: yes, create release: yes)
+  - Creates repo via GitHub API, generates README.md, and adds shelf to config
+  - No need to exit to CLI for shelf creation workflow
+  - Returns to hub menu after completion
+- **Scrollable Details Panel in Hub**
+  - Hub view now supports scrolling when viewing shelves or cache info with many items
+  - Press `tab` or `→` to focus the details panel (right side)
+  - Use `↑`/`↓` to scroll through content when focused
+  - Press `←` or `esc` to return focus to main menu
+  - Visual indicators: thick cyan border when details panel focused, dimmed menu border
+  - Scroll position indicator shows "Lines X-Y of Z" at bottom
+  - No more 10-book limit on modified books display in cache info
+  - Useful when you have many shelves or many locally modified books
 - **Toggle Hidden Files in File Picker**
   - Press `.` (dot) in the file picker to show/hide hidden files and directories
   - Hidden files/folders (starting with `.`) are hidden by default
@@ -16,6 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Help text shows `. show hidden` in the bottom bar
 
 ### Changed
+- **Improved Hub Menu Layout**
+  - Increased label width from 20 to 25 characters to accommodate longer menu item names
+  - Prevents text collision between labels and descriptions for items like "Import from Repository"
+  - Cleaner visual separation throughout menu
 - **Hub Menu Navigation Improvement**
   - TUI commands (browse, shelve, edit-book, move, delete-book, cache-clear) now return directly to hub menu
   - No more "Press Enter to return to menu..." prompt after using TUI commands

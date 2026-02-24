@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Refactor**: extracted carousel layout/rendering into a reusable `carousel` package in `bubbletea-components`; shelfctl now provides only `bookCarouselDelegate` and a thin `updateCarouselFromMsg` wrapper; all peek-clipping, ghost cards, dot indicator, and navigation logic live in the component
+
 ## [0.2.5] - 2026-02-24
 
 ### Added

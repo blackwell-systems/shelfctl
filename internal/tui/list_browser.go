@@ -682,6 +682,10 @@ func (m *BrowserModel) updateListSize() {
 		// Full width for list
 		m.list.SetSize(availableWidth, availableHeight-2)
 	}
+
+	// Update column header in title (rendered by list above items)
+	m.list.Title = StyleHeader.Render("Books") + "\n" + RenderColumnHeader(m.list.Width())
+	m.list.Styles.Title = lipgloss.NewStyle() // Clear title style so inner styles are preserved
 }
 
 func (m BrowserModel) renderDetailsPane() string {

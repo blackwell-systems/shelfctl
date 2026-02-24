@@ -96,6 +96,8 @@ func (m DeleteBookModel) Update(msg tea.Msg) (DeleteBookModel, tea.Cmd) {
 		if m.phase == deleteBookPicking {
 			h, v := tui.StyleBorder.GetFrameSize()
 			m.ms.List.SetSize(msg.Width-h, msg.Height-v)
+			m.ms.List.Title = tui.StyleHeader.Render("Select books to delete") + "\n" + tui.RenderColumnHeader(m.ms.List.Width())
+			m.ms.List.Styles.Title = lipgloss.NewStyle()
 		}
 		return m, nil
 

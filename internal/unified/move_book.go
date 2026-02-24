@@ -129,6 +129,8 @@ func (m MoveBookModel) Update(msg tea.Msg) (MoveBookModel, tea.Cmd) {
 		case moveBookPicking:
 			h, v := tui.StyleBorder.GetFrameSize()
 			m.ms.List.SetSize(msg.Width-h, msg.Height-v)
+			m.ms.List.Title = tui.StyleHeader.Render("Select books to move") + "\n" + tui.RenderColumnHeader(m.ms.List.Width())
+			m.ms.List.Styles.Title = lipgloss.NewStyle()
 		case moveDestPicking:
 			if m.moveType == moveToShelf {
 				h, v := tui.StyleBorder.GetFrameSize()

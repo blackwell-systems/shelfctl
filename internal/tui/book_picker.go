@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // renderPickerColumns renders book metadata as aligned columns for picker views.
@@ -38,8 +39,8 @@ func renderPickerColumns(b *BookItem, listWidth int) (titleCol, authorCol, tagCo
 	return
 }
 
-// RenderPickerColumnHeader renders a column header row matching picker column widths.
-func RenderPickerColumnHeader(listWidth int) string {
+// RenderColumnHeader renders a column header row matching column widths.
+func RenderColumnHeader(listWidth int) string {
 	if listWidth <= 0 {
 		listWidth = 80
 	}
@@ -53,7 +54,7 @@ func RenderPickerColumnHeader(listWidth int) string {
 		headerStyle.Render(padOrTruncate("AUTHOR", authorW)) + gap +
 		headerStyle.Render(padOrTruncate("TAGS", tagW)) + gap +
 		headerStyle.Render(padOrTruncate("SHELF", shelfW)) + gap +
-		headerStyle.Render(padOrTruncate("CACHE", cachedW)) + "\n"
+		headerStyle.Render(padOrTruncate("CACHE", cachedW))
 }
 
 // renderBookPickerItem renders a book item in picker mode with aligned columns.
@@ -83,8 +84,9 @@ func renderBookPickerItem(w io.Writer, m list.Model, index int, item list.Item) 
 }
 
 type bookPickerModel struct {
-	base     *picker.Base
-	selected *BookItem
+	base      *picker.Base
+	selected  *BookItem
+	baseTitle string // Original title without column header
 }
 
 func (m bookPickerModel) Init() tea.Cmd {
@@ -92,6 +94,14 @@ func (m bookPickerModel) Init() tea.Cmd {
 }
 
 func (m bookPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Update column header on resize
+	if _, ok := msg.(tea.WindowSizeMsg); ok {
+		cmd := m.base.Update(msg)
+		m.base.List().Title = StyleHeader.Render(m.baseTitle) + "\n" + RenderColumnHeader(m.base.List().Width())
+		m.base.List().Styles.Title = lipgloss.NewStyle()
+		return m, cmd
+	}
+
 	cmd := m.base.Update(msg)
 
 	// Extract selection when quitting without error
@@ -159,7 +169,7 @@ func RunBookPicker(books []BookItem, title string) (BookItem, error) {
 		},
 	})
 
-	m := bookPickerModel{base: base}
+	m := bookPickerModel{base: base, baseTitle: l.Title}
 
 	// Run the program with alt screen
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -188,6 +198,7 @@ type multiBookPickerModel struct {
 	quitting      bool
 	err           error
 	selectedBooks []BookItem
+	baseTitle     string // Original title without column header
 }
 
 func (m multiBookPickerModel) Init() tea.Cmd {
@@ -200,6 +211,8 @@ func (m multiBookPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle window resize - account for border
 		h, v := StyleBorder.GetFrameSize()
 		m.ms.List.SetSize(msg.Width-h, msg.Height-v)
+		m.ms.List.Title = StyleHeader.Render(m.baseTitle) + "\n" + RenderColumnHeader(m.ms.List.Width())
+		m.ms.List.Styles.Title = lipgloss.NewStyle()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -405,7 +418,7 @@ func RunBookPickerMulti(books []BookItem, title string) ([]BookItem, error) {
 	ms.RestoreSelectionState()
 
 	// Create model with multi-select
-	m := multiBookPickerModel{ms: ms}
+	m := multiBookPickerModel{ms: ms, baseTitle: title}
 
 	// Run the program
 	p := tea.NewProgram(m, tea.WithAltScreen())

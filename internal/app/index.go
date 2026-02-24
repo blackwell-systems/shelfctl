@@ -2,7 +2,9 @@ package app
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
@@ -10,6 +12,8 @@ import (
 )
 
 func newIndexCmd() *cobra.Command {
+	var flagOpen bool
+
 	cmd := &cobra.Command{
 		Use:   "index",
 		Short: "Generate local HTML index for browsing cached books",
@@ -75,11 +79,30 @@ your library without running shelfctl.`,
 
 			indexPath := filepath.Join(cfg.Defaults.CacheDir, "index.html")
 			ok("Generated HTML index with %d books", len(indexBooks))
-			fmt.Printf("\nOpen in browser:\n  file://%s\n", indexPath)
+
+			if flagOpen {
+				var openCmd *exec.Cmd
+				switch runtime.GOOS {
+				case "darwin":
+					openCmd = exec.Command("open", indexPath)
+				case "windows":
+					openCmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", indexPath)
+				default:
+					openCmd = exec.Command("xdg-open", indexPath)
+				}
+				if err := openCmd.Start(); err != nil {
+					warn("Could not open browser: %v", err)
+					fmt.Printf("\nOpen in browser:\n  file://%s\n", indexPath)
+				}
+			} else {
+				fmt.Printf("\nOpen in browser:\n  file://%s\n", indexPath)
+			}
 
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&flagOpen, "open", false, "Open the generated index in the default browser")
 
 	return cmd
 }

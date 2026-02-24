@@ -30,6 +30,7 @@ type CreateShelfModel struct {
 	height         int
 	err            error
 	processing     bool
+	activeCmd      string
 	statusMsg      string
 	gh             *github.Client
 	cfg            *config.Config
@@ -78,6 +79,10 @@ func (m CreateShelfModel) Update(msg tea.Msg) (CreateShelfModel, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.KeyMsg:
 		if m.processing {
 			// Ignore input while processing
@@ -111,13 +116,16 @@ func (m CreateShelfModel) Update(msg tea.Msg) (CreateShelfModel, tea.Cmd) {
 			repoName := "shelf-" + repoSuffix
 
 			// Start async creation
+			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "enter")
 			m.processing = true
 			m.statusMsg = "Creating shelf..."
 			m.err = nil
-			return m, m.createShelfAsync(shelfName, repoName)
+			return m, tea.Batch(m.createShelfAsync(shelfName, repoName), highlightCmd)
 
 		case "tab", "shift+tab", "up", "down":
 			// Navigate between fields
+			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
+
 			if msg.String() == "up" || msg.String() == "shift+tab" {
 				m.focused--
 			} else {
@@ -140,17 +148,18 @@ func (m CreateShelfModel) Update(msg tea.Msg) (CreateShelfModel, tea.Cmd) {
 					m.inputs[i].Blur()
 				}
 			}
-			return m, tea.Batch(cmds...)
+			return m, tea.Batch(append(cmds, highlightCmd)...)
 
 		case " ", "space":
 			// Toggle checkboxes when focused
+			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "space")
 			switch m.focused {
 			case createShelfFieldCreateRepo:
 				m.createRepoFlag = !m.createRepoFlag
-				return m, nil
+				return m, highlightCmd
 			case createShelfFieldPrivate:
 				m.privateFlag = !m.privateFlag
-				return m, nil
+				return m, highlightCmd
 			}
 		}
 
@@ -264,7 +273,12 @@ func (m CreateShelfModel) View() string {
 	if m.processing {
 		b.WriteString(tui.StyleHelp.Render("Please wait..."))
 	} else {
-		b.WriteString(tui.StyleHelp.Render("Tab/↑↓: Navigate  Space: Toggle  Enter: Create  Esc: Cancel"))
+		b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+			{Key: "tab", Label: "Tab/↑↓ Navigate"},
+			{Key: "space", Label: "Space Toggle"},
+			{Key: "enter", Label: "Enter Create"},
+			{Key: "", Label: "Esc Cancel"},
+		}, m.activeCmd))
 	}
 	b.WriteString("\n")
 

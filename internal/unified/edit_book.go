@@ -161,6 +161,10 @@ func (m EditBookModel) Update(msg tea.Msg) (EditBookModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.KeyMsg:
 		// Handle empty state or error (not form error)
 		if m.empty || (m.err != nil && m.phase == editBookPicking) {
@@ -220,7 +224,7 @@ func (m EditBookModel) updatePicking(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 
 	case " ":
 		m.ms.Toggle()
-		return m, nil
+		return m, tui.SetActiveCmd(&m.activeCmd, "space")
 
 	case "enter":
 		selected := tui.CollectSelectedBooks(&m.ms)
@@ -233,7 +237,7 @@ func (m EditBookModel) updatePicking(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 		m.edits = nil
 		m.initFormForBook(0)
 		m.phase = editBookEditing
-		return m, textinput.Blink
+		return m, tea.Batch(textinput.Blink, tui.SetActiveCmd(&m.activeCmd, "enter"))
 	}
 
 	var cmd tea.Cmd
@@ -298,28 +302,35 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 
 	case "enter":
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "enter")
 		if m.confirming {
-			return m.submitCurrentBook()
+			m, cmd := m.submitCurrentBook()
+			return m, tea.Batch(cmd, highlightCmd)
 		}
 		// Show confirmation
 		m.confirming = true
-		return m, nil
+		return m, highlightCmd
 
 	case "y", "Y":
 		if m.confirming {
-			return m.submitCurrentBook()
+			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "y")
+			m, cmd := m.submitCurrentBook()
+			return m, tea.Batch(cmd, highlightCmd)
 		}
 
 	case "n", "N":
 		if m.confirming {
-			// Skip this book, move to next
-			return m.advanceToNextBook()
+			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "n")
+			m, cmd := m.advanceToNextBook()
+			return m, tea.Batch(cmd, highlightCmd)
 		}
 
 	case "tab", "shift+tab", "up", "down":
 		if m.confirming {
 			return m, nil
 		}
+
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
 
 		if msg.String() == "up" || msg.String() == "shift+tab" {
 			m.focused--
@@ -341,7 +352,7 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 				m.inputs[i].Blur()
 			}
 		}
-		return m, tea.Batch(cmds...)
+		return m, tea.Batch(append(cmds, highlightCmd)...)
 	}
 
 	if !m.confirming {
@@ -497,9 +508,17 @@ func (m EditBookModel) renderEditForm() string {
 	// Help text or confirmation
 	b.WriteString("\n")
 	if m.confirming {
-		b.WriteString(tui.StyleHighlight.Render("Apply changes? (Y/n): "))
+		b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+			{Key: "y", Label: "Y Confirm"},
+			{Key: "n", Label: "N Skip"},
+			{Key: "", Label: "Esc Back"},
+		}, m.activeCmd))
 	} else {
-		b.WriteString(tui.StyleHelp.Render("Tab/↑↓: Navigate  Enter: Submit  Esc: Cancel"))
+		b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+			{Key: "tab", Label: "Tab/↑↓ Navigate"},
+			{Key: "enter", Label: "Enter Submit"},
+			{Key: "", Label: "Esc Cancel"},
+		}, m.activeCmd))
 	}
 	b.WriteString("\n")
 

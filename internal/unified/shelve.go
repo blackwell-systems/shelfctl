@@ -137,10 +137,11 @@ type ShelveModel struct {
 	failCount     int
 
 	// General
-	width  int
-	height int
-	err    error
-	empty  bool // No shelves configured
+	width     int
+	height    int
+	err       error
+	empty     bool // No shelves configured
+	activeCmd string
 }
 
 type shelveFormDefaults struct {
@@ -249,6 +250,10 @@ func (m ShelveModel) Init() tea.Cmd {
 // Update handles messages for the shelve view
 func (m ShelveModel) Update(msg tea.Msg) (ShelveModel, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -626,28 +631,32 @@ func (m ShelveModel) updateForm(msg tea.KeyMsg) (ShelveModel, tea.Cmd) {
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 
 	case "enter":
-		return m.submitForm()
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "enter")
+		m, cmd := m.submitForm()
+		return m, tea.Batch(cmd, highlightCmd)
 
 	case " ":
 		// Toggle cache checkbox if focused on it
 		if m.focused == shelveFieldCache {
 			m.cacheLocally = !m.cacheLocally
-			return m, nil
+			return m, tui.SetActiveCmd(&m.activeCmd, "space")
 		}
 
 	case "tab", "down":
 		// Move to next field (including cache checkbox)
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
 		if m.focused < len(m.inputs) {
 			m.inputs[m.focused].Blur()
 		}
 		m.focused = (m.focused + 1) % (shelveFieldCache + 1)
 		if m.focused < len(m.inputs) {
-			return m, m.inputs[m.focused].Focus()
+			return m, tea.Batch(m.inputs[m.focused].Focus(), highlightCmd)
 		}
-		return m, nil
+		return m, highlightCmd
 
 	case "shift+tab", "up":
 		// Move to previous field
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
 		if m.focused < len(m.inputs) {
 			m.inputs[m.focused].Blur()
 		}
@@ -656,9 +665,9 @@ func (m ShelveModel) updateForm(msg tea.KeyMsg) (ShelveModel, tea.Cmd) {
 			m.focused = shelveFieldCache
 		}
 		if m.focused < len(m.inputs) {
-			return m, m.inputs[m.focused].Focus()
+			return m, tea.Batch(m.inputs[m.focused].Focus(), highlightCmd)
 		}
-		return m, nil
+		return m, highlightCmd
 	}
 
 	// Update focused text input
@@ -1066,7 +1075,12 @@ func (m ShelveModel) renderForm() string {
 
 	// Help text
 	b.WriteString("\n")
-	b.WriteString(tui.StyleHelp.Render("Tab/↑↓: Navigate  Space: Toggle  Enter: Submit  Esc: Cancel"))
+	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		{Key: "tab", Label: "Tab/↑↓ Navigate"},
+		{Key: "space", Label: "Space Toggle"},
+		{Key: "enter", Label: "Enter Submit"},
+		{Key: "", Label: "Esc Cancel"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	content := b.String()

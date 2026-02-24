@@ -81,6 +81,8 @@ type MoveBookModel struct {
 	// Results
 	successCount int
 	failCount    int
+
+	activeCmd string
 }
 
 // NewMoveBookModel creates a new move-book view
@@ -137,6 +139,10 @@ func (m MoveBookModel) Update(msg tea.Msg) (MoveBookModel, tea.Cmd) {
 				m.destShelfList.SetSize(msg.Width-h, msg.Height-v)
 			}
 		}
+		return m, nil
+
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
 		return m, nil
 
 	case tea.KeyMsg:
@@ -209,7 +215,7 @@ func (m MoveBookModel) updateBookPicking(msg tea.KeyMsg) (MoveBookModel, tea.Cmd
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 	case " ":
 		m.ms.Toggle()
-		return m, nil
+		return m, tui.SetActiveCmd(&m.activeCmd, "space")
 	case "enter":
 		selected := tui.CollectSelectedBooks(&m.ms)
 		if len(selected) == 0 {
@@ -230,7 +236,7 @@ func (m MoveBookModel) updateBookPicking(msg tea.KeyMsg) (MoveBookModel, tea.Cmd
 		// Transition to type picking
 		m.phase = moveTypePicking
 		m.typeSelected = 0
-		return m, nil
+		return m, tui.SetActiveCmd(&m.activeCmd, "enter")
 	}
 
 	var cmd tea.Cmd
@@ -259,13 +265,19 @@ func (m MoveBookModel) updateTypePicking(msg tea.KeyMsg) (MoveBookModel, tea.Cmd
 		}
 		return m, nil
 	case "1":
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "1")
 		m.typeSelected = moveToShelf
-		return m.selectMoveType()
+		m, cmd := m.selectMoveType()
+		return m, tea.Batch(cmd, highlightCmd)
 	case "2":
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "2")
 		m.typeSelected = moveToRelease
-		return m.selectMoveType()
+		m, cmd := m.selectMoveType()
+		return m, tea.Batch(cmd, highlightCmd)
 	case "enter":
-		return m.selectMoveType()
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "enter")
+		m, cmd := m.selectMoveType()
+		return m, tea.Batch(cmd, highlightCmd)
 	}
 	return m, nil
 }
@@ -419,8 +431,9 @@ func (m MoveBookModel) updateConfirming(msg tea.KeyMsg) (MoveBookModel, tea.Cmd)
 		}
 		return m, nil
 	case "enter", "y":
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, msg.String())
 		m.phase = moveProcessing
-		return m, m.moveAsync()
+		return m, tea.Batch(m.moveAsync(), highlightCmd)
 	}
 
 	return m, nil
@@ -811,7 +824,11 @@ func (m MoveBookModel) renderTypePicker() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(tui.StyleHelp.Render("↑↓/1-2: Select  Enter: Confirm  Esc: Back"))
+	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		{Key: "1", Label: "↑↓/1-2 Select"},
+		{Key: "enter", Label: "Enter Confirm"},
+		{Key: "", Label: "Esc Back"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)
@@ -841,7 +858,10 @@ func (m MoveBookModel) renderReleaseInput() string {
 	b.WriteString(m.releaseInput.View())
 	b.WriteString("\n\n")
 
-	b.WriteString(tui.StyleHelp.Render("Enter: Confirm  Esc: Back"))
+	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		{Key: "enter", Label: "Enter Confirm"},
+		{Key: "", Label: "Esc Back"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)
@@ -884,7 +904,10 @@ func (m MoveBookModel) renderConfirmation() string {
 	}
 	b.WriteString("\n\n")
 
-	b.WriteString(tui.StyleHelp.Render("Enter/y: Confirm   Esc/n: Back"))
+	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		{Key: "enter", Label: "Enter/y Confirm"},
+		{Key: "", Label: "Esc/n Back"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)

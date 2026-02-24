@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Footer Command Highlighting on All TUI Screens**
+  - 500ms key-press highlight now works on shelve, edit book, delete book, move book, cache clear, and create shelf views
+  - Previously only worked on the browse screen; other views had hardcoded footer strings
+  - Wired `SetActiveCmd`/`ClearActiveCmdMsg`/`RenderFooterBar` into all 6 unified views
+
 ## [0.2.1] - 2026-02-23
 
 ### Added

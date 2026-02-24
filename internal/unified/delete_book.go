@@ -33,15 +33,16 @@ type DeleteBookCompleteMsg struct {
 
 // DeleteBookModel is the unified view for deleting books
 type DeleteBookModel struct {
-	phase    deleteBookPhase
-	ms       multiselect.Model
-	gh       *github.Client
-	cfg      *config.Config
-	cacheMgr *cache.Manager
-	width    int
-	height   int
-	err      error
-	empty    bool // true if no books
+	phase     deleteBookPhase
+	ms        multiselect.Model
+	gh        *github.Client
+	cfg       *config.Config
+	cacheMgr  *cache.Manager
+	width     int
+	height    int
+	err       error
+	empty     bool // true if no books
+	activeCmd string
 
 	// Confirmation phase
 	toDelete []tui.BookItem
@@ -101,6 +102,10 @@ func (m DeleteBookModel) Update(msg tea.Msg) (DeleteBookModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.KeyMsg:
 		// Handle empty state or error
 		if m.empty || m.err != nil {
@@ -158,7 +163,7 @@ func (m DeleteBookModel) updatePicking(msg tea.KeyMsg) (DeleteBookModel, tea.Cmd
 	case " ":
 		// Toggle checkbox
 		m.ms.Toggle()
-		return m, nil
+		return m, tui.SetActiveCmd(&m.activeCmd, "space")
 
 	case "enter":
 		// Collect selected books
@@ -171,7 +176,7 @@ func (m DeleteBookModel) updatePicking(msg tea.KeyMsg) (DeleteBookModel, tea.Cmd
 
 		// Switch to confirmation phase
 		m.phase = deleteBookConfirming
-		return m, nil
+		return m, tui.SetActiveCmd(&m.activeCmd, "enter")
 	}
 
 	// Forward other keys to multiselect
@@ -192,8 +197,9 @@ func (m DeleteBookModel) updateConfirming(msg tea.KeyMsg) (DeleteBookModel, tea.
 
 	case "enter", "y":
 		// Confirm - start processing
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, msg.String())
 		m.phase = deleteBookProcessing
-		return m, m.deleteAsync()
+		return m, tea.Batch(m.deleteAsync(), highlightCmd)
 	}
 
 	return m, nil
@@ -267,7 +273,10 @@ func (m DeleteBookModel) renderConfirmation() string {
 	b.WriteString("\n\n")
 
 	// Help
-	b.WriteString(tui.StyleHelp.Render("Enter/y: Confirm   Esc/n: Cancel"))
+	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		{Key: "enter", Label: "Enter/y Confirm"},
+		{Key: "", Label: "Esc/n Cancel"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)

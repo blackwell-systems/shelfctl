@@ -24,13 +24,14 @@ const (
 
 // CacheClearModel is the unified view for clearing cached books
 type CacheClearModel struct {
-	phase    cacheClearPhase
-	ms       multiselect.Model
-	cacheMgr *cache.Manager
-	width    int
-	height   int
-	err      error
-	empty    bool // true if no cached books
+	phase     cacheClearPhase
+	ms        multiselect.Model
+	cacheMgr  *cache.Manager
+	width     int
+	height    int
+	err       error
+	empty     bool // true if no cached books
+	activeCmd string
 
 	// Confirmation phase
 	toRemove  []tui.BookItem
@@ -94,6 +95,10 @@ func (m CacheClearModel) Update(msg tea.Msg) (CacheClearModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.KeyMsg:
 		// Handle empty state or error
 		if m.empty || m.err != nil {
@@ -152,7 +157,7 @@ func (m CacheClearModel) updatePicking(msg tea.KeyMsg) (CacheClearModel, tea.Cmd
 	case " ":
 		// Toggle checkbox
 		m.ms.Toggle()
-		return m, nil
+		return m, tui.SetActiveCmd(&m.activeCmd, "space")
 
 	case "enter":
 		// Collect selected books
@@ -188,7 +193,7 @@ func (m CacheClearModel) updatePicking(msg tea.KeyMsg) (CacheClearModel, tea.Cmd
 
 		// Switch to confirmation phase
 		m.phase = cacheClearConfirming
-		return m, nil
+		return m, tui.SetActiveCmd(&m.activeCmd, "enter")
 	}
 
 	// Forward other keys to multiselect
@@ -209,8 +214,9 @@ func (m CacheClearModel) updateConfirming(msg tea.KeyMsg) (CacheClearModel, tea.
 
 	case "enter", "y":
 		// Confirm - start processing
+		highlightCmd := tui.SetActiveCmd(&m.activeCmd, msg.String())
 		m.phase = cacheClearProcessing
-		return m, m.clearCacheAsync()
+		return m, tea.Batch(m.clearCacheAsync(), highlightCmd)
 	}
 
 	return m, nil
@@ -288,7 +294,10 @@ func (m CacheClearModel) renderConfirmation() string {
 	b.WriteString("\n\n")
 
 	// Help
-	b.WriteString(tui.StyleHelp.Render("Enter/y: Confirm   Esc/n: Cancel"))
+	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		{Key: "enter", Label: "Enter/y Confirm"},
+		{Key: "", Label: "Esc/n Cancel"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)

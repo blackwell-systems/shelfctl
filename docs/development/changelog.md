@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **HTML Index Brand Colors**
+  - Applied brand color system to the generated HTML library index
+  - Two-tone header: "shelf" in orange (`#fb6820`), "ctl" in teal (`#2ecfd4`), matching the wordmark
+  - Shelf section titles and active tag filters use orange
+  - Tag pills, focus rings, and filter count use teal-light
+  - Book card backgrounds and borders have subtle teal tint for depth
+  - Card hover states lift with orange border and shadow
+  - CSS variables at `:root` for maintainability
+
+### Added
+- **Tight Wordmark Crop** (`assets/wordmark-tight.png`)
+  - Tightly cropped version of the wordmark with 30px transparent padding
+  - 905×242px — suitable for compact contexts (README badges, social headers)
+
 ## [0.2.2] - 2026-02-23
 
 ### Added

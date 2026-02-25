@@ -194,6 +194,18 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var hubModel tea.Model
 		hubModel, cmd = m.hub.Update(msg)
 		m.hub = hubModel.(HubModel)
+		// Check if command palette produced a navigation message
+		// (handled inline to avoid one-frame flash of hub without palette)
+		if m.hub.pendingNavMsg != nil {
+			navMsg := m.hub.pendingNavMsg
+			m.hub.pendingNavMsg = nil
+			switch navMsg := navMsg.(type) {
+			case NavigateMsg:
+				return m.handleNavigation(navMsg)
+			case QuitAppMsg:
+				return m, tea.Quit
+			}
+		}
 	case ViewBrowse:
 		var browseModel tea.Model
 		browseModel, cmd = m.browse.Update(msg)

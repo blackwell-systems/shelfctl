@@ -29,6 +29,7 @@ type HubModel struct {
 	cachedDetailsType  string // detailsType when cachedDetailsRaw was computed
 	palette         commandpalette.Model
 	paletteOpen     bool
+	pendingNavMsg   tea.Msg // set by palette action, consumed by orchestrator
 }
 
 type hubKeys struct {
@@ -118,7 +119,11 @@ func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case commandpalette.ActionSelectedMsg:
 		m.paletteOpen = false
-		return m, msg.Action.Run
+		// Store the navigation result for the orchestrator to pick up
+		// in the same Update cycle (avoids one-frame flash of hub
+		// without palette before navigation occurs).
+		m.pendingNavMsg = msg.Action.Run()
+		return m, nil
 
 	case tea.KeyMsg:
 		// Command palette routing — intercepts all keys while open

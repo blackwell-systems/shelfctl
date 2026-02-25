@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/blackwell-systems/bubbletea-components/millercolumns"
-	"github.com/blackwell-systems/bubbletea-components/multiselect"
+	"github.com/blackwell-systems/bubbletea-millercolumns"
+	"github.com/blackwell-systems/bubbletea-multiselect"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"

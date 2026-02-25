@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blackwell-systems/bubbletea-components/carousel"
+	"github.com/blackwell-systems/bubbletea-carousel"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/blackwell-systems/bubbletea-components/multiselect"
+	"github.com/blackwell-systems/bubbletea-multiselect"
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/charmbracelet/bubbles/list"

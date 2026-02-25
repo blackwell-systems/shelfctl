@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/blackwell-systems/bubbletea-components/multiselect"
-	"github.com/blackwell-systems/bubbletea-components/picker"
+	"github.com/blackwell-systems/bubbletea-multiselect"
+	"github.com/blackwell-systems/bubbletea-picker"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"

@@ -31,7 +31,7 @@ Building complex TUIs with Bubble Tea involves repetitive boilerplate for common
 
 ## 1. Base Picker Component
 
-**Package:** `github.com/blackwell-systems/bubbletea-components/picker`
+**Package:** `github.com/blackwell-systems/bubbletea-picker`
 
 Eliminates boilerplate for picker components by handling:
 - Standard key bindings (quit, select, custom keys)
@@ -44,7 +44,7 @@ Eliminates boilerplate for picker components by handling:
 
 ```go
 import (
-    "github.com/blackwell-systems/bubbletea-components/picker"
+    "github.com/blackwell-systems/bubbletea-picker"
     "github.com/charmbracelet/bubbles/list"
 )
 
@@ -91,13 +91,13 @@ func (m myPickerModel) View() string {
 **After Base Picker:** ~40 lines focused on your logic
 **Savings:** 38% less code
 
-[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/picker)
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-picker)
 
 ---
 
 ## 2. Multi-Select Component
 
-**Package:** `github.com/blackwell-systems/bubbletea-components/multiselect`
+**Package:** `github.com/blackwell-systems/bubbletea-multiselect`
 
 Generic multi-selection wrapper that works with any `list.Item`:
 - Checkbox UI with customizable appearance
@@ -109,7 +109,7 @@ Generic multi-selection wrapper that works with any `list.Item`:
 
 ```go
 import (
-    "github.com/blackwell-systems/bubbletea-components/multiselect"
+    "github.com/blackwell-systems/bubbletea-multiselect"
     "github.com/charmbracelet/bubbles/list"
 )
 
@@ -155,13 +155,13 @@ selectedKeys := ms.SelectedKeys()
 - Tag management
 - Any list where users need to select multiple items
 
-[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/multiselect)
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-multiselect)
 
 ---
 
 ## 3. Miller Columns Component
 
-**Package:** `github.com/blackwell-systems/bubbletea-components/millercolumns`
+**Package:** `github.com/blackwell-systems/bubbletea-millercolumns`
 
 Hierarchical navigation layout inspired by macOS Finder:
 - Multiple directory levels displayed side-by-side
@@ -174,7 +174,7 @@ Hierarchical navigation layout inspired by macOS Finder:
 
 ```go
 import (
-    "github.com/blackwell-systems/bubbletea-components/millercolumns"
+    "github.com/blackwell-systems/bubbletea-millercolumns"
     "github.com/charmbracelet/bubbles/list"
     "github.com/charmbracelet/lipgloss"
 )
@@ -231,13 +231,13 @@ mc := millercolumns.New(millercolumns.Config{
 - Configuration editors with nested sections
 - Any hierarchical data exploration
 
-[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/millercolumns)
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-millercolumns)
 
 ---
 
 ## 4. Carousel Component
 
-**Package:** `github.com/blackwell-systems/bubbletea-components/carousel`
+**Package:** `github.com/blackwell-systems/bubbletea-carousel`
 
 Peeking single-row card layout where the active card is centered at full width and adjacent cards peek in from both sides:
 - Ghost cards at edges for visual continuity
@@ -249,7 +249,7 @@ Peeking single-row card layout where the active card is centered at full width a
 ### Quick Example
 
 ```go
-import "github.com/blackwell-systems/bubbletea-components/carousel"
+import "github.com/blackwell-systems/bubbletea-carousel"
 
 type myDelegate struct{}
 
@@ -274,13 +274,13 @@ c.SetSize(width, height)
 - Batch review interfaces
 - Any horizontal card-based navigation
 
-[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/carousel)
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-carousel)
 
 ---
 
 ## 5. Command Palette Component
 
-**Package:** `github.com/blackwell-systems/bubbletea-components/commandpalette`
+**Package:** `github.com/blackwell-systems/bubbletea-commandpalette`
 
 Fuzzy-search overlay for executing actions — VS Code `Ctrl+P` style:
 - Type to filter actions by label and keywords
@@ -291,7 +291,7 @@ Fuzzy-search overlay for executing actions — VS Code `Ctrl+P` style:
 ### Quick Example
 
 ```go
-import "github.com/blackwell-systems/bubbletea-components/commandpalette"
+import "github.com/blackwell-systems/bubbletea-commandpalette"
 
 palette := commandpalette.New(commandpalette.Config{
     Actions: []commandpalette.Action{
@@ -329,7 +329,7 @@ case commandpalette.ActionSelectedMsg:
 - Quick access to deeply nested features
 - Any TUI with discoverable commands
 
-[Full documentation →](https://github.com/blackwell-systems/bubbletea-components/tree/main/commandpalette)
+[Full documentation →](https://github.com/blackwell-systems/bubbletea-commandpalette)
 
 ---
 
@@ -338,7 +338,11 @@ case commandpalette.ActionSelectedMsg:
 The components are available as a standalone Go module:
 
 ```bash
-go get github.com/blackwell-systems/bubbletea-components
+go get github.com/blackwell-systems/bubbletea-picker
+go get github.com/blackwell-systems/bubbletea-multiselect
+go get github.com/blackwell-systems/bubbletea-millercolumns
+go get github.com/blackwell-systems/bubbletea-carousel
+go get github.com/blackwell-systems/bubbletea-commandpalette
 ```
 
 **Dependencies (all official Bubble Tea libraries):**
@@ -352,14 +356,19 @@ require (
 
 **Import what you need:**
 ```go
-import "github.com/blackwell-systems/bubbletea-components/picker"
-import "github.com/blackwell-systems/bubbletea-components/multiselect"
-import "github.com/blackwell-systems/bubbletea-components/millercolumns"
-import "github.com/blackwell-systems/bubbletea-components/carousel"
-import "github.com/blackwell-systems/bubbletea-components/commandpalette"
+import "github.com/blackwell-systems/bubbletea-picker"
+import "github.com/blackwell-systems/bubbletea-multiselect"
+import "github.com/blackwell-systems/bubbletea-millercolumns"
+import "github.com/blackwell-systems/bubbletea-carousel"
+import "github.com/blackwell-systems/bubbletea-commandpalette"
 ```
 
-**Repository:** https://github.com/blackwell-systems/bubbletea-components
+**Repositories:**
+- https://github.com/blackwell-systems/bubbletea-picker
+- https://github.com/blackwell-systems/bubbletea-multiselect
+- https://github.com/blackwell-systems/bubbletea-millercolumns
+- https://github.com/blackwell-systems/bubbletea-carousel
+- https://github.com/blackwell-systems/bubbletea-commandpalette
 
 ---
 
@@ -498,7 +507,7 @@ func TestBasePicker(t *testing.T) {
 
 **New to these components?** Start here:
 
-1. **Visit the [bubbletea-components repository](https://github.com/blackwell-systems/bubbletea-components)** - Browse all components
+1. **Browse the individual component repositories** — [picker](https://github.com/blackwell-systems/bubbletea-picker), [multiselect](https://github.com/blackwell-systems/bubbletea-multiselect), [millercolumns](https://github.com/blackwell-systems/bubbletea-millercolumns), [carousel](https://github.com/blackwell-systems/bubbletea-carousel), [commandpalette](https://github.com/blackwell-systems/bubbletea-commandpalette)
 2. **Try Base Picker first** - Simplest component, immediate value
 3. **Add Multi-Select** - Once you have a picker, add checkbox selection
 4. **Use Miller Columns** - For hierarchical navigation needs
@@ -511,9 +520,7 @@ func TestBasePicker(t *testing.T) {
 
 ## Open Source Ready
 
-These components have been extracted to a standalone repository and are available as a Go module:
-
-**Repository:** https://github.com/blackwell-systems/bubbletea-components
+These components have been extracted to standalone repositories and are available as Go modules:
 
 **Status:**
 - Published as standalone Go module
@@ -533,10 +540,10 @@ https://github.com/blackwell-systems/shelfctl/issues
 
 ## Component Details
 
-For detailed API documentation, examples, and usage patterns, see the component repository:
+For detailed API documentation, examples, and usage patterns, see the individual component repositories:
 
-- **[Base Picker](https://github.com/blackwell-systems/bubbletea-components/tree/main/picker)** - Complete API reference and migration guide
-- **[Multi-Select](https://github.com/blackwell-systems/bubbletea-components/tree/main/multiselect)** - Interface requirements and state management
-- **[Miller Columns](https://github.com/blackwell-systems/bubbletea-components/tree/main/millercolumns)** - Column navigation and file browser examples
-- **[Carousel](https://github.com/blackwell-systems/bubbletea-components/tree/main/carousel)** - Card layout and delegate interface
-- **[Command Palette](https://github.com/blackwell-systems/bubbletea-components/tree/main/commandpalette)** - Fuzzy-search overlay and action configuration
+- **[Base Picker](https://github.com/blackwell-systems/bubbletea-picker)** - Complete API reference and migration guide
+- **[Multi-Select](https://github.com/blackwell-systems/bubbletea-multiselect)** - Interface requirements and state management
+- **[Miller Columns](https://github.com/blackwell-systems/bubbletea-millercolumns)** - Column navigation and file browser examples
+- **[Carousel](https://github.com/blackwell-systems/bubbletea-carousel)** - Card layout and delegate interface
+- **[Command Palette](https://github.com/blackwell-systems/bubbletea-commandpalette)** - Fuzzy-search overlay and action configuration

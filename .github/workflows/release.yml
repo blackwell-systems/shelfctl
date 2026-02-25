@@ -18,8 +18,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Check out bubbletea-components
-      run: git clone https://github.com/blackwell-systems/bubbletea-components.git ../bubbletea-components
+    - name: Check out bubbletea component repos
+      run: |
+        for comp in picker multiselect millercolumns carousel commandpalette; do
+          git clone https://github.com/blackwell-systems/bubbletea-$comp.git ../bubbletea-$comp
+        done
 
     - name: Set up Go
       uses: actions/setup-go@v5

@@ -3,10 +3,15 @@ module github.com/blackwell-systems/shelfctl
 go 1.25.0
 
 require (
-	github.com/blackwell-systems/bubbletea-components v0.1.0
+	github.com/blackwell-systems/bubbletea-carousel v0.1.0
+	github.com/blackwell-systems/bubbletea-commandpalette v0.1.0
+	github.com/blackwell-systems/bubbletea-millercolumns v0.1.0
+	github.com/blackwell-systems/bubbletea-multiselect v0.1.0
+	github.com/blackwell-systems/bubbletea-picker v0.1.0
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/fatih/color v1.16.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
@@ -18,7 +23,6 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/colorprofile v0.4.1 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
-	github.com/charmbracelet/x/ansi v0.11.6 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/clipperhouse/displaywidth v0.9.0 // indirect
@@ -57,4 +61,10 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
-replace github.com/blackwell-systems/bubbletea-components => ../bubbletea-components
+replace (
+	github.com/blackwell-systems/bubbletea-carousel => ../bubbletea-carousel
+	github.com/blackwell-systems/bubbletea-commandpalette => ../bubbletea-commandpalette
+	github.com/blackwell-systems/bubbletea-millercolumns => ../bubbletea-millercolumns
+	github.com/blackwell-systems/bubbletea-multiselect => ../bubbletea-multiselect
+	github.com/blackwell-systems/bubbletea-picker => ../bubbletea-picker
+)

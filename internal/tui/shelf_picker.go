@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/blackwell-systems/bubbletea-components/picker"
+	"github.com/blackwell-systems/bubbletea-picker"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"

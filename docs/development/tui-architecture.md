@@ -126,7 +126,7 @@ Each view has an `activeCmd string` field, handles `ClearActiveCmdMsg`, and call
 - `shelf_create_form.go` — New shelf creation form
 - `progress.go` — Download/upload progress bar
 
-All pickers use `picker.Base` from `bubbletea-components` for consistent key handling, window resize, and border rendering.
+All pickers use `picker.Base` from `bubbletea-picker` for consistent key handling, window resize, and border rendering.
 
 ---
 

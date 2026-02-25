@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/blackwell-systems/bubbletea-components/commandpalette"
+	"github.com/blackwell-systems/bubbletea-commandpalette"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/blackwell-systems/bubbletea-components/carousel"
-	"github.com/blackwell-systems/bubbletea-components/multiselect"
+	"github.com/blackwell-systems/bubbletea-carousel"
+	"github.com/blackwell-systems/bubbletea-multiselect"
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"

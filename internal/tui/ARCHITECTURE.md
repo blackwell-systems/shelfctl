@@ -74,16 +74,18 @@ TUI Components
 The base components have been extracted to an external package:
 
 ```bash
-go get github.com/blackwell-systems/bubbletea-components
+go get github.com/blackwell-systems/bubbletea-picker
+go get github.com/blackwell-systems/bubbletea-multiselect
+go get github.com/blackwell-systems/bubbletea-millercolumns
 ```
 
 Import the components you need:
 
 ```go
 import (
-    "github.com/blackwell-systems/bubbletea-components/picker"
-    "github.com/blackwell-systems/bubbletea-components/multiselect"
-    "github.com/blackwell-systems/bubbletea-components/millercolumns"
+    "github.com/blackwell-systems/bubbletea-picker"
+    "github.com/blackwell-systems/bubbletea-multiselect"
+    "github.com/blackwell-systems/bubbletea-millercolumns"
 )
 ```
 
@@ -223,7 +225,7 @@ func newMyPicker(items []list.Item) myPickerModel {
 1. **Import the new packages**
    ```go
    import (
-       "github.com/blackwell-systems/bubbletea-components/picker"
+       "github.com/blackwell-systems/bubbletea-picker"
        "github.com/blackwell-systems/shelfctl/internal/tui"
    )
    ```

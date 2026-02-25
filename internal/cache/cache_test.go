@@ -187,3 +187,29 @@ func sha256Hash(data string) string {
 	h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil))
 }
+
+func TestStore_ExistsTrue(t *testing.T) {
+	dir := t.TempDir()
+	m := cache.New(dir)
+	_, err := m.Store("o", "r", "b", "f.pdf", strings.NewReader("data"), "")
+	if err != nil {
+		t.Fatalf("Store: %v", err)
+	}
+	if !m.Exists("o", "r", "b", "f.pdf") {
+		t.Error("Exists should return true after Store")
+	}
+}
+
+func TestVerifyFile_CorrectHash(t *testing.T) {
+	dir := t.TempDir()
+	m := cache.New(dir)
+	content := "verify this content"
+	_, _ = m.Store("o", "r", "v", "v.pdf", strings.NewReader(content), "")
+	path := m.Path("o", "r", "v", "v.pdf")
+
+	// Compute actual hash
+	h := sha256Hash(content)
+	if err := cache.VerifyFile(path, h); err != nil {
+		t.Errorf("VerifyFile with correct hash should pass: %v", err)
+	}
+}

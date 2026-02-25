@@ -246,3 +246,49 @@ func ids(books []catalog.Book) []string {
 	}
 	return out
 }
+
+// --- Additional Filter tests ---
+
+func TestFilter_BySearch_Author(t *testing.T) {
+	books, _ := catalog.Parse(sampleYAML)
+	f := catalog.Filter{Search: "abelson"}
+	result := f.Apply(books)
+	if len(result) != 1 || result[0].ID != "sicp" {
+		t.Errorf("search by author failed: got %v", ids(result))
+	}
+}
+
+func TestFilter_Combined_TagAndFormat(t *testing.T) {
+	books, _ := catalog.Parse(sampleYAML)
+	f := catalog.Filter{Tag: "os", Format: "pdf"}
+	result := f.Apply(books)
+	if len(result) != 1 || result[0].ID != "ostep" {
+		t.Errorf("combined filter: got %v", ids(result))
+	}
+}
+
+func TestFilter_Combined_NoMatch(t *testing.T) {
+	books, _ := catalog.Parse(sampleYAML)
+	f := catalog.Filter{Tag: "os", Format: "epub"}
+	result := f.Apply(books)
+	if len(result) != 0 {
+		t.Errorf("combined filter with no match: expected 0, got %d", len(result))
+	}
+}
+
+func TestParse_InvalidYAML(t *testing.T) {
+	_, err := catalog.Parse([]byte(":: bad yaml ["))
+	if err == nil {
+		t.Error("expected error for invalid YAML, got nil")
+	}
+}
+
+func TestMarshal_EmptySlice(t *testing.T) {
+	data, err := catalog.Marshal([]catalog.Book{})
+	if err != nil {
+		t.Fatalf("Marshal empty slice: %v", err)
+	}
+	if len(data) == 0 {
+		t.Error("Marshal empty slice returned empty bytes")
+	}
+}

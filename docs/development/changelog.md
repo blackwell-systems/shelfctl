@@ -32,6 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `catalog.Book.IsEmpty()`, `migrate.Ledger.Entries()`, `util.EnsureDir`, `util.CopyFile`
   - `config.ServeConfig` placeholder (future feature, never wired up)
 
+### Testing
+- **Test coverage expansion** — added ~80 new unit tests across 7 packages, all targeting pure logic with no external dependencies:
+  - `readme` 0% → 72.5% — `updateStats`, `appendToRecentlyAdded`, `removeFromRecentlyAdded`, `limitRecentlyAdded`
+  - `cache` 22.9% → 83.1% — `isPDF`, cover path priority, catalog cover round-trip, `Remove`, `generateHTML`, `renderBookCard`, `renderUncachedCard`, `GenerateHTMLIndex`
+  - `util` 63.6% → 77.3% — `IsTTY`, known-content SHA256, `ExpandHome` bare tilde
+  - `ingest` 49.6% → 66.0% — `sanitizeForTerminal`, `hexValue`, `decodeHexString`, `extractField`, `decodePDFString` escapes, `guessFilenameFromURL`
+  - `migrate` 44.9% → 56.4% — `matchExt` (6 cases), `DefaultLedgerPath`
+  - `catalog` 48.4% → 51.6% — author search, combined filters, invalid YAML, empty marshal
+  - `config` 0% → 28.8% — `ShelfByName`, `EffectiveOwner`, `EffectiveRelease`, `EffectiveCatalogPath`, `DefaultPath`, pointer semantics
+
 ### Changed
 - **Refactor**: extracted carousel layout/rendering into a reusable `carousel` package in `bubbletea-carousel`; shelfctl now provides only `bookCarouselDelegate` and a thin `updateCarouselFromMsg` wrapper; all peek-clipping, ghost cards, dot indicator, and navigation logic live in the component
 

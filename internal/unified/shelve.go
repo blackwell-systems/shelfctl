@@ -22,6 +22,7 @@ type shelvePhase int
 
 const (
 	shelveShelfPicking shelvePhase = iota // Shelf selection (skipped if single shelf)
+	shelveURLInput                        // Text input for URL (shelve-url mode only)
 	shelveFilePicking                     // Miller columns file browser
 	shelveSetup                           // Loading catalog + ensuring release
 	shelveIngesting                       // Ingesting current file (async)
@@ -103,6 +104,10 @@ type ShelveModel struct {
 	releaseTag   string
 	catalogPath  string
 	autoSelected bool // true if single shelf, skip picker
+
+	// URL mode (shelve-url)
+	urlMode  bool
+	urlInput textinput.Model
 
 	// File selection
 	filePicker    tui.FilePickerModel
@@ -198,6 +203,56 @@ func NewShelveModel(gh *github.Client, cfg *config.Config, cacheMgr *cache.Manag
 	return m
 }
 
+// NewShelveModelWithURL creates a shelve view that starts with a URL text input
+func NewShelveModelWithURL(gh *github.Client, cfg *config.Config, cacheMgr *cache.Manager) ShelveModel {
+	if len(cfg.Shelves) == 0 {
+		return ShelveModel{
+			gh:       gh,
+			cfg:      cfg,
+			cacheMgr: cacheMgr,
+			empty:    true,
+		}
+	}
+
+	// Build shelf options
+	var options []tui.ShelfOption
+	for _, s := range cfg.Shelves {
+		options = append(options, tui.ShelfOption{
+			Name: s.Name,
+			Repo: s.Repo,
+		})
+	}
+
+	ti := textinput.New()
+	ti.Placeholder = "https://example.com/book.pdf"
+	ti.Focus()
+	ti.CharLimit = 500
+	ti.Width = 60
+
+	m := ShelveModel{
+		gh:           gh,
+		cfg:          cfg,
+		cacheMgr:     cacheMgr,
+		shelfOptions: options,
+		cacheLocally: true,
+		urlMode:      true,
+		urlInput:     ti,
+	}
+
+	// Auto-select if only one shelf
+	if len(options) == 1 {
+		m.autoSelected = true
+		m.shelfName = options[0].Name
+		m.resolveShelf()
+		m.phase = shelveURLInput
+	} else {
+		m.phase = shelveShelfPicking
+		m.shelfList = m.createShelfList()
+	}
+
+	return m
+}
+
 func (m *ShelveModel) resolveShelf() {
 	m.shelf = m.cfg.ShelfByName(m.shelfName)
 	if m.shelf != nil {
@@ -278,6 +333,8 @@ func (m ShelveModel) Update(msg tea.Msg) (ShelveModel, tea.Cmd) {
 		switch m.phase {
 		case shelveShelfPicking:
 			return m.updateShelfPicking(msg)
+		case shelveURLInput:
+			return m.updateURLInput(msg)
 		case shelveFilePicking:
 			return m.updateFilePicking(msg)
 		case shelveForm:
@@ -339,6 +396,10 @@ func (m ShelveModel) Update(msg tea.Msg) (ShelveModel, tea.Cmd) {
 		var cmd tea.Cmd
 		m.shelfList, cmd = m.shelfList.Update(msg)
 		return m, cmd
+	case shelveURLInput:
+		var cmd tea.Cmd
+		m.urlInput, cmd = m.urlInput.Update(msg)
+		return m, cmd
 	case shelveFilePicking:
 		var fpModel tea.Model
 		var cmd tea.Cmd
@@ -386,6 +447,12 @@ func (m ShelveModel) updateShelfPicking(msg tea.KeyMsg) (ShelveModel, tea.Cmd) {
 			m.shelfName = item.Name
 			m.resolveShelf()
 
+			// URL mode: go to URL input instead of file picker
+			if m.urlMode {
+				m.phase = shelveURLInput
+				return m, textinput.Blink
+			}
+
 			// Transition to file picking
 			m.phase = shelveFilePicking
 			fp, err := m.createFilePicker()
@@ -429,6 +496,31 @@ func (m ShelveModel) updateFilePicking(msg tea.KeyMsg) (ShelveModel, tea.Cmd) {
 		return m, m.setupAsync()
 	}
 
+	return m, cmd
+}
+
+// --- Phase: URL Input ---
+
+func (m ShelveModel) updateURLInput(msg tea.KeyMsg) (ShelveModel, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, func() tea.Msg { return QuitAppMsg{} }
+	case "esc":
+		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
+	case "enter":
+		url := strings.TrimSpace(m.urlInput.Value())
+		if url == "" {
+			m.err = fmt.Errorf("URL cannot be empty")
+			return m, nil
+		}
+		m.err = nil
+		m.selectedFiles = []string{url}
+		m.phase = shelveSetup
+		return m, m.setupAsync()
+	}
+
+	var cmd tea.Cmd
+	m.urlInput, cmd = m.urlInput.Update(msg)
 	return m, cmd
 }
 

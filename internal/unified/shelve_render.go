@@ -22,6 +22,9 @@ func (m ShelveModel) View() string {
 	case shelveShelfPicking:
 		return m.renderShelfPicker()
 
+	case shelveURLInput:
+		return m.renderURLInput()
+
 	case shelveFilePicking:
 		return m.filePicker.View()
 
@@ -67,6 +70,34 @@ func (m ShelveModel) renderMessage(title, help string) string {
 
 func (m ShelveModel) renderShelfPicker() string {
 	return tui.StyleBorder.Render(m.shelfList.View())
+}
+
+func (m ShelveModel) renderURLInput() string {
+	style := lipgloss.NewStyle().Padding(2, 4)
+
+	var b strings.Builder
+	b.WriteString(tui.StyleHeader.Render("Add Book from URL"))
+	b.WriteString("\n\n")
+
+	b.WriteString(tui.StyleNormal.Render("URL:"))
+	b.WriteString("\n  ")
+	b.WriteString(m.urlInput.View())
+	b.WriteString("\n\n")
+
+	if m.err != nil {
+		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+		b.WriteString(errStyle.Render(fmt.Sprintf("Error: %v", m.err)))
+		b.WriteString("\n\n")
+	}
+
+	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
+		{Key: "enter", Label: "Enter Submit"},
+		{Key: "", Label: "Esc Back"},
+	}, m.activeCmd))
+	b.WriteString("\n")
+
+	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)
+	return style.Render(tui.StyleBorder.Render(innerPadding.Render(b.String())))
 }
 
 func (m ShelveModel) renderForm() string {

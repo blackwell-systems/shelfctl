@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Native TUI for "Add from URL"** — "Add from URL" now stays in the TUI instead of dropping to console; adds a `shelveURLInput` phase to the existing `ShelveModel` with a URL text input, then reuses the full ingest/form/upload pipeline (`ingest.Resolve` already handles HTTP URLs and GitHub paths)
+- **Native TUI for "Cache Info"** — cache statistics now render in the TUI with total/cached/modified counts, cache size, per-shelf breakdown, lists of uncached and locally-modified books
+- **Native TUI for "Delete Shelf"** — shelf deletion now stays in the TUI with a shelf picker, "Keep repo" vs "Delete permanently" selector, and a type-the-name confirmation gate for destructive deletes; Esc cancels at every step
+
 ## [0.3.0] - 2026-02-25
 
 ### Changed

@@ -28,7 +28,9 @@ const (
 	ViewMove        View = "move"
 	ViewDelete      View = "delete"
 	ViewCacheClear  View = "cache-clear"
+	ViewCacheInfo   View = "cache-info"
 	ViewCreateShelf View = "create-shelf"
+	ViewDeleteShelf View = "delete-shelf"
 	ViewImportShelf View = "import-shelf"
 	ViewImportRepo  View = "import-repo"
 )
@@ -44,7 +46,9 @@ type Model struct {
 	browse      BrowseModel
 	createShelf CreateShelfModel
 	cacheClear  CacheClearModel
+	cacheInfo   CacheInfoModel
 	deleteBook  DeleteBookModel
+	deleteShelf DeleteShelfModel
 	editBook    EditBookModel
 	shelve      ShelveModel
 	moveBook    MoveBookModel
@@ -173,8 +177,12 @@ func (m Model) View() string {
 		content = m.createShelf.View()
 	case ViewCacheClear:
 		content = m.cacheClear.View()
+	case ViewCacheInfo:
+		content = m.cacheInfo.View()
 	case ViewDelete:
 		content = m.deleteBook.View()
+	case ViewDeleteShelf:
+		content = m.deleteShelf.View()
 	case ViewEdit:
 		content = m.editBook.View()
 	case ViewShelve:
@@ -226,10 +234,18 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cacheClearModel CacheClearModel
 		cacheClearModel, cmd = m.cacheClear.Update(msg)
 		m.cacheClear = cacheClearModel
+	case ViewCacheInfo:
+		var cacheInfoModel CacheInfoModel
+		cacheInfoModel, cmd = m.cacheInfo.Update(msg)
+		m.cacheInfo = cacheInfoModel
 	case ViewDelete:
 		var deleteBookModel DeleteBookModel
 		deleteBookModel, cmd = m.deleteBook.Update(msg)
 		m.deleteBook = deleteBookModel
+	case ViewDeleteShelf:
+		var deleteShelfModel DeleteShelfModel
+		deleteShelfModel, cmd = m.deleteShelf.Update(msg)
+		m.deleteShelf = deleteShelfModel
 	case ViewEdit:
 		var editBookModel EditBookModel
 		editBookModel, cmd = m.editBook.Update(msg)
@@ -427,22 +443,25 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "cache-info":
-		// Non-TUI command - just run command and return
-		return m, func() tea.Msg {
-			return CommandRequestMsg{
-				Command:  "cache-info",
-				ReturnTo: "hub",
-			}
-		}
+		m.currentView = ViewCacheInfo
+		books := m.collectBooks()
+		m.cacheInfo = NewCacheInfoModel(books, m.cacheMgr)
+		return m, tea.Batch(
+			m.cacheInfo.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "shelve-url":
-		// Non-TUI command - just run command and return
-		return m, func() tea.Msg {
-			return CommandRequestMsg{
-				Command:  "shelve-url",
-				ReturnTo: "hub",
-			}
-		}
+		m.currentView = ViewShelve
+		m.shelve = NewShelveModelWithURL(m.gh, m.cfg, m.cacheMgr)
+		return m, tea.Batch(
+			m.shelve.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "import-shelf":
 		m.currentView = ViewImportShelf
@@ -476,13 +495,14 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		)
 
 	case "delete-shelf":
-		// Non-TUI command - just run command and return
-		return m, func() tea.Msg {
-			return CommandRequestMsg{
-				Command:  "delete-shelf",
-				ReturnTo: "hub",
-			}
-		}
+		m.currentView = ViewDeleteShelf
+		m.deleteShelf = NewDeleteShelfModel(m.gh, m.cfg)
+		return m, tea.Batch(
+			m.deleteShelf.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	default:
 		// Unknown target, stay on current view

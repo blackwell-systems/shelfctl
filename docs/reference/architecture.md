@@ -4,31 +4,97 @@
 
 shelfctl manages PDF/EPUB libraries using GitHub as a storage backend. Files are stored as GitHub Release assets (not in git), metadata is tracked in `catalog.yml` (in git), and books are cached locally for reading and annotation sync.
 
+```mermaid
+graph TD
+    subgraph shelfctl
+        CLI["CLI Commands"]
+        TUI["Unified TUI<br/><i>single program</i>"]
+        CLI <--> TUI
+
+        OPS["operations"]
+        UNI["tui / unified"]
+        CLI --> OPS
+        TUI --> UNI
+
+        CAT["catalog"]
+        CFG["config"]
+        CACHE["cache"]
+        OPS --> CAT
+        OPS --> CFG
+        OPS --> CACHE
+        UNI --> CAT
+        UNI --> CFG
+        UNI --> CACHE
+
+        GH["github API client"]
+        LC["local cache manager"]
+        CAT --> GH
+        CACHE --> LC
+        OPS --> GH
+    end
+
+    GHR["GitHub Releases<br/><i>file storage</i>"]
+    LFS["~/.local/share/<br/>shelfctl/cache/"]
+    GH --> GHR
+    LC --> LFS
 ```
-┌──────────────────────────────────────────────────┐
-│                   shelfctl                        │
-│                                                   │
-│  CLI commands ←→ Unified TUI (single program)     │
-│       │                  │                        │
-│       ▼                  ▼                        │
-│  ┌──────────┐    ┌──────────────┐                 │
-│  │operations│    │  tui/unified │                  │
-│  └────┬─────┘    └──────┬───────┘                 │
-│       │                 │                         │
-│       ▼                 ▼                         │
-│  ┌──────────────────────────────┐                 │
-│  │  catalog  │  config  │ cache │                  │
-│  └──────┬───────────────┬──────┘                  │
-│         │               │                         │
-│         ▼               ▼                         │
-│  ┌────────────┐  ┌─────────────┐                  │
-│  │ github API │  │ local cache │                   │
-│  └──────┬─────┘  └──────┬──────┘                  │
-│         │               │                         │
-└─────────┼───────────────┼─────────────────────────┘
-          ▼               ▼
-   GitHub Releases    ~/.local/share/
-   (file storage)     shelfctl/cache/
+
+### TUI Views
+
+```mermaid
+graph LR
+    HUB["Hub<br/><i>main menu + Ctrl+P palette</i>"]
+    HUB --> BROWSE["Browse<br/><i>book list + details panel</i>"]
+    HUB --> SHELVE["Shelve<br/><i>file picker → metadata → upload</i>"]
+    HUB --> EDIT["Edit<br/><i>metadata editor / carousel</i>"]
+    HUB --> MOVE["Move<br/><i>destination selector</i>"]
+    HUB --> DELETE["Delete<br/><i>confirmation dialog</i>"]
+    HUB --> CCLEAR["Cache Clear<br/><i>multi-select picker</i>"]
+    HUB --> CREATE["Create Shelf<br/><i>creation form</i>"]
+    BROWSE --> EDIT
+    BROWSE --> DELETE
+    BROWSE --> MOVE
+```
+
+### Sync Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Cache as Local Cache
+    participant CLI as shelfctl sync
+    participant GH as GitHub
+
+    User->>Cache: Open book, add annotations
+    User->>CLI: shelfctl sync
+    CLI->>Cache: Compute SHA256
+    CLI->>CLI: Compare against catalog checksum
+    alt Modified
+        CLI->>GH: Delete old Release asset
+        CLI->>GH: Upload modified file
+        CLI->>GH: Update catalog.yml + commit
+        CLI->>Cache: Update local checksum
+    end
+```
+
+### Shelve Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI as shelfctl shelve
+    participant Ingest as ingest
+    participant GH as GitHub
+    participant Cache as Local Cache
+
+    User->>CLI: shelve book.pdf --shelf prog
+    CLI->>Ingest: Resolve source (file/URL/GitHub)
+    CLI->>Ingest: Extract PDF metadata
+    CLI->>GH: Upload as Release asset
+    CLI->>GH: Append to catalog.yml + commit
+    opt --cache flag
+        CLI->>Cache: Store local copy
+    end
 ```
 
 ## Storage Model

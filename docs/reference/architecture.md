@@ -1,357 +1,71 @@
-# Shelf Architecture Guide
+# Architecture
 
-This guide explains how shelfctl organizes your library and helps you make informed decisions about structure.
+## System Overview
 
-## Core Concepts
-
-### What is a Shelf?
-
-A shelf is a GitHub repository that stores your books:
-
-- **Repository** - A GitHub repo (e.g., `shelf-programming`)
-- **Catalog** - `catalog.yml` file tracked in Git with metadata
-- **Assets** - PDF/EPUB files stored as GitHub Release assets (not in Git)
+shelfctl manages PDF/EPUB libraries using GitHub as a storage backend. Files are stored as GitHub Release assets (not in git), metadata is tracked in `catalog.yml` (in git), and books are cached locally for reading and annotation sync.
 
 ```
-shelf-programming/
-├── catalog.yml           # Metadata (in Git)
-├── README.md            # Auto-generated inventory (in Git)
+┌──────────────────────────────────────────────────┐
+│                   shelfctl                        │
+│                                                   │
+│  CLI commands ←→ Unified TUI (single program)     │
+│       │                  │                        │
+│       ▼                  ▼                        │
+│  ┌──────────┐    ┌──────────────┐                 │
+│  │operations│    │  tui/unified │                  │
+│  └────┬─────┘    └──────┬───────┘                 │
+│       │                 │                         │
+│       ▼                 ▼                         │
+│  ┌──────────────────────────────┐                 │
+│  │  catalog  │  config  │ cache │                  │
+│  └──────┬───────────────┬──────┘                  │
+│         │               │                         │
+│         ▼               ▼                         │
+│  ┌────────────┐  ┌─────────────┐                  │
+│  │ github API │  │ local cache │                   │
+│  └──────┬─────┘  └──────┬──────┘                  │
+│         │               │                         │
+└─────────┼───────────────┼─────────────────────────┘
+          ▼               ▼
+   GitHub Releases    ~/.local/share/
+   (file storage)     shelfctl/cache/
+```
+
+## Storage Model
+
+### Why Release Assets
+
+GitHub Release assets store the actual book files. This avoids:
+- Git history bloat (only `catalog.yml` is versioned)
+- Git's 100MB per-file limit
+- Git LFS costs
+- Full-repo clones for single-file access
+
+Each book is a single Release asset downloadable via GitHub CDN.
+
+### Data Layout
+
+```
+GitHub repo (shelf-programming):
+├── catalog.yml          # Metadata (git-tracked)
+├── README.md            # Auto-generated inventory (git-tracked)
+├── covers/              # Optional curated cover images (git-tracked)
 └── releases/
     └── library/         # Release tag
-        ├── sicp.pdf     # Asset (not in Git)
-        ├── taocp.pdf    # Asset (not in Git)
+        ├── sicp.pdf     # Release asset (not in git)
+        ├── gopl.pdf     # Release asset (not in git)
         └── ...
+
+Local cache (~/.local/share/shelfctl/cache/):
+└── shelf-programming/
+    ├── sicp.pdf         # Downloaded book
+    ├── gopl.pdf
+    └── .covers/
+        ├── sicp.jpg           # Auto-extracted thumbnail
+        └── sicp-catalog.jpg   # Downloaded catalog cover
 ```
 
-## Scope and Design Decisions
-
-shelfctl is intentionally narrow: it manages PDF/EPUB libraries using GitHub as storage, and that's it.
-
-### README.md - Human-Readable Inventory
-
-Each shelf automatically gets a README.md that:
-
-- **Documents the shelf** - Title, description, creation date
-- **Shows quick stats** - Book count, last updated (auto-updated)
-- **Provides usage examples** - How to add/browse books in this shelf
-- **Tracks recently added** - Last 10 books added (auto-maintained)
-- **Enables curation** - Sections for organizing by topic, reading lists, favorites
-- **Links to resources** - Documentation and release assets
-
-The README is created during `shelfctl init` and automatically updated when you add books. You can customize it freely - updates are non-intrusive and only modify the stats sections.
-
-## Organization Philosophy
-
-### Start Broad, Split Later
-
-**Don't over-organize at the start!**
-
-1. **Begin with one shelf** - `shelf-books` or `shelf-library`
-2. **Use tags for organization** - Add tags like `programming`, `fiction`, `textbook`
-3. **Split when needed** - When you hit 200-300 books, use `shelfctl split`
-
-### When to Create Multiple Shelves
-
-Create separate shelves when you have:
-
-**Different Topics with Distinct Audiences**
-```
-shelf-work          # Professional books
-shelf-personal      # Leisure reading
-shelf-research      # Academic papers
-```
-
-**Large Collections (200-300+ books)**
-```
-shelf-programming   # Split from original shelf-books
-shelf-history       # Split from original shelf-books
-shelf-fiction       # Split from original shelf-books
-```
-
-**Different Access Requirements**
-```
-shelf-public        # Public GitHub repo
-shelf-private       # Private GitHub repo
-shelf-team          # Shared with organization
-```
-
-## Naming Conventions
-
-### Repository Names
-
-Use the `shelf-<topic>` pattern:
-
-**Good:**
-- `shelf-programming`
-- `shelf-fiction`
-- `shelf-research-papers`
-- `shelf-textbooks`
-
-**Avoid:**
-- `books` (not descriptive)
-- `my-library` (unclear)
-- `programming-books` (breaks convention)
-
-### Shelf Names (Config)
-
-Shorter than repo names, used in commands:
-
-| Repository Name         | Shelf Name (Config) |
-|------------------------|---------------------|
-| `shelf-programming`    | `programming`       |
-| `shelf-fiction`        | `fiction`           |
-| `shelf-research-papers`| `research`          |
-
-## Sub-Organization with Releases
-
-You can create multiple releases within one shelf for sub-categories:
-
-```
-shelf-programming/
-  release: library        # Default, main collection
-  release: textbooks      # Structured learning materials
-  release: papers         # Academic papers
-  release: references     # Quick references, cheat sheets
-```
-
-### When to Use Multiple Releases
-
-- **Sub-topics within a shelf** - Keep related books together
-- **Different formats** - Separate PDFs from EPUBs
-- **Time-based** - Archive old editions separately
-- **Status** - reading-list vs archive vs favorites
-
-### Moving Between Releases
-
-```bash
-shelfctl move book-id --to-release textbooks
-```
-
-This is cheaper than creating new shelves - keeps everything in one repo.
-
-## Splitting Shelves
-
-When a shelf grows too large, use the interactive split wizard:
-
-```bash
-shelfctl split
-```
-
-### The Split Wizard
-
-1. **Select source shelf** - Choose which shelf to split
-2. **Choose strategy:**
-   - By tag - Group books by their tags
-   - By size - Split evenly by count
-   - Manual - Assign one by one
-3. **Preview groupings** - See what goes where
-4. **Confirm and execute** - Automatic migration
-
-### What Happens During Split
-
-1. Books are downloaded from source shelf
-2. Uploaded to target shelf releases
-3. Catalogs are updated automatically
-4. Old entries removed from source
-5. No data loss - everything is moved, not copied
-
-## Tags vs Shelves vs Releases
-
-Choose the right organization level:
-
-| Use Case | Solution | Example |
-|----------|----------|---------|
-| Similar books, slight variations | **Tags** | `--tags golang,web,tutorial` |
-| Related sub-topics in one area | **Releases** | `release: textbooks` |
-| Completely different domains | **Shelves** | `shelf-programming` vs `shelf-fiction` |
-
-### Tags (Lightest)
-
-- Add to any book: `--tags cs,algorithms,textbook`
-- Filter: `shelfctl browse --tag algorithms`
-- No overhead, infinite flexibility
-- **Use first**, before considering releases or shelves
-
-### Releases (Medium)
-
-- Multiple categories within one shelf
-- No new repo needed
-- Slight overhead (separate asset uploads)
-- Good for: sub-topics, formats, status
-
-### Shelves (Heaviest)
-
-- Separate GitHub repos
-- Most overhead (separate repos to manage)
-- Good for: major topics, different access levels
-
-## Scaling Guidelines
-
-### Small Library (0-100 books)
-
-- **One shelf** - `shelf-books` or `shelf-library`
-- **Use tags** - Organize everything with tags
-- **One release** - Keep it simple with `library`
-
-### Medium Library (100-300 books)
-
-- **2-3 shelves** - Split by major topic if needed
-- **Tags + releases** - Combine for organization
-- **Consider splitting** - When approaching 300
-
-### Large Library (300+ books)
-
-- **Multiple shelves** - By topic or domain
-- **Multiple releases** - Sub-organize within shelves
-- **Split regularly** - Keep shelves under 300 books
-
-## Common Patterns
-
-### Academic Researcher
-
-```
-shelf-papers/
-  release: reading-list
-  release: cited
-  release: archive
-```
-
-### Software Developer
-
-```
-shelf-programming/
-  release: library (general)
-  release: languages
-  release: systems
-
-shelf-references/
-  release: library (cheat sheets, docs)
-```
-
-### General Reader
-
-```
-shelf-books/
-  Use tags: fiction, non-fiction, biography, etc.
-```
-
-Split later into:
-```
-shelf-fiction/
-shelf-non-fiction/
-shelf-technical/
-```
-
-## Migration Strategy
-
-### From Monolithic Repo
-
-If you have an existing `books` repo with 500+ PDFs:
-
-1. **Scan the old repo:**
-   ```bash
-   shelfctl migrate scan --source you/old-books > queue.txt
-   ```
-
-2. **Create organized shelves:**
-   ```bash
-   shelfctl init --repo shelf-programming --name programming --create-repo
-   shelfctl init --repo shelf-history --name history --create-repo
-   ```
-
-3. **Edit queue.txt** - Assign each file to a shelf
-
-4. **Migrate in batches:**
-   ```bash
-   shelfctl migrate batch queue.txt --n 20 --continue
-   ```
-
-### From Multiple Scattered Repos
-
-Use `shelfctl import` to consolidate:
-
-```bash
-shelfctl import --from you/old-prog-books --shelf programming
-shelfctl import --from you/random-pdfs --shelf books
-```
-
-## Best Practices
-
-### [OK] Do
-
-- Start with one broad shelf
-- Use tags liberally
-- Let organization emerge naturally
-- Split when you feel friction (200-300 books)
-- Use descriptive names (`shelf-programming`, not `prog`)
-- Keep releases to 2-4 per shelf
-
-### [X] Avoid
-
-- Creating many shelves upfront
-- Overly specific shelf names
-- Premature optimization
-- Deep nesting (no sub-releases within releases)
-- Organizing before you have enough books
-
-## Decision Tree
-
-```
-Do I need a new shelf?
-│
-├─ Do I have < 100 books total?
-│  └─ No → Use one shelf + tags
-│
-├─ Is this a completely different topic?
-│  └─ Yes → Create new shelf
-│
-├─ Do I have > 300 books in one shelf?
-│  └─ Yes → Run `shelfctl split`
-│
-└─ Otherwise → Use tags or releases
-```
-
-## Advanced: GitHub Limits
-
-### Release Asset Limits (Soft)
-
-- GitHub doesn't publish hard limits
-- Release assets avoid Git's 100MB file size limit
-- In practice: 100s of assets per release work fine
-- If you hit issues: split shelf or use multiple releases
-
-### Repository Limits
-
-- Git repo size: Keep under 5GB
-- With shelfctl: Only `catalog.yml` is in Git (tiny)
-- Assets don't count toward repo size
-- In practice: Shelves can hold many GBs of books
-
-### API Rate Limits
-
-- Authenticated: 5000 requests/hour
-- Most operations: 1-3 API calls
-- Large migrations: Use `--n` flag to batch
-- Rate limit resets hourly
-
-## Getting Help
-
-- Type `help` or `?` during interactive init
-- Read [tutorial.md](../guides/tutorial.md) for walkthrough
-- Run `shelfctl split --help` for split options
-- See [commands.md](commands.md) for all commands
-
-## Summary
-
-**Key Takeaway:** Start simple (one shelf + tags), organize as you go, split when needed.
-
-shelfctl makes reorganization easy, so don't stress about getting it perfect upfront. Your first shelf name matters less than you think - you can always split and restructure later.
-
----
-
-## Reference: Catalog Schema
-
-The `catalog.yml` file in each shelf stores book metadata as a YAML list:
+### Catalog Schema
 
 ```yaml
 - id: sicp
@@ -360,153 +74,187 @@ The `catalog.yml` file in each shelf stores book metadata as a YAML list:
   year: 1996
   tags: ["lisp", "cs", "textbook"]
   format: "pdf"
-
   checksum:
     sha256: "a1b2c3d4..."
   size_bytes: 6498234
-
+  cover: "covers/sicp.jpg"       # Optional, git-tracked
   source:
     type: "github_release"
     owner: "your-username"
     repo: "shelf-programming"
     release: "library"
     asset: "sicp.pdf"
-
   meta:
     added_at: "2024-01-15T10:30:00Z"
 ```
 
-### Required Fields
+Required: `id`, `title`, `format`, `source.*`
+Recommended: `checksum`, `author`, `tags`, `year`, `size_bytes`
+Optional: `cover`, `meta.*`
 
-- `id` - Unique identifier (URL/CLI friendly: `^[a-z0-9][a-z0-9-]{1,62}$`)
-- `title` - Book title
-- `format` - File format (pdf, epub, mobi, etc.)
-- `source.type` - Always `github_release`
-- `source.owner` - GitHub username/org
-- `source.repo` - Repository name
-- `source.release` - Release tag name
-- `source.asset` - Asset filename in release
-
-### Recommended Fields
-
-- `checksum.sha256` - File verification (strongly recommended)
-- `author` - Book author(s)
-- `tags` - List of tags for filtering
-- `year` - Publication year
-- `size_bytes` - File size in bytes
-
-### Optional Fields
-
-- `cover` - Path to cover image stored in git repo (e.g., `covers/book.jpg`)
-- `meta.added_at` - Timestamp when added
-- `meta.migrated_from` - Source if migrated
-
-### Cover Images
-
-shelfctl supports two types of cover images:
-
-**1. Catalog Covers (user-curated):**
-- Specified in catalog.yml `cover` field
-- Stored in git repo (e.g., `covers/sicp.jpg`)
-- Downloaded to cache when browsing: `.covers/<book-id>-catalog.jpg`
-- Portable across machines via git
-- Higher display priority
-
-**2. Auto-Extracted Thumbnails (automatic):**
-- Extracted from first page of PDF during download
-- Stored in cache: `.covers/<book-id>.jpg`
-- Local only (not in catalog or git)
-- Requires `pdftoppm` from poppler-utils
-
-Display priority: catalog cover > extracted thumbnail > none
-
----
-
-## Reference: Configuration Schema
-
-Config file location: `~/.config/shelfctl/config.yml`
+### Configuration
 
 ```yaml
+# ~/.config/shelfctl/config.yml
 github:
-  owner: "your-username"           # Your GitHub username/org
-  token_env: "GITHUB_TOKEN"        # Environment variable name
-  api_base: "https://api.github.com"  # For GitHub Enterprise
-  backend: "api"                   # "api" or "gh" (shell out to gh CLI)
+  owner: "your-username"
+  token_env: "GITHUB_TOKEN"    # Reads from env var, never stores token
+  api_base: "https://api.github.com"
 
 defaults:
-  release: "library"               # Default release tag name
+  release: "library"
   cache_dir: "~/.local/share/shelfctl/cache"
-  asset_naming: "id"               # "id" or "original"
+  asset_naming: "id"           # "id" or "original"
 
 shelves:
-  - name: "programming"            # Shelf name for commands
-    repo: "shelf-programming"      # GitHub repository name
-    owner: "your-username"         # Override default owner (optional)
-    catalog_path: "catalog.yml"    # Path to catalog (optional, default shown)
-    default_release: "library"     # Override default release (optional)
-
-  - name: "history"
-    repo: "shelf-history"
-
-migration:
-  sources:
-    - owner: "your-username"
-      repo: "old-books-repo"       # Source repository
-      ref: "main"                  # Git ref to read from
-      mapping:                     # Path prefix → shelf mapping
-        programming/: "programming"
-        history/: "history"
+  - name: "programming"       # Short name for CLI
+    repo: "shelf-programming"  # GitHub repo
+    owner: "other-user"        # Optional: override default owner
 ```
 
-### Environment Variables
+Each shelf can override the default owner for multi-user/org setups.
 
-You can override config with environment variables:
-
-- `SHELFCTL_GITHUB_TOKEN` - GitHub token (recommended over token_env)
-- `SHELFCTL_CACHE_DIR` - Cache directory
-- `SHELFCTL_CONFIG` - Custom config file path
-
-### Cache Structure
-
-Downloaded books are stored locally:
+## Package Structure
 
 ```
-~/.local/share/shelfctl/cache/
-  shelf-programming/
-    sicp.pdf
-    gopl.pdf
-  shelf-history/
-    rome.pdf
+internal/
+├── app/           # CLI commands (cobra) and TUI launcher
+├── catalog/       # Book metadata model, YAML loading, search
+├── config/        # Config loading and validation
+├── github/        # GitHub REST API client
+├── ingest/        # PDF metadata extraction, file source resolution
+├── cache/         # Local file storage, cover art, HTML index generation
+├── migrate/       # Migration scanning, ledger tracking
+├── operations/    # Shelf creation, README management
+├── tui/           # All TUI view components
+├── unified/       # TUI orchestrator, hub, view routing
+└── util/          # TTY detection, formatting helpers
 ```
 
-Layout: `<cache>/<shelf_repo>/<asset_filename>`
+## GitHub API Client
 
-### Cache Management
+`internal/github/` implements a focused REST client:
 
-shelfctl provides commands to manage local cache without affecting shelf metadata or release assets:
+- **Token handling**: Bearer token from env var, stripped on S3 redirects
+- **Assets**: List, find, download (streamed with progress), upload (multipart)
+- **Contents**: Read/write `catalog.yml` with commit messages
+- **Releases**: Get by tag, create if missing
+- **Repos**: Get info, create (public/private)
 
-**CLI Commands:**
-```bash
-# View statistics
-shelfctl cache info                    # Overall stats
-shelfctl cache info --shelf programming # Per-shelf stats
+Upload timeout is 5 minutes for large files. Downloads stream directly to cache.
 
-# Clear cache
-shelfctl cache clear book-id-1 book-id-2  # Specific books
-shelfctl cache clear --shelf programming  # Entire shelf
-shelfctl cache clear --all                # Entire cache
-shelfctl cache clear                      # Interactive picker
-```
+## Commands
 
-**TUI (in browse):**
-- `space` - Toggle selection on books
-- `x` - Remove selected books from cache
-- Books remain in catalog/release, only local files deleted
+| Command | Description |
+|---------|-------------|
+| `init` | Create shelf repo, release, and config entry |
+| `shelve` | Add book from local file, URL, or GitHub path |
+| `open` | Download (if needed) and open with system viewer |
+| `browse` | Interactive TUI browser or text listing |
+| `search` | Full-text search across title, author, tags |
+| `edit-book` | Update metadata (title, author, year, tags) |
+| `delete-book` | Remove book, asset, and cache entry |
+| `move` | Move books between releases or shelves |
+| `sync` | Upload locally-modified books back to GitHub |
+| `status` | Show sync status and statistics per shelf |
+| `tags list` | List all tags with book counts |
+| `tags rename` | Bulk rename tags across shelves |
+| `split` | Interactive wizard to reorganize a shelf |
+| `import` | Copy books from another shelf |
+| `verify` | Detect catalog/release mismatches, `--fix` to repair |
+| `shelves` | Validate all configured shelves |
+| `delete-shelf` | Remove shelf (optionally delete GitHub repo) |
+| `cache info` | Cache disk usage statistics |
+| `cache clear` | Remove cached books (interactive or by ID) |
+| `info` | Show book details and cache status |
+| `index` | Generate static HTML library viewer |
+| `migrate scan` | List files in source repo for migration |
+| `migrate batch` | Batch-migrate with resumable ledger |
+| `migrate one` | Single file migration |
 
-**Use cases:**
-- Reclaim disk space without affecting library
-- Clear corrupted downloads for re-fetch
-- Remove books you no longer need locally
-- Pre-cache books for offline access, then clear when done
+## Sync Mechanism
 
-Books automatically re-download when opened or browsed.
+Annotation sync detects locally-modified books and re-uploads them:
+
+1. User opens book, adds annotations in PDF reader
+2. Modified file saved to local cache
+3. `shelfctl sync` compares local SHA256 against catalog checksum
+4. Deletes old Release asset, uploads modified file
+5. Updates catalog with new checksum
+6. Single commit: "sync: update X books with local changes"
+
+Modified files in cache are protected — `cache clear` won't delete them without `--force`.
+
+## Cover Art
+
+Two types, with display priority: catalog > extracted > none.
+
+**Catalog covers** (user-curated): specified in `catalog.yml` `cover` field, stored in git, downloaded to `.covers/<id>-catalog.jpg`. Portable across machines.
+
+**Auto-extracted thumbnails**: extracted from PDF first page via `pdftoppm` (poppler-utils) during download. Stored in `.covers/<id>.jpg`. Local-only, regenerated per machine. Parameters: JPEG, 300px max, quality 85.
+
+## Terminal Image Rendering
+
+`internal/tui/image.go` auto-detects terminal image protocol:
+
+| Protocol | Terminals | Method |
+|----------|-----------|--------|
+| Kitty Graphics | Kitty, Ghostty | `\x1b_Ga=T,f=100,t=f;<base64>\x1b\\` |
+| iTerm2 Inline | iTerm2 | `\x1b]1337;File=inline=1;width=30px:<base64>\x07` |
+| None | Others | Text-only fallback |
+
+Detection result is cached with `sync.Once` to avoid per-frame overhead.
+
+## PDF Metadata Extraction
+
+`internal/ingest/pdfmeta.go` extracts title/author from PDF Info dictionaries. Pure Go, no external dependencies. Scans first 8KB + last 8KB for metadata. Handles parentheses and UTF-16BE hex formats. Used to pre-populate metadata forms during shelving.
+
+## File Source Resolution
+
+`internal/ingest/` resolves three input types:
+
+- **Local file**: direct filesystem read
+- **HTTP URL**: streamed download
+- **GitHub path**: `github:user/repo@ref:path/file.pdf` via Contents API
+
+## Migration System
+
+For importing from existing repos with hundreds of files:
+
+1. `migrate scan --source owner/repo` lists all files → `queue.txt`
+2. User edits queue with shelf assignments and metadata
+3. `migrate batch queue.txt --n 20 --continue` processes in chunks
+4. `.shelfctl-ledger.txt` tracks completed/failed entries for resumability
+
+## HTML Index Generation
+
+`shelfctl index` generates a self-contained `index.html` with:
+- Visual grid layout with cover thumbnails
+- Real-time client-side search (title, author, tags)
+- Clickable tag cloud with counts
+- Sort by date added, title, author, year
+- `file://` links to open cached books locally
+- Works completely offline
+
+## Caching and Performance
+
+### Parallel Operations
+
+- **Catalog loading**: Per-shelf goroutines with pre-allocated result slices
+- **Status checks**: Per-shelf goroutines for sync status
+- **Cover art fetching**: Bounded concurrency with semaphore channel (8 concurrent)
+- **Downloads**: Background downloads while TUI remains responsive
+
+### TUI Performance
+
+- Package-level lipgloss styles (avoid per-frame allocations)
+- `sync.Once` for image protocol detection
+- Cached divider strings rebuilt only on window resize
+- Hub details pane cached until content type changes
+
+## Security
+
+- GitHub token read from environment variable, never written to config
+- Custom HTTP redirect handler strips Bearer token on S3 redirects
+- SHA256 checksums verify file integrity after download
+- Modified-file protection prevents accidental cache deletion

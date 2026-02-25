@@ -430,13 +430,6 @@ func collectMetadata(cmd *cobra.Command, params *shelveParams, srcName string, i
 	}, nil
 }
 
-// loadCatalog is deprecated - use catalog.Manager.Load() instead.
-// Kept for backward compatibility with other commands.
-func loadCatalog(owner, repo, catalogPath string) ([]catalog.Book, error) {
-	mgr := catalog.NewManager(gh, owner, repo, catalogPath)
-	return mgr.Load()
-}
-
 func checkDuplicates(existingBooks []catalog.Book, sha256 string, force bool) error {
 	if force {
 		return nil
@@ -670,21 +663,6 @@ func batchCommitCatalog(cmd *cobra.Command, catalogMgr *catalog.Manager, owner, 
 	}
 
 	return nil
-}
-
-// updateREADMEBatch is deprecated - use readme.Updater.UpdateWithStats() instead.
-// Kept for backward compatibility.
-func updateREADMEBatch(cmd *cobra.Command, owner, repo string, allBooks []catalog.Book, newBooks []catalog.Book) {
-	readmeMgr := readme.NewUpdater(gh, owner, repo)
-	if err := readmeMgr.UpdateWithStats(len(allBooks), newBooks); err != nil {
-		if tui.ShouldUseTUI(cmd) {
-			warn("Could not update README.md: %v", err)
-		}
-	} else {
-		if tui.ShouldUseTUI(cmd) {
-			ok("README.md updated")
-		}
-	}
 }
 
 func printBookSummary(cmd *cobra.Command, bookID, title, sha256 string, size int64, assetName string) {

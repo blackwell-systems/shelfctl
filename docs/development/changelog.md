@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cached image protocol detection** — `DetectImageProtocol()` (reads `$TERM_PROGRAM` / `$TERM` env vars) is now called once via `sync.Once` and cached at package level; previously called on every `renderDetailsPane()` frame.
 - **Cached hub details pane** — hub details panel raw content (`renderShelvesDetailsRaw` / `renderCacheDetailsRaw`) is now computed once when `detailsType` changes and cached in `cachedDetailsRaw`; previously rebuilt the entire details string on every `View()` frame even though the underlying data is static between navigation events.
 
+### Removed
+- **Dead code cleanup** — removed ~460 lines of unused code across 16 files:
+  - Deprecated `loadCatalog` and `updateREADMEBatch` wrappers in shelve (superseded by `catalog.Manager` and `operations` package)
+  - Unused `readme.Updater` methods (`AddBook`, `AddBooks`, `RemoveBook`, `UpdateStats`) — all README updates go through `UpdateWithStats` and `operations` package helpers
+  - `github.Client.ReadFile` (clone-based file read, superseded by `GetFileContent` API)
+  - No-op `redirectStripAuth` HTTP wrapper (auth stripping handled by `CheckRedirect` in download client)
+  - Single-select `RunBookPicker`, `RunFilePicker`, `RunShelfCreateForm` (only multi-select variants and unified TUI models are used)
+  - Unused key binding types (`NavigablePickerKeys`, `MultiSelectPickerKeys`, `FormKeys`) — external component libs handle their own keys
+  - Disk-based `catalog.Load`/`catalog.Save` (all catalog access goes through GitHub-backed `Manager`)
+  - `catalog.Book.IsEmpty()`, `migrate.Ledger.Entries()`, `util.EnsureDir`, `util.CopyFile`
+  - `config.ServeConfig` placeholder (future feature, never wired up)
+
 ### Changed
 - **Refactor**: extracted carousel layout/rendering into a reusable `carousel` package in `bubbletea-carousel`; shelfctl now provides only `bookCarouselDelegate` and a thin `updateCarouselFromMsg` wrapper; all peek-clipping, ghost cards, dot indicator, and navigation logic live in the component
 

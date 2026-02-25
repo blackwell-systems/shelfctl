@@ -542,20 +542,6 @@ func (m *FilePickerModel) resizeAllColumns() {
 	}
 }
 
-// RunFilePicker launches an interactive file browser for selecting a single file.
-// Returns the selected file path, or error if canceled.
-// This is a convenience wrapper around RunFilePickerMulti that returns a single file.
-func RunFilePicker(startPath string) (string, error) {
-	files, err := RunFilePickerMulti(startPath)
-	if err != nil {
-		return "", err
-	}
-	if len(files) == 0 {
-		return "", fmt.Errorf("no file selected")
-	}
-	return files[0], nil
-}
-
 // RunFilePickerMulti launches an interactive file browser with multi-select support.
 // Users can toggle checkboxes with spacebar and confirm with enter.
 // Uses Miller columns (hierarchical view) for navigation.

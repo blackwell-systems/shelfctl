@@ -234,30 +234,3 @@ func (m shelfCreateFormModel) View() string {
 	// Apply inner padding, then border, then outer padding
 	return outerStyle.Render(StyleBorder.Render(innerPadding.Render(content)))
 }
-
-// RunShelfCreateForm launches an interactive form for creating a new shelf
-// Returns the filled form data, or error if canceled
-func RunShelfCreateForm() (*ShelfCreateFormData, error) {
-	m := newShelfCreateForm()
-	p := tea.NewProgram(m, tea.WithAltScreen())
-
-	finalModel, err := p.Run()
-	if err != nil {
-		return nil, fmt.Errorf("running form: %w", err)
-	}
-
-	fm, ok := finalModel.(shelfCreateFormModel)
-	if !ok {
-		return nil, fmt.Errorf("unexpected model type")
-	}
-
-	if fm.canceled {
-		return nil, fmt.Errorf("canceled")
-	}
-
-	if fm.result == nil {
-		return nil, fmt.Errorf("no data collected")
-	}
-
-	return fm.result, nil
-}

@@ -28,16 +28,12 @@ func New(token, apiBase string) *Client {
 	// Strip trailing slash for consistent URL building.
 	apiBase = strings.TrimRight(apiBase, "/")
 
-	// Custom transport that strips auth when redirecting off github.com
-	// (e.g. to S3 for asset downloads).
-	transport := &redirectStripAuth{base: http.DefaultTransport}
-
 	return &Client{
 		token:   token,
 		apiBase: apiBase,
 		http: &http.Client{
 			Timeout:   5 * time.Minute, // generous for large uploads
-			Transport: transport,
+			Transport: http.DefaultTransport,
 		},
 	}
 }
@@ -103,16 +99,6 @@ func checkStatus(resp *http.Response) error {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("github API error %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
-}
-
-// redirectStripAuth is an http.RoundTripper that strips the Authorization
-// header when the redirect target is not github.com (e.g. S3).
-type redirectStripAuth struct {
-	base http.RoundTripper
-}
-
-func (t *redirectStripAuth) RoundTrip(req *http.Request) (*http.Response, error) {
-	return t.base.RoundTrip(req)
 }
 
 // newHTTPClientNoRedirect creates an http.Client that does NOT follow

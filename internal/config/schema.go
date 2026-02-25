@@ -6,7 +6,6 @@ type Config struct {
 	Defaults  DefaultsConfig  `mapstructure:"defaults"`
 	Shelves   []ShelfConfig   `mapstructure:"shelves"`
 	Migration MigrationConfig `mapstructure:"migration"`
-	Serve     ServeConfig     `mapstructure:"serve"`
 }
 
 // GitHubConfig holds GitHub API connection settings.
@@ -45,12 +44,6 @@ type MigrationSource struct {
 	Repo    string            `mapstructure:"repo"`
 	Ref     string            `mapstructure:"ref"`
 	Mapping map[string]string `mapstructure:"mapping"`
-}
-
-// ServeConfig holds settings for the HTTP server (future feature).
-type ServeConfig struct {
-	Port int    `mapstructure:"port"`
-	Host string `mapstructure:"host"`
 }
 
 // ShelfByName returns the shelf config with the given name, or nil.

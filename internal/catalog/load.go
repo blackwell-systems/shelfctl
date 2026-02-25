@@ -2,22 +2,9 @@ package catalog
 
 import (
 	"fmt"
-	"os"
 
 	"gopkg.in/yaml.v3"
 )
-
-// Load reads a catalog.yml file from disk.
-func Load(path string) ([]Book, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []Book{}, nil
-		}
-		return nil, fmt.Errorf("reading catalog: %w", err)
-	}
-	return Parse(data)
-}
 
 // Parse decodes YAML bytes into a book list.
 func Parse(data []byte) ([]Book, error) {

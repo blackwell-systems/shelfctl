@@ -28,8 +28,6 @@ func Load() (*Config, error) {
 	v.SetDefault("defaults.release", "library")
 	v.SetDefault("defaults.asset_naming", "id")
 	v.SetDefault("defaults.cache_dir", defaultCacheDir())
-	v.SetDefault("serve.port", 8080)
-	v.SetDefault("serve.host", "127.0.0.1")
 
 	v.SetEnvPrefix("SHELFCTL")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

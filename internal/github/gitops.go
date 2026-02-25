@@ -55,23 +55,6 @@ func (c *Client) CommitFile(owner, repo, filePath string, content []byte, messag
 	return nil
 }
 
-// ReadFile clones the repo (shallow) and reads filePath, returning its bytes.
-// For simple catalog reads, prefer GetFileContent which avoids a clone.
-func (c *Client) ReadFile(owner, repo, filePath string) ([]byte, error) {
-	tmpDir, err := os.MkdirTemp("", "shelfctl-*")
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-
-	cloneURL := fmt.Sprintf("https://x-access-token:%s@github.com/%s/%s.git",
-		c.token, owner, repo)
-	if err := runGit(tmpDir, "clone", "--depth=1", cloneURL, "."); err != nil {
-		return nil, err
-	}
-	return os.ReadFile(filepath.Join(tmpDir, filepath.FromSlash(filePath)))
-}
-
 func runGit(dir string, args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir

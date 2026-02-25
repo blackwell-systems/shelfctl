@@ -3,7 +3,6 @@ package catalog
 import (
 	"bytes"
 	"fmt"
-	"os"
 
 	"gopkg.in/yaml.v3"
 )
@@ -17,15 +16,6 @@ func Marshal(books []Book) ([]byte, error) {
 		return nil, fmt.Errorf("encoding catalog: %w", err)
 	}
 	return buf.Bytes(), nil
-}
-
-// Save writes the book list to a file on disk.
-func Save(path string, books []Book) error {
-	data, err := Marshal(books)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0600)
 }
 
 // Append adds a book to the list and returns the updated slice.

@@ -75,26 +75,3 @@ func (l *Ledger) Contains(source string) (bool, error) {
 	}
 	return false, sc.Err()
 }
-
-// Entries returns all ledger entries.
-func (l *Ledger) Entries() ([]LedgerEntry, error) {
-	f, err := os.Open(l.path)
-	if os.IsNotExist(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = f.Close() }()
-
-	var entries []LedgerEntry
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		var e LedgerEntry
-		if err := json.Unmarshal(sc.Bytes(), &e); err != nil {
-			continue
-		}
-		entries = append(entries, e)
-	}
-	return entries, sc.Err()
-}

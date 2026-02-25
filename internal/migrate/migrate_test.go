@@ -1,7 +1,6 @@
 package migrate_test
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -149,37 +148,4 @@ func TestLedger_MultipleEntries(t *testing.T) {
 	}
 }
 
-func TestLedger_Entries(t *testing.T) {
-	dir := t.TempDir()
-	l, _ := migrate.OpenLedger(filepath.Join(dir, "ledger.jsonl"))
-
-	_ = l.Append(migrate.LedgerEntry{Source: "a.pdf", BookID: "a", Shelf: "s1"})
-	_ = l.Append(migrate.LedgerEntry{Source: "b.pdf", BookID: "b", Shelf: "s2"})
-
-	entries, err := l.Entries()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 2 {
-		t.Errorf("Entries() len = %d, want 2", len(entries))
-	}
-}
-
 // --- matchExt (via ScanRepo indirectly tested through FileEntry) ---
-
-func TestLedger_EmptyEntries(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "empty.jsonl")
-	// File exists but is empty.
-	if err := os.WriteFile(path, []byte{}, 0600); err != nil {
-		t.Fatal(err)
-	}
-	l, _ := migrate.OpenLedger(path)
-	entries, err := l.Entries()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 0 {
-		t.Errorf("expected 0 entries from empty file, got %d", len(entries))
-	}
-}

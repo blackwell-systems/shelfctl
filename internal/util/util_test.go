@@ -47,48 +47,6 @@ func TestSHA256File_MissingFile(t *testing.T) {
 	}
 }
 
-func TestCopyFile(t *testing.T) {
-	dir := t.TempDir()
-	src := filepath.Join(dir, "src.txt")
-	dst := filepath.Join(dir, "sub", "dst.txt")
-
-	if err := os.WriteFile(src, []byte("hello"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := util.CopyFile(src, dst); err != nil {
-		t.Fatalf("CopyFile: %v", err)
-	}
-	got, err := os.ReadFile(dst)
-	if err != nil {
-		t.Fatalf("ReadFile dst: %v", err)
-	}
-	if string(got) != "hello" {
-		t.Errorf("CopyFile content = %q, want %q", string(got), "hello")
-	}
-}
-
-func TestCopyFile_MissingSrc(t *testing.T) {
-	err := util.CopyFile("/no/src.txt", t.TempDir()+"/dst.txt")
-	if err == nil {
-		t.Error("expected error copying missing file, got nil")
-	}
-}
-
-func TestEnsureDir(t *testing.T) {
-	dir := t.TempDir()
-	nested := filepath.Join(dir, "a", "b", "c")
-	if err := util.EnsureDir(nested); err != nil {
-		t.Fatalf("EnsureDir: %v", err)
-	}
-	fi, err := os.Stat(nested)
-	if err != nil {
-		t.Fatalf("Stat after EnsureDir: %v", err)
-	}
-	if !fi.IsDir() {
-		t.Error("EnsureDir path is not a directory")
-	}
-}
-
 func TestExpandHome(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	cases := []struct{ in, want string }{

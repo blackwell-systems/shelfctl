@@ -34,8 +34,3 @@ type Meta struct {
 	AddedAt      string `yaml:"added_at,omitempty"`
 	MigratedFrom string `yaml:"migrated_from,omitempty"`
 }
-
-// IsEmpty reports whether this book has no meaningful data.
-func (b *Book) IsEmpty() bool {
-	return b.ID == "" && b.Title == ""
-}

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Shelf README shows all books** — removed the 10-entry limit on the "Recently Added" section in shelf READMEs; all books now remain visible instead of silently dropping older entries
+
 ### Added
 - **Command palette** (`ctrl+p`) in the hub — fuzzy-search all available menu actions by label, description, section, or key; powered by the new `commandpalette` package in `bubbletea-commandpalette`; palette overlays the hub centered via `lipgloss.Place`; `esc` dismisses
 - **Auto-create shelf** — write commands (`shelve`, `import`, `migrate`, `move`, `split`) now offer to create a shelf when `--shelf <name>` doesn't exist; prompts interactively in TTY mode, or auto-creates with `--create-shelf` flag for scripting

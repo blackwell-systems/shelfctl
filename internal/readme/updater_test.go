@@ -107,32 +107,3 @@ func TestRemoveFromRecentlyAdded_NotFound(t *testing.T) {
 		t.Error("content should be unchanged when book not found")
 	}
 }
-
-func TestLimitRecentlyAdded_UnderLimit(t *testing.T) {
-	content := "## Recently Added\n\n- **a** — A\n- **b** — B\n"
-	got := limitRecentlyAdded(content, 10)
-	if got != content {
-		t.Error("should not modify content under limit")
-	}
-}
-
-func TestLimitRecentlyAdded_OverLimit(t *testing.T) {
-	var entries []string
-	for i := 0; i < 5; i++ {
-		entries = append(entries, "- **book"+string(rune('a'+i))+"** — Title\n")
-	}
-	content := "## Recently Added\n\n" + strings.Join(entries, "")
-	got := limitRecentlyAdded(content, 3)
-	count := strings.Count(got, "- **book")
-	if count != 3 {
-		t.Errorf("expected 3 entries after limit, got %d", count)
-	}
-}
-
-func TestLimitRecentlyAdded_NoSection(t *testing.T) {
-	content := "# No recently added here\n"
-	got := limitRecentlyAdded(content, 10)
-	if got != content {
-		t.Error("should return unchanged when section missing")
-	}
-}

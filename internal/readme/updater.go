@@ -110,8 +110,7 @@ func appendToRecentlyAdded(content string, book catalog.Book) string {
 	// Insert the entry
 	newContent := content[:insertPos] + entry + content[insertPos:]
 
-	// Limit to 10 most recent entries
-	return limitRecentlyAdded(newContent, 10)
+	return newContent
 }
 
 // removeFromRecentlyAdded removes a book from the "Recently Added" section.
@@ -120,56 +119,4 @@ func removeFromRecentlyAdded(content string, bookID string) string {
 	pattern := fmt.Sprintf(`- \*\*%s\*\* — [^\n]+\n`, regexp.QuoteMeta(bookID))
 	re := regexp.MustCompile(pattern)
 	return re.ReplaceAllString(content, "")
-}
-
-// limitRecentlyAdded ensures only the first N entries remain.
-func limitRecentlyAdded(content string, maxEntries int) string {
-	recentlyAddedStart := strings.Index(content, "## Recently Added")
-	if recentlyAddedStart == -1 {
-		return content
-	}
-
-	// Find the next section
-	nextSectionStart := strings.Index(content[recentlyAddedStart+len("## Recently Added"):], "\n##")
-	var sectionEnd int
-	if nextSectionStart == -1 {
-		sectionEnd = len(content)
-	} else {
-		sectionEnd = recentlyAddedStart + len("## Recently Added") + nextSectionStart
-	}
-
-	section := content[recentlyAddedStart:sectionEnd]
-
-	// Split into lines
-	lines := strings.Split(section, "\n")
-
-	// Find all book entries (lines starting with "- **")
-	var entryLines []int
-	for i, line := range lines {
-		if strings.HasPrefix(line, "- **") {
-			entryLines = append(entryLines, i)
-		}
-	}
-
-	// If we have more than maxEntries, remove the excess
-	if len(entryLines) > maxEntries {
-		// Remove entries beyond maxEntries
-		for i := maxEntries; i < len(entryLines); i++ {
-			lines[entryLines[i]] = ""
-		}
-
-		// Rebuild section
-		var newLines []string
-		for _, line := range lines {
-			if line != "" {
-				newLines = append(newLines, line)
-			}
-		}
-		section = strings.Join(newLines, "\n")
-
-		// Replace in content
-		return content[:recentlyAddedStart] + section + content[sectionEnd:]
-	}
-
-	return content
 }

@@ -99,12 +99,6 @@ func AppendToShelfREADME(existingREADME string, book catalog.Book) string {
 			}
 		}
 
-		// Keep only last 9 existing entries (so with new entry we have 10 total)
-		const maxEntries = 10
-		if len(existingEntries) > maxEntries-1 {
-			existingEntries = existingEntries[:maxEntries-1]
-		}
-
 		// Rebuild the README
 		// Copy lines before Recently Added section
 		for i := 0; i <= recentlyAddedIdx; i++ {

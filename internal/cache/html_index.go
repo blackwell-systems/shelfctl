@@ -15,9 +15,10 @@ type IndexBook struct {
 	Book      catalog.Book
 	ShelfName string
 	Repo      string
-	FilePath  string // Path to cached file
+	FilePath  string // Path to cached file (empty if not cached)
 	CoverPath string // Path to cover (catalog or extracted)
 	HasCover  bool
+	IsCached  bool
 }
 
 // GenerateHTMLIndex creates an index.html in the cache directory with all cached books.
@@ -305,6 +306,28 @@ func generateHTML(books []IndexBook) string {
             padding: 40px;
             font-size: 1.1rem;
         }
+        .uncached-section {
+            max-width: 1200px;
+            margin: 0 auto 40px;
+        }
+        .uncached-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #666;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 8px;
+        }
+        .book-card.uncached {
+            opacity: 0.4;
+            cursor: default;
+            pointer-events: none;
+        }
+        .uncached-hint {
+            font-size: 0.8rem;
+            color: #666;
+            font-family: monospace;
+            margin-top: 8px;
+        }
         @media (max-width: 768px) {
             .controls {
                 flex-direction: column;
@@ -322,7 +345,18 @@ func generateHTML(books []IndexBook) string {
     <div class="sticky-nav">
         <header>
             <h1>📚 <span class="brand-shelf">shelf</span><span class="brand-ctl">ctl</span> <span class="brand-suffix">Library</span></h1>
-            <div class="subtitle">` + fmt.Sprintf("%d books", len(books)) + `</div>
+            <div class="subtitle">` + func() string {
+		cachedCount := 0
+		for _, b := range books {
+			if b.IsCached {
+				cachedCount++
+			}
+		}
+		if cachedCount == len(books) {
+			return fmt.Sprintf("%d books", len(books))
+		}
+		return fmt.Sprintf("%d books (%d cached)", len(books), cachedCount)
+	}() + `</div>
         </header>
 
         <div class="controls">
@@ -386,15 +420,20 @@ func generateHTML(books []IndexBook) string {
         <div id="library">
 `)
 
-	// Group books by shelf
-	shelfBooks := make(map[string][]IndexBook)
+	// Split books into cached and uncached
+	cachedByShelf := make(map[string][]IndexBook)
+	var uncached []IndexBook
 	for _, book := range books {
-		shelfBooks[book.ShelfName] = append(shelfBooks[book.ShelfName], book)
+		if book.IsCached {
+			cachedByShelf[book.ShelfName] = append(cachedByShelf[book.ShelfName], book)
+		} else {
+			uncached = append(uncached, book)
+		}
 	}
 
-	// Render each shelf section
+	// Render cached books grouped by shelf
 	bookIndex := 0
-	for shelfName, shelfBookList := range shelfBooks {
+	for shelfName, shelfBookList := range cachedByShelf {
 		fmt.Fprintf(&s, `
             <div class="shelf-section" data-shelf="%s">
                 <h2 class="shelf-title">%s (%d)</h2>
@@ -403,6 +442,25 @@ func generateHTML(books []IndexBook) string {
 
 		for _, book := range shelfBookList {
 			renderBookCard(&s, book, bookIndex)
+			bookIndex++
+		}
+
+		s.WriteString(`
+                </div>
+            </div>
+`)
+	}
+
+	// Render uncached books in a separate section at the bottom
+	if len(uncached) > 0 {
+		fmt.Fprintf(&s, `
+            <div class="uncached-section">
+                <h2 class="uncached-title">Not yet downloaded (%d)</h2>
+                <div class="book-grid">
+`, len(uncached))
+
+		for _, book := range uncached {
+			renderUncachedCard(&s, book, bookIndex)
 			bookIndex++
 		}
 
@@ -615,5 +673,51 @@ func renderBookCard(s *strings.Builder, book IndexBook, index int) {
 	}
 
 	s.WriteString(`                </a>
+`)
+}
+
+func renderUncachedCard(s *strings.Builder, book IndexBook, index int) {
+	tags := strings.Join(book.Book.Tags, ", ")
+
+	fmt.Fprintf(s, `
+                <div class="book-card uncached" data-id="%s" data-tags="%s" data-title="%s" data-author="%s" data-year="%d" data-index="%d">
+                    <div class="book-cover no-cover">
+`,
+		html.EscapeString(book.Book.ID),
+		html.EscapeString(tags),
+		html.EscapeString(book.Book.Title),
+		html.EscapeString(book.Book.Author),
+		book.Book.Year,
+		index,
+	)
+
+	s.WriteString("📚")
+
+	s.WriteString(`
+                    </div>
+                    <div class="book-id">` + html.EscapeString(book.Book.ID) + `</div>
+                    <div class="book-title">` + html.EscapeString(book.Book.Title) + `</div>
+`)
+
+	if book.Book.Author != "" {
+		s.WriteString(`                    <div class="book-author">` + html.EscapeString(book.Book.Author) + `</div>
+`)
+	}
+
+	if len(book.Book.Tags) > 0 {
+		s.WriteString(`                    <div class="book-tags">
+`)
+		for _, tag := range book.Book.Tags {
+			fmt.Fprintf(s, `                        <span class="tag">%s</span>
+`, html.EscapeString(tag))
+		}
+		s.WriteString(`                    </div>
+`)
+	}
+
+	fmt.Fprintf(s, `                    <div class="uncached-hint">shelfctl open %s</div>
+`, html.EscapeString(book.Book.ID))
+
+	s.WriteString(`                </div>
 `)
 }

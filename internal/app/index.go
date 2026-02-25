@@ -16,17 +16,17 @@ func newIndexCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "index",
-		Short: "Generate local HTML index for browsing cached books",
-		Long: `Generate an index.html file in your cache directory that displays all cached books
-in a visual grid layout with covers. Open the index in any web browser to browse
-your library without running shelfctl.`,
+		Short: "Generate HTML index for browsing your library",
+		Long: `Generate an index.html file in your cache directory that displays all books
+in a visual grid layout with covers. Cached books are clickable; uncached books
+appear greyed out with a hint to download them. Open the index in any web browser
+to browse your library without running shelfctl.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(cfg.Shelves) == 0 {
 				warn("No shelves configured.")
 				return nil
 			}
 
-			// Collect all cached books across shelves
 			var indexBooks []cache.IndexBook
 
 			for i := range cfg.Shelves {
@@ -46,13 +46,12 @@ your library without running shelfctl.`,
 					continue
 				}
 
-				// Check which books are cached
 				for _, b := range books {
-					if !cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
-						continue // Skip uncached books
+					isCached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
+					var filePath string
+					if isCached {
+						filePath = cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
 					}
-
-					filePath := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
 					coverPath := cacheMgr.GetCoverPath(shelf.Repo, b.ID)
 
 					indexBooks = append(indexBooks, cache.IndexBook{
@@ -62,13 +61,13 @@ your library without running shelfctl.`,
 						FilePath:  filePath,
 						CoverPath: coverPath,
 						HasCover:  coverPath != "",
+						IsCached:  isCached,
 					})
 				}
 			}
 
 			if len(indexBooks) == 0 {
-				warn("No cached books found. Download some books first:")
-				fmt.Println("  shelfctl open <book-id>")
+				warn("No books found in any shelf.")
 				return nil
 			}
 
@@ -77,8 +76,19 @@ your library without running shelfctl.`,
 				return fmt.Errorf("generating index: %w", err)
 			}
 
+			cachedCount := 0
+			for _, b := range indexBooks {
+				if b.IsCached {
+					cachedCount++
+				}
+			}
+
 			indexPath := filepath.Join(cfg.Defaults.CacheDir, "index.html")
-			ok("Generated HTML index with %d books", len(indexBooks))
+			if cachedCount == len(indexBooks) {
+				ok("Generated HTML index with %d books", len(indexBooks))
+			} else {
+				ok("Generated HTML index with %d books (%d cached)", len(indexBooks), cachedCount)
+			}
 
 			if flagOpen {
 				var openCmd *exec.Cmd

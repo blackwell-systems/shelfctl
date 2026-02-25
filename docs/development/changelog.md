@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Command palette** (`ctrl+p`) in the hub — fuzzy-search all available menu actions by label, description, section, or key; powered by the new `commandpalette` package in `bubbletea-commandpalette`; palette overlays the hub centered via `lipgloss.Place`; `esc` dismisses
 - **Auto-create shelf** — write commands (`shelve`, `import`, `migrate`, `move`, `split`) now offer to create a shelf when `--shelf <name>` doesn't exist; prompts interactively in TTY mode, or auto-creates with `--create-shelf` flag for scripting
+- **Uncached books in HTML index** — `shelfctl index` now shows all books from every shelf, not just cached ones; uncached books appear in a greyed-out "Not yet downloaded" section at the bottom with a `shelfctl open <id>` hint; subtitle shows total vs cached count when they differ
 
 ### Performance
 - **Concurrent shelf catalog loading** — `browse` (TUI mode) and `status` now load catalogs from all shelves in parallel using goroutines; previously loaded each shelf sequentially, causing O(n) API round-trips to block the UI. With 5 shelves, startup is up to 5x faster. Results are merged in shelf order to preserve stable display.

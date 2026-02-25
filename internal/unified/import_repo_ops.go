@@ -49,7 +49,6 @@ func (m ImportRepoModel) scanAsync() tea.Cmd {
 
 func (m ImportRepoModel) processAsync(ch chan importRepoProgressMsg) tea.Cmd {
 	gh := m.gh
-	cfg := m.cfg
 	toImport := m.toImport
 	srcOwner := m.srcOwner
 	srcRepo := m.srcRepo
@@ -80,12 +79,6 @@ func (m ImportRepoModel) processAsync(ch chan importRepoProgressMsg) tea.Cmd {
 			}
 
 			// Download file content
-			token := os.Getenv(cfg.GitHub.TokenEnv)
-			apiBase := cfg.GitHub.APIBase
-			if apiBase == "" {
-				apiBase = "https://api.github.com"
-			}
-
 			data, _, err := gh.GetFileContent(srcOwner, srcRepo, f.Path, "")
 			if err != nil {
 				ch <- importRepoProgressMsg{kind: "done", path: f.Path, current: i + 1, total: total,
@@ -171,8 +164,6 @@ func (m ImportRepoModel) processAsync(ch chan importRepoProgressMsg) tea.Cmd {
 					Shelf:  destShelfName,
 				})
 			}
-
-			_ = token // used via env
 
 			ch <- importRepoProgressMsg{kind: "done", path: f.Path, book: &newBook, current: i + 1, total: total}
 		}

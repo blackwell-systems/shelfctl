@@ -382,7 +382,7 @@ func (m ImportShelfModel) createShelfList() list.Model {
 		if index == ml.Index() {
 			cursor = "> "
 		}
-		fmt.Fprintf(w, "%s%s (%s)", cursor, opt.Name, opt.Repo)
+		_, _ = fmt.Fprintf(w, "%s%s (%s)", cursor, opt.Name, opt.Repo)
 	})
 	l := list.New(items, d, 0, 0)
 	l.Title = "Select destination shelf"
@@ -430,15 +430,15 @@ func buildImportShelfMultiselect(srcBooks []catalog.Book, existingSHAs map[strin
 		if bi.isDupe {
 			line = fmt.Sprintf("  %s by %s (%s) [already imported]", title, author, id)
 			dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-			fmt.Fprint(w, dim.Render(line))
+			_, _ = fmt.Fprint(w, dim.Render(line))
 			return
 		}
 
 		if isCurrent {
 			sel := lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
-			fmt.Fprint(w, sel.Render(line))
+			_, _ = fmt.Fprint(w, sel.Render(line))
 		} else {
-			fmt.Fprint(w, line)
+			_, _ = fmt.Fprint(w, line)
 		}
 	})
 	ms.List.SetDelegate(rd)

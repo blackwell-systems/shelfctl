@@ -367,7 +367,7 @@ func (m ImportRepoModel) createShelfList() list.Model {
 		if index == ml.Index() {
 			cursor = "> "
 		}
-		fmt.Fprintf(w, "%s%s (%s)", cursor, opt.Name, opt.Repo)
+		_, _ = fmt.Fprintf(w, "%s%s (%s)", cursor, opt.Name, opt.Repo)
 	})
 	l := list.New(items, d, 0, 0)
 	l.Title = "Select destination shelf"
@@ -409,9 +409,9 @@ func buildImportRepoMultiselect(files []migrate.FileEntry) multiselect.Model {
 
 		if isCurrent {
 			sel := lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
-			fmt.Fprint(w, sel.Render(line))
+			_, _ = fmt.Fprint(w, sel.Render(line))
 		} else {
-			fmt.Fprint(w, line)
+			_, _ = fmt.Fprint(w, line)
 		}
 	})
 	ms.List.SetDelegate(rd)

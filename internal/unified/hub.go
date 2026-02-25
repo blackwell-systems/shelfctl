@@ -16,20 +16,20 @@ import (
 
 // HubModel is the unified-mode version of the hub menu
 type HubModel struct {
-	list           list.Model
-	context        tui.HubContext
-	width          int
-	height         int
-	shelfData      string
-	showDetails    bool
-	detailsType    string
-	detailsFocused  bool // true when focus is on details panel
-	detailsScroll   int  // scroll offset for details panel (line number)
-	cachedDetailsRaw   string // cached raw content for current detailsType
-	cachedDetailsType  string // detailsType when cachedDetailsRaw was computed
-	palette         commandpalette.Model
-	paletteOpen     bool
-	pendingNavMsg   tea.Msg // set by palette action, consumed by orchestrator
+	list              list.Model
+	context           tui.HubContext
+	width             int
+	height            int
+	shelfData         string
+	showDetails       bool
+	detailsType       string
+	detailsFocused    bool   // true when focus is on details panel
+	detailsScroll     int    // scroll offset for details panel (line number)
+	cachedDetailsRaw  string // cached raw content for current detailsType
+	cachedDetailsType string // detailsType when cachedDetailsRaw was computed
+	palette           commandpalette.Model
+	paletteOpen       bool
+	pendingNavMsg     tea.Msg // set by palette action, consumed by orchestrator
 }
 
 type hubKeys struct {

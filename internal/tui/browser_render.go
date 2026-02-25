@@ -10,8 +10,8 @@ import (
 
 // Cached image protocol detection (computed once)
 var (
-	detectedProtocol     TerminalImageProtocol
-	detectProtocolOnce   sync.Once
+	detectedProtocol   TerminalImageProtocol
+	detectProtocolOnce sync.Once
 )
 
 func cachedImageProtocol() TerminalImageProtocol {

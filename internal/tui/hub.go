@@ -91,7 +91,8 @@ var menuSections = []menuSection{
 		{Key: "delete-shelf", Icon: "✕", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
 	}},
 	{Title: "Tools", Items: []MenuItem{
-		{Key: "import-repo", Icon: "↻", Label: "Import from Repo", Description: "Migrate books from another repo", Available: true},
+		{Key: "import-shelf", Icon: "↻", Label: "Import from Shelf", Description: "Import books from another shelfctl shelf", Available: true},
+		{Key: "import-repo", Icon: "↻", Label: "Import from Repo", Description: "Migrate files from any GitHub repo", Available: true},
 		{Key: "index", Icon: "#", Label: "HTML Index", Description: "Create web page for local browsing", Available: true},
 	}},
 	{Title: "Cache", Items: []MenuItem{

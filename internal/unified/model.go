@@ -29,6 +29,8 @@ const (
 	ViewDelete      View = "delete"
 	ViewCacheClear  View = "cache-clear"
 	ViewCreateShelf View = "create-shelf"
+	ViewImportShelf View = "import-shelf"
+	ViewImportRepo  View = "import-repo"
 )
 
 // Model is the unified TUI orchestrator that manages view switching
@@ -46,6 +48,8 @@ type Model struct {
 	editBook    EditBookModel
 	shelve      ShelveModel
 	moveBook    MoveBookModel
+	importShelf ImportShelfModel
+	importRepo  ImportRepoModel
 
 	// Context passed between views
 	hubContext tui.HubContext
@@ -177,6 +181,10 @@ func (m Model) View() string {
 		content = m.shelve.View()
 	case ViewMove:
 		content = m.moveBook.View()
+	case ViewImportShelf:
+		content = m.importShelf.View()
+	case ViewImportRepo:
+		content = m.importRepo.View()
 	default:
 		content = "Unknown view"
 	}
@@ -234,6 +242,14 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var moveBookModel MoveBookModel
 		moveBookModel, cmd = m.moveBook.Update(msg)
 		m.moveBook = moveBookModel
+	case ViewImportShelf:
+		var importShelfModel ImportShelfModel
+		importShelfModel, cmd = m.importShelf.Update(msg)
+		m.importShelf = importShelfModel
+	case ViewImportRepo:
+		var importRepoModel ImportRepoModel
+		importRepoModel, cmd = m.importRepo.Update(msg)
+		m.importRepo = importRepoModel
 	}
 
 	return m, cmd
@@ -428,14 +444,25 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case "import-shelf":
+		m.currentView = ViewImportShelf
+		m.importShelf = NewImportShelfModel(m.gh, m.cfg)
+		return m, tea.Batch(
+			m.importShelf.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
+
 	case "import-repo":
-		// Non-TUI command - just run command and return
-		return m, func() tea.Msg {
-			return CommandRequestMsg{
-				Command:  "import-repo",
-				ReturnTo: "hub",
-			}
-		}
+		m.currentView = ViewImportRepo
+		m.importRepo = NewImportRepoModel(m.gh, m.cfg)
+		return m, tea.Batch(
+			m.importRepo.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "create-shelf":
 		// Create-shelf form as unified view

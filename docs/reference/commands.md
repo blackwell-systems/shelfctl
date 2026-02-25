@@ -317,6 +317,7 @@ Source can be:
 - `--cache`: Cache book locally after upload (default: false in CLI, checkbox in TUI defaults to true)
 - `--no-push`: Update catalog locally without pushing
 - `--force`: Skip duplicate checks and overwrite existing assets
+- `--create-shelf`: Auto-create the shelf if it doesn't exist (creates private repo `shelf-<name>` with release)
 
 ### Examples
 
@@ -980,6 +981,7 @@ shelfctl move <id> [flags]
 - `--to-release`: Target release tag
 - `--keep-old`: Keep the original asset (don't delete after copying)
 - `--dry-run`: Show what would happen without making changes
+- `--create-shelf`: Auto-create the destination shelf if it doesn't exist
 
 ### Examples
 
@@ -1037,6 +1039,8 @@ shelfctl split
 
 Use this when a shelf grows too large or topics diverge.
 
+**Note:** If a target shelf doesn't exist, shelfctl will prompt to create it (or auto-create with `--create-shelf`).
+
 ---
 
 ## migrate one
@@ -1057,6 +1061,7 @@ shelfctl migrate one <source> <path> --shelf NAME [flags]
 - `--shelf` (required): Target shelf name
 - `--title`: Book title (prompts if omitted)
 - `--author`, `--year`, `--tags`: Metadata
+- `--create-shelf`: Auto-create the target shelf if it doesn't exist
 
 ### Example
 
@@ -1240,6 +1245,7 @@ shelfctl import --from owner/repo --shelf TARGET [flags]
 - `--dry-run`: Show what would be imported without doing it
 - `-n`: Limit number of books to import
 - `--no-push`: Update catalog locally only
+- `--create-shelf`: Auto-create the destination shelf if it doesn't exist
 
 ### Examples
 

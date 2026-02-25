@@ -288,7 +288,7 @@ shelfctl migrate batch queue.txt --n 10 --continue
 **Starting fresh?** Add books directly:
 
 ```bash
-# Add a book
+# Add a book (creates the shelf automatically if it doesn't exist)
 shelfctl shelve ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author "Abelson & Sussman" --tags lisp,cs
 
 # List books across all shelves

@@ -513,9 +513,9 @@ func determineDestination(srcShelf *config.ShelfConfig, srcOwner string, params 
 	}
 
 	if params.toShelfName != "" {
-		dstShelf := cfg.ShelfByName(params.toShelfName)
-		if dstShelf == nil {
-			return nil, fmt.Errorf("destination shelf %q not found in config", params.toShelfName)
+		dstShelf, err := resolveOrCreateShelf(params.toShelfName)
+		if err != nil {
+			return nil, err
 		}
 		dst.owner = dstShelf.EffectiveOwner(cfg.GitHub.Owner)
 		dst.repo = dstShelf.Repo

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Command palette** (`ctrl+p`) in the hub — fuzzy-search all available menu actions by label, description, section, or key; powered by the new `commandpalette` package in `bubbletea-components`; palette overlays the hub centered via `lipgloss.Place`; `esc` dismisses
+- **Auto-create shelf** — write commands (`shelve`, `import`, `migrate`, `move`, `split`) now offer to create a shelf when `--shelf <name>` doesn't exist; prompts interactively in TTY mode, or auto-creates with `--create-shelf` flag for scripting
 
 ### Changed
 - **Refactor**: extracted carousel layout/rendering into a reusable `carousel` package in `bubbletea-components`; shelfctl now provides only `bookCarouselDelegate` and a thin `updateCarouselFromMsg` wrapper; all peek-clipping, ghost cards, dot indicator, and navigation logic live in the component

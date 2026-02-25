@@ -94,9 +94,9 @@ func runShelve(cmd *cobra.Command, args []string, params *shelveParams) error {
 		return err
 	}
 
-	shelf := cfg.ShelfByName(shelfName)
-	if shelf == nil {
-		return fmt.Errorf("shelf %q not found in config", shelfName)
+	shelf, err := resolveOrCreateShelf(shelfName)
+	if err != nil {
+		return err
 	}
 
 	// Step 2: Select files (may be multiple in TUI mode)

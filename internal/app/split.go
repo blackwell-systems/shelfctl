@@ -76,9 +76,9 @@ type splitProposal struct {
 }
 
 func loadShelfBooks(shelfName string) ([]catalog.Book, error) {
-	shelf := cfg.ShelfByName(shelfName)
-	if shelf == nil {
-		return nil, fmt.Errorf("shelf %q not found in config", shelfName)
+	shelf, err := resolveOrCreateShelf(shelfName)
+	if err != nil {
+		return nil, err
 	}
 	owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 	catalogPath := shelf.EffectiveCatalogPath()

@@ -21,6 +21,7 @@ var (
 	flagNoColor       bool
 	flagNoInteractive bool
 	flagConfig        string
+	flagCreateShelf   bool
 )
 
 var rootCmd = &cobra.Command{
@@ -56,6 +57,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false, "Disable colored output")
 	rootCmd.PersistentFlags().BoolVar(&flagNoInteractive, "no-interactive", false, "Disable interactive TUI mode")
 	rootCmd.PersistentFlags().StringVar(&flagConfig, "config", "", "Config file path (default: ~/.config/shelfctl/config.yml)")
+	rootCmd.PersistentFlags().BoolVar(&flagCreateShelf, "create-shelf", false, "Auto-create shelf if it doesn't exist")
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		util.InitColor(flagNoColor)

@@ -168,9 +168,9 @@ func migrateOneFile(oldPath string, sources []config.MigrationSource, ledger *mi
 		return fmt.Errorf("no migration mapping matches path %q", oldPath)
 	}
 
-	shelf := cfg.ShelfByName(shelfName)
-	if shelf == nil {
-		return fmt.Errorf("target shelf %q not in config", shelfName)
+	shelf, err := resolveOrCreateShelf(shelfName)
+	if err != nil {
+		return err
 	}
 
 	// Fetch and process the file

@@ -29,7 +29,10 @@ func newImportCmd() *cobra.Command {
 to your local shelf. Useful for absorbing another user's shelf or a second
 account's shelf into your own.
 
-Skips duplicates by sha256.`,
+Skips duplicates by sha256.
+
+If the destination shelf doesn't exist, you'll be prompted to create it
+(or use --create-shelf to auto-create in scripts).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fromFlag, _ := cmd.Flags().GetString("from")
 			if fromFlag == "" {
@@ -104,9 +107,9 @@ type importContext struct {
 }
 
 func setupImportContext(shelfName, releaseTag, srcOwner, srcRepo string) (*importContext, error) {
-	shelf := cfg.ShelfByName(shelfName)
-	if shelf == nil {
-		return nil, fmt.Errorf("shelf %q not found in config", shelfName)
+	shelf, err := resolveOrCreateShelf(shelfName)
+	if err != nil {
+		return nil, err
 	}
 	dstOwner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 	if releaseTag == "" {

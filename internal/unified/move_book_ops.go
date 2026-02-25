@@ -10,7 +10,6 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/operations"
-	"github.com/blackwell-systems/shelfctl/internal/readme"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -179,8 +178,16 @@ func moveSingleBookToShelf(item tui.BookItem, destShelfName string, gh *github.C
 	}
 
 	// Destination: add book
-	dstReadmeMgr := readme.NewUpdater(gh, dstOwner, dstShelf.Repo)
-	_ = dstReadmeMgr.UpdateWithStats(len(dstBooks), []catalog.Book{movedBook})
+	dstReadmeData, _, dstReadmeErr := gh.GetFileContent(dstOwner, dstShelf.Repo, "README.md", "")
+	if dstReadmeErr == nil {
+		dstOriginal := string(dstReadmeData)
+		dstContent := operations.UpdateShelfREADMEStats(dstOriginal, len(dstBooks))
+		dstContent = operations.AppendToShelfREADME(dstContent, movedBook)
+		if dstContent != dstOriginal {
+			_ = gh.CommitFile(dstOwner, dstShelf.Repo, "README.md", []byte(dstContent),
+				fmt.Sprintf("Update README: add %s", movedBook.ID))
+		}
+	}
 
 	// 10. Handle catalog cover if it exists
 	if b.Cover != "" {

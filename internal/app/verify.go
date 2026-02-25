@@ -6,6 +6,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
+	"github.com/blackwell-systems/shelfctl/internal/operations"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -189,7 +190,7 @@ func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
 				readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
 				if readmeErr == nil {
 					originalContent := string(readmeData)
-					readmeContent := updateShelfREADMEStats(originalContent, len(books))
+					readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(books))
 
 					if readmeContent != originalContent {
 						readmeMsg := "Update README: verify cleanup"

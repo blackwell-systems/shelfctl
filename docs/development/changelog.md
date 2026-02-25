@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Shelf README shows all books** — removed the 10-entry limit on the "Recently Added" section in shelf READMEs; all books now remain visible instead of silently dropping older entries
+- **Unified README update system** — consolidated two independent README update code paths (System A in `readme/updater.go` and System B in `operations/readme.go`) into a single system using `operations.*` functions; all 12 call sites now use the same entry format (`- **Title** by Author (\`book-id\`)`) and the same `## Quick Stats` section layout; TUI-created shelves now get the full README template with `## Quick Stats` and `## Recently Added` sections, fixing silent no-op updates; deleted `internal/readme/` package and `app/shelf_readme_template.go`
 
 ### Added
 - **Command palette** (`ctrl+p`) in the hub — fuzzy-search all available menu actions by label, description, section, or key; powered by the new `commandpalette` package in `bubbletea-commandpalette`; palette overlays the hub centered via `lipgloss.Place`; `esc` dismisses

@@ -10,7 +10,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/ingest"
-	"github.com/blackwell-systems/shelfctl/internal/readme"
+	"github.com/blackwell-systems/shelfctl/internal/operations"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -311,8 +311,23 @@ func (m ShelveModel) commitAsync() tea.Cmd {
 		}
 
 		// Update README
-		readmeMgr := readme.NewUpdater(gh, owner, repo)
-		_ = readmeMgr.UpdateWithStats(len(existingBooks), newBooks)
+		readmeData, _, readmeErr := gh.GetFileContent(owner, repo, "README.md", "")
+		if readmeErr == nil {
+			originalContent := string(readmeData)
+			readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(existingBooks))
+			for _, book := range newBooks {
+				readmeContent = operations.AppendToShelfREADME(readmeContent, book)
+			}
+			if readmeContent != originalContent {
+				var readmeMsg string
+				if len(newBooks) == 1 {
+					readmeMsg = fmt.Sprintf("Update README: add %s", newBooks[0].ID)
+				} else {
+					readmeMsg = fmt.Sprintf("Update README: add %d books", len(newBooks))
+				}
+				_ = gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg)
+			}
+		}
 
 		return shelveCommitCompleteMsg{}
 	}

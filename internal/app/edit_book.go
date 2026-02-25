@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
+	"github.com/blackwell-systems/shelfctl/internal/operations"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -304,11 +305,11 @@ Examples:
 					readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
 					if readmeErr == nil {
 						originalContent := string(readmeData)
-						readmeContent := updateShelfREADMEStats(originalContent, len(books))
+						readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(books))
 
 						// Update all modified books in README
 						for _, book := range updatedBooks {
-							readmeContent = appendToShelfREADME(readmeContent, book)
+							readmeContent = operations.AppendToShelfREADME(readmeContent, book)
 						}
 
 						// Only commit if content actually changed

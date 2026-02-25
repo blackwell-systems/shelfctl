@@ -7,6 +7,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/operations"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -765,8 +766,8 @@ func updateREADMEAfterRemove(owner, repo string, remainingBooks []catalog.Book, 
 	}
 
 	originalContent := string(readmeData)
-	readmeContent := updateShelfREADMEStats(originalContent, len(remainingBooks))
-	readmeContent = removeFromShelfREADME(readmeContent, removedBookID)
+	readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(remainingBooks))
+	readmeContent = operations.RemoveFromShelfREADME(readmeContent, removedBookID)
 
 	// Only commit if content actually changed
 	if readmeContent == originalContent {
@@ -789,8 +790,8 @@ func updateREADMEAfterAdd(owner, repo string, books []catalog.Book, book catalog
 	}
 
 	originalContent := string(readmeData)
-	readmeContent := updateShelfREADMEStats(originalContent, len(books))
-	readmeContent = appendToShelfREADME(readmeContent, book)
+	readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(books))
+	readmeContent = operations.AppendToShelfREADME(readmeContent, book)
 
 	// Only commit if content actually changed
 	if readmeContent == originalContent {

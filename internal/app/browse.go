@@ -11,6 +11,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
+	"github.com/blackwell-systems/shelfctl/internal/operations"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
@@ -571,8 +572,8 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 		readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
 		if readmeErr == nil {
 			originalContent := string(readmeData)
-			readmeContent := updateShelfREADMEStats(originalContent, len(books))
-			readmeContent = appendToShelfREADME(readmeContent, updatedBook)
+			readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(books))
+			readmeContent = operations.AppendToShelfREADME(readmeContent, updatedBook)
 
 			// Only commit if content actually changed
 			if readmeContent != originalContent {

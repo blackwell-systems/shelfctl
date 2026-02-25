@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/operations"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -146,7 +147,7 @@ func createShelfREADME(shelfName, repoName, owner string) {
 	}
 
 	header("Creating README.md …")
-	readmeContent := generateShelfREADME(shelfName, repoName, owner)
+	readmeContent := operations.GenerateShelfREADME(shelfName, repoName, owner)
 	readmeBytes := []byte(readmeContent)
 
 	commitMsg := "Initial commit: Add shelf README"

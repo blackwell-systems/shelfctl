@@ -14,7 +14,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/ingest"
-	"github.com/blackwell-systems/shelfctl/internal/readme"
+	"github.com/blackwell-systems/shelfctl/internal/operations"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
@@ -596,8 +596,8 @@ func updateREADME(cmd *cobra.Command, owner, repo string, books []catalog.Book, 
 	}
 
 	originalContent := string(readmeData)
-	readmeContent := updateShelfREADMEStats(originalContent, len(books))
-	readmeContent = appendToShelfREADME(readmeContent, book)
+	readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(books))
+	readmeContent = operations.AppendToShelfREADME(readmeContent, book)
 
 	// Only commit if content actually changed
 	if readmeContent == originalContent {
@@ -651,14 +651,29 @@ func batchCommitCatalog(cmd *cobra.Command, catalogMgr *catalog.Manager, owner, 
 	}
 
 	// Update README with all new books
-	readmeMgr := readme.NewUpdater(gh, owner, repo)
-	if err := readmeMgr.UpdateWithStats(len(allBooks), newBooks); err != nil {
-		if tui.ShouldUseTUI(cmd) {
-			warn("Could not update README.md: %v", err)
+	readmeData, _, readmeErr := gh.GetFileContent(owner, repo, "README.md", "")
+	if readmeErr == nil {
+		originalContent := string(readmeData)
+		readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(allBooks))
+		for _, book := range newBooks {
+			readmeContent = operations.AppendToShelfREADME(readmeContent, book)
 		}
-	} else {
-		if tui.ShouldUseTUI(cmd) {
-			ok("README.md updated")
+		if readmeContent != originalContent {
+			var readmeMsg string
+			if len(newBooks) == 1 {
+				readmeMsg = fmt.Sprintf("Update README: add %s", newBooks[0].ID)
+			} else {
+				readmeMsg = fmt.Sprintf("Update README: add %d books", len(newBooks))
+			}
+			if err := gh.CommitFile(owner, repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+				if tui.ShouldUseTUI(cmd) {
+					warn("Could not update README.md: %v", err)
+				}
+			} else {
+				if tui.ShouldUseTUI(cmd) {
+					ok("README.md updated")
+				}
+			}
 		}
 	}
 

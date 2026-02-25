@@ -53,4 +53,19 @@ var (
 			Foreground(ColorGray).
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(ColorTeal)
+
+	// StyleTagPill is for tag pills in the details pane
+	StyleTagPill = lipgloss.NewStyle().
+			Background(ColorTealDim).
+			Foreground(ColorTealLight).
+			Padding(0, 1)
+
+	// StyleDivider is for horizontal divider lines
+	StyleDivider = lipgloss.NewStyle().Foreground(ColorTeal)
+
+	// StyleError is for error messages
+	StyleError = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
+
+	// StyleProgress is for download progress labels
+	StyleProgress = lipgloss.NewStyle().Foreground(ColorYellow)
 )

@@ -23,10 +23,12 @@ type HubModel struct {
 	shelfData      string
 	showDetails    bool
 	detailsType    string
-	detailsFocused bool // true when focus is on details panel
-	detailsScroll  int  // scroll offset for details panel (line number)
-	palette        commandpalette.Model
-	paletteOpen    bool
+	detailsFocused  bool // true when focus is on details panel
+	detailsScroll   int  // scroll offset for details panel (line number)
+	cachedDetailsRaw   string // cached raw content for current detailsType
+	cachedDetailsType  string // detailsType when cachedDetailsRaw was computed
+	palette         commandpalette.Model
+	paletteOpen     bool
 }
 
 type hubKeys struct {
@@ -280,10 +282,17 @@ func (m HubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if itemKey == "shelves" || itemKey == "cache-info" {
 			m.showDetails = true
 			m.detailsType = itemKey
-			// Reset focus and scroll when switching between different detail types
+			// Reset focus, scroll, and rebuild cache when switching detail types
 			if prevDetailsType != itemKey {
 				m.detailsFocused = false
 				m.detailsScroll = 0
+				m.cachedDetailsType = itemKey
+				switch itemKey {
+				case "shelves":
+					m.cachedDetailsRaw = m.renderShelvesDetailsRaw()
+				case "cache-info":
+					m.cachedDetailsRaw = m.renderCacheDetailsRaw()
+				}
 			}
 		} else {
 			m.showDetails = false
@@ -408,14 +417,17 @@ func (m *HubModel) updateListSize() {
 }
 
 func (m HubModel) renderDetailsPane() string {
-	var rawContent string
-	switch m.detailsType {
-	case "shelves":
-		rawContent = m.renderShelvesDetailsRaw()
-	case "cache-info":
-		rawContent = m.renderCacheDetailsRaw()
-	default:
-		return ""
+	// Use cached raw content if detailsType hasn't changed
+	rawContent := m.cachedDetailsRaw
+	if m.cachedDetailsType != m.detailsType {
+		switch m.detailsType {
+		case "shelves":
+			rawContent = m.renderShelvesDetailsRaw()
+		case "cache-info":
+			rawContent = m.renderCacheDetailsRaw()
+		default:
+			return ""
+		}
 	}
 
 	// Apply scrolling and viewport

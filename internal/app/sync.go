@@ -134,6 +134,13 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 	}
 
 	// Second pass: sync books with progress indicators
+	// Cache catalogs and managers per shelf to avoid redundant API calls
+	type shelfState struct {
+		mgr   *catalog.Manager
+		books []catalog.Book
+	}
+	shelfCache := make(map[string]*shelfState)
+
 	totalSynced := 0
 	totalErrors := 0
 
@@ -150,13 +157,19 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 			fmt.Printf("%s Syncing %s (%s)\n", progressPrefix, b.ID, b.Title)
 		}
 
-		// Load catalog
-		mgr := catalog.NewManager(gh, owner, shelf.Repo, catalogPath)
-		books, err := mgr.Load()
-		if err != nil {
-			warn("Could not load catalog for shelf %s: %v", shelf.Name, err)
-			totalErrors++
-			continue
+		// Load catalog (cached per shelf)
+		cacheKey := owner + "/" + shelf.Repo
+		state, cached := shelfCache[cacheKey]
+		if !cached {
+			mgr := catalog.NewManager(gh, owner, shelf.Repo, catalogPath)
+			books, err := mgr.Load()
+			if err != nil {
+				warn("Could not load catalog for shelf %s: %v", shelf.Name, err)
+				totalErrors++
+				continue
+			}
+			state = &shelfState{mgr: mgr, books: books}
+			shelfCache[cacheKey] = state
 		}
 
 		// Get release
@@ -225,13 +238,13 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 		}
 
 		// Update catalog entry
-		bookToUpdate := catalog.ByID(books, b.ID)
+		bookToUpdate := catalog.ByID(state.books, b.ID)
 		if bookToUpdate != nil {
 			bookToUpdate.Checksum.SHA256 = item.newSHA
 			bookToUpdate.SizeBytes = item.size
 
 			commitMsg := fmt.Sprintf("sync: update %s with local changes", b.ID)
-			if err := mgr.Save(books, commitMsg); err != nil {
+			if err := state.mgr.Save(state.books, commitMsg); err != nil {
 				warn("Could not save catalog for shelf %s: %v", shelf.Name, err)
 				totalErrors++
 				continue

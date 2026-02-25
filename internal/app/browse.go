@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
@@ -200,51 +201,105 @@ func newBrowseCmd() *cobra.Command {
 
 			// Check if we should use TUI mode
 			if tui.ShouldUseTUI(cmd) {
-				// Collect all book data for TUI
-				var allItems []tui.BookItem
+				// Collect all book data for TUI — load catalogs concurrently
+				type coverJob struct {
+					owner     string
+					repo      string
+					bookID    string
+					coverPath string
+				}
+				type shelfResult struct {
+					items     []tui.BookItem
+					coverJobs []coverJob
+				}
+
+				results := make([]shelfResult, len(shelves))
+				var wgCatalog sync.WaitGroup
 				for i := range shelves {
-					shelf := &shelves[i]
-					owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
-					catalogPath := shelf.EffectiveCatalogPath()
-					releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
+					wgCatalog.Add(1)
+					go func(idx int) {
+						defer wgCatalog.Done()
+						shelf := &shelves[idx]
+						owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+						catalogPath := shelf.EffectiveCatalogPath()
+						releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
 
-					data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
-					if err != nil {
-						warn("Could not load catalog for shelf %q: %v", shelf.Name, err)
-						continue
-					}
-					books, err := catalog.Parse(data)
-					if err != nil {
-						warn("Could not parse catalog for shelf %q: %v", shelf.Name, err)
-						continue
-					}
-
-					matched := f.Apply(books)
-					for _, b := range matched {
-						cached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
-
-						// Download catalog cover if specified and not already cached
-						if b.Cover != "" && !cacheMgr.HasCatalogCover(shelf.Repo, b.ID) {
-							if coverData, _, err := gh.GetFileContent(owner, shelf.Repo, b.Cover, ""); err == nil {
-								_ = cacheMgr.StoreCatalogCover(shelf.Repo, b.ID, strings.NewReader(string(coverData)))
-							}
+						data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+						if err != nil {
+							warn("Could not load catalog for shelf %q: %v", shelf.Name, err)
+							return
+						}
+						books, err := catalog.Parse(data)
+						if err != nil {
+							warn("Could not parse catalog for shelf %q: %v", shelf.Name, err)
+							return
 						}
 
-						// Get best available cover (catalog > extracted > none)
-						coverPath := cacheMgr.GetCoverPath(shelf.Repo, b.ID)
-						hasCover := coverPath != ""
+						var sr shelfResult
+						matched := f.Apply(books)
+						for _, b := range matched {
+							cached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
 
-						allItems = append(allItems, tui.BookItem{
-							Book:        b,
-							ShelfName:   shelf.Name,
-							Cached:      cached,
-							HasCover:    hasCover,
-							CoverPath:   coverPath,
-							Owner:       owner,
-							Repo:        shelf.Repo,
-							Release:     releaseTag,
-							CatalogPath: catalogPath,
-						})
+							if b.Cover != "" && !cacheMgr.HasCatalogCover(shelf.Repo, b.ID) {
+								sr.coverJobs = append(sr.coverJobs, coverJob{
+									owner: owner, repo: shelf.Repo,
+									bookID: b.ID, coverPath: b.Cover,
+								})
+							}
+
+							coverPathStr := cacheMgr.GetCoverPath(shelf.Repo, b.ID)
+							hasCover := coverPathStr != ""
+
+							sr.items = append(sr.items, tui.BookItem{
+								Book:        b,
+								ShelfName:   shelf.Name,
+								Cached:      cached,
+								HasCover:    hasCover,
+								CoverPath:   coverPathStr,
+								Owner:       owner,
+								Repo:        shelf.Repo,
+								Release:     releaseTag,
+								CatalogPath: catalogPath,
+							})
+						}
+						results[idx] = sr
+					}(i)
+				}
+				wgCatalog.Wait()
+
+				// Merge results (preserves shelf order)
+				var allItems []tui.BookItem
+				var coverJobs []coverJob
+				for _, sr := range results {
+					allItems = append(allItems, sr.items...)
+					coverJobs = append(coverJobs, sr.coverJobs...)
+				}
+
+				// Fetch missing covers concurrently (up to 8 at a time)
+				if len(coverJobs) > 0 {
+					sem := make(chan struct{}, 8)
+					var wg sync.WaitGroup
+					for _, job := range coverJobs {
+						wg.Add(1)
+						go func(j coverJob) {
+							defer wg.Done()
+							sem <- struct{}{}
+							defer func() { <-sem }()
+							if coverData, _, err := gh.GetFileContent(j.owner, j.repo, j.coverPath, ""); err == nil {
+								_ = cacheMgr.StoreCatalogCover(j.repo, j.bookID, strings.NewReader(string(coverData)))
+							}
+						}(job)
+					}
+					wg.Wait()
+
+					// Update cover paths for items that now have covers
+					for i := range allItems {
+						if !allItems[i].HasCover {
+							if cp := cacheMgr.GetCoverPath(allItems[i].Repo, allItems[i].Book.ID); cp != "" {
+								allItems[i].HasCover = true
+								allItems[i].CoverPath = cp
+							}
+						}
 					}
 				}
 

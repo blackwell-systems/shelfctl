@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Command palette** (`ctrl+p`) in the hub — fuzzy-search all available menu actions by label, description, section, or key; powered by the new `commandpalette` package in `bubbletea-components`; palette overlays the hub centered via `lipgloss.Place`; `esc` dismisses
 - **Auto-create shelf** — write commands (`shelve`, `import`, `migrate`, `move`, `split`) now offer to create a shelf when `--shelf <name>` doesn't exist; prompts interactively in TTY mode, or auto-creates with `--create-shelf` flag for scripting
 
+### Performance
+- **Concurrent shelf catalog loading** — `browse` (TUI mode) and `status` now load catalogs from all shelves in parallel using goroutines; previously loaded each shelf sequentially, causing O(n) API round-trips to block the UI. With 5 shelves, startup is up to 5x faster. Results are merged in shelf order to preserve stable display.
+- **Concurrent cover art fetching** — `browse` (TUI mode) fetches missing catalog cover images concurrently with a bounded goroutine pool (semaphore of 8); previously fetched covers one at a time inline during item construction. Cover paths are backfilled after all fetches complete.
+- **Cached sync catalog per shelf** — `sync` command now caches the catalog manager and book list per shelf in a `shelfCache` map during the upload pass; previously reloaded the catalog from GitHub on every book sync, causing redundant API calls proportional to the number of modified books per shelf.
+- **TUI View() hot path allocations** — moved per-frame `lipgloss.NewStyle()` allocations out of `View()` into package-level pre-allocated vars (`viewOuterStyle`, `viewMasterBase`, `viewListBorderStyle`, `StyleTagPill`, `StyleDivider`, `StyleError`, `StyleProgress`); tag pills in the details pane now use `StyleTagPill` instead of constructing a new style per tag per frame; the horizontal divider string is cached on `WindowSizeMsg` and reused across frames instead of calling `strings.Repeat` every render.
+- **Cached image protocol detection** — `DetectImageProtocol()` (reads `$TERM_PROGRAM` / `$TERM` env vars) is now called once via `sync.Once` and cached at package level; previously called on every `renderDetailsPane()` frame.
+- **Cached hub details pane** — hub details panel raw content (`renderShelvesDetailsRaw` / `renderCacheDetailsRaw`) is now computed once when `detailsType` changes and cached in `cachedDetailsRaw`; previously rebuilt the entire details string on every `View()` frame even though the underlying data is static between navigation events.
+
 ### Changed
 - **Refactor**: extracted carousel layout/rendering into a reusable `carousel` package in `bubbletea-components`; shelfctl now provides only `bookCarouselDelegate` and a thin `updateCarouselFromMsg` wrapper; all peek-clipping, ghost cards, dot indicator, and navigation logic live in the component
 

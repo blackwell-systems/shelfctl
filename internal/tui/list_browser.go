@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
@@ -143,6 +144,10 @@ type BrowserModel struct {
 
 	// Base title (without column header)
 	baseTitle string
+
+	// Cached rendering state (avoid recomputing every frame)
+	cachedDivider      string
+	cachedDividerWidth int
 }
 
 func (m BrowserModel) Init() tea.Cmd {
@@ -456,6 +461,13 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.updateListSize()
+		// Cache divider string (only changes on resize)
+		dividerWidth := m.width - (4 * 2) - 2
+		if dividerWidth < 40 {
+			dividerWidth = 40
+		}
+		m.cachedDividerWidth = dividerWidth
+		m.cachedDivider = StyleDivider.Width(dividerWidth).Render(strings.Repeat("─", dividerWidth))
 	}
 
 	var cmd tea.Cmd

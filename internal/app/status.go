@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
@@ -94,53 +95,66 @@ Examples:
 func collectStatus(shelves []config.ShelfConfig) statusOutput {
 	var result statusOutput
 
+	// Load catalogs and compute status concurrently across shelves
+	shelfStatuses := make([]shelfSyncStatus, len(shelves))
+	var wg sync.WaitGroup
 	for i := range shelves {
-		shelf := &shelves[i]
-		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
-		catalogPath := shelf.EffectiveCatalogPath()
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			shelf := &shelves[idx]
+			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+			catalogPath := shelf.EffectiveCatalogPath()
 
-		ss := shelfSyncStatus{
-			Name:  shelf.Name,
-			Repo:  shelf.Repo,
-			Owner: owner,
-		}
-
-		mgr := catalog.NewManager(gh, owner, shelf.Repo, catalogPath)
-		books, err := mgr.Load()
-		if err != nil {
-			warn("Could not load catalog for shelf %q: %v", shelf.Name, err)
-			result.Shelves = append(result.Shelves, ss)
-			continue
-		}
-
-		ss.Books = len(books)
-
-		for j := range books {
-			b := &books[j]
-			bs := bookStatus{
-				ID:    b.ID,
-				Title: b.Title,
-				Asset: b.Source.Asset,
+			ss := shelfSyncStatus{
+				Name:  shelf.Name,
+				Repo:  shelf.Repo,
+				Owner: owner,
 			}
 
-			if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
-				bs.Cached = true
-				ss.Cached++
-
-				path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
-				if info, err := os.Stat(path); err == nil {
-					ss.CacheBytes += info.Size()
-				}
-
-				if cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
-					bs.Modified = true
-					ss.Modified++
-				}
+			mgr := catalog.NewManager(gh, owner, shelf.Repo, catalogPath)
+			books, err := mgr.Load()
+			if err != nil {
+				warn("Could not load catalog for shelf %q: %v", shelf.Name, err)
+				shelfStatuses[idx] = ss
+				return
 			}
 
-			ss.bookDetails = append(ss.bookDetails, bs)
-		}
+			ss.Books = len(books)
 
+			for j := range books {
+				b := &books[j]
+				bs := bookStatus{
+					ID:    b.ID,
+					Title: b.Title,
+					Asset: b.Source.Asset,
+				}
+
+				if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
+					bs.Cached = true
+					ss.Cached++
+
+					path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
+					if info, err := os.Stat(path); err == nil {
+						ss.CacheBytes += info.Size()
+					}
+
+					if cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+						bs.Modified = true
+						ss.Modified++
+					}
+				}
+
+				ss.bookDetails = append(ss.bookDetails, bs)
+			}
+
+			shelfStatuses[idx] = ss
+		}(i)
+	}
+	wg.Wait()
+
+	// Aggregate results (preserves shelf order)
+	for _, ss := range shelfStatuses {
 		result.Shelves = append(result.Shelves, ss)
 		result.TotalBooks += ss.Books
 		result.TotalCached += ss.Cached

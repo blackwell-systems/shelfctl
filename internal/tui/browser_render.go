@@ -3,9 +3,23 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/lipgloss"
 )
+
+// Cached image protocol detection (computed once)
+var (
+	detectedProtocol     TerminalImageProtocol
+	detectProtocolOnce   sync.Once
+)
+
+func cachedImageProtocol() TerminalImageProtocol {
+	detectProtocolOnce.Do(func() {
+		detectedProtocol = DetectImageProtocol()
+	})
+	return detectedProtocol
+}
 
 func (m BrowserModel) renderDetailsPane() string {
 	selectedItem := m.list.SelectedItem()
@@ -41,7 +55,7 @@ func (m BrowserModel) renderDetailsPane() string {
 
 	// Show cover image if available and terminal supports it
 	if bookItem.HasCover {
-		protocol := DetectImageProtocol()
+		protocol := cachedImageProtocol()
 		if protocol != ProtocolNone {
 			if img := RenderInlineImage(bookItem.CoverPath, protocol); img != "" {
 				s.WriteString(img)
@@ -78,10 +92,8 @@ func (m BrowserModel) renderDetailsPane() string {
 		s.WriteString(StyleHighlight.Render("Tags: "))
 		s.WriteString("\n")
 		for _, t := range bookItem.Book.Tags {
-			pill := lipgloss.NewStyle().
-				Background(ColorTealDim).Foreground(ColorTealLight).
-				Padding(0, 1).Render(t)
-			s.WriteString(pill + " ")
+			s.WriteString(StyleTagPill.Render(t))
+			s.WriteString(" ")
 		}
 		s.WriteString("\n\n")
 	}
@@ -141,35 +153,35 @@ func (m BrowserModel) renderFooter() string {
 	}, m.activeCmd)
 }
 
+// Pre-allocated styles for View() hot path (avoid per-frame allocations)
+var (
+	viewOuterStyle = lipgloss.NewStyle().Padding(2, 4)
+	viewMasterBase = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(ColorTeal).
+			Padding(0)
+	viewListBorderStyle = lipgloss.NewStyle().
+				BorderRight(true).
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(ColorTeal)
+)
+
 func (m BrowserModel) View() string {
 	if m.quitting {
 		return ""
 	}
 
-	// Outer container for centering - adds margin around the entire box
-	outerStyle := lipgloss.NewStyle().
-		Padding(2, 4) // top/bottom: 2 lines, left/right: 4 chars
-
-	// Inner content box with border
-	masterStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ColorTeal).
-		Padding(0)
-
-	// Calculate dimensions for inner box
-	// Subtract outer padding (2*2 vertical, 4*2 horizontal) and border (2 each side)
+	// Inner content box with border — copy base and set dimensions
+	masterStyle := viewMasterBase
 	if m.width > 0 && m.height > 0 {
-		innerWidth := m.width - (4 * 2) - 2   // outer padding + border
-		innerHeight := m.height - (2 * 2) - 2 // outer padding + border
-
-		// Ensure minimum size
+		innerWidth := m.width - (4 * 2) - 2
+		innerHeight := m.height - (2 * 2) - 2
 		if innerWidth < 60 {
 			innerWidth = 60
 		}
 		if innerHeight < 10 {
 			innerHeight = 10
 		}
-
 		masterStyle = masterStyle.
 			Width(innerWidth).
 			Height(innerHeight)
@@ -177,42 +189,16 @@ func (m BrowserModel) View() string {
 
 	var mainContent string
 	if m.showDetails {
-		// Split-panel layout: compose panels then wrap
-		// Add border on right side of list to create solid divider
-		listStyle := lipgloss.NewStyle().
-			BorderRight(true).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(ColorTeal)
-		listView := listStyle.Render(m.list.View())
+		listView := viewListBorderStyle.Render(m.list.View())
 		detailsView := m.renderDetailsPane()
-
-		// Join horizontally: list (with border) + details
-		mainContent = lipgloss.JoinHorizontal(
-			lipgloss.Top,
-			listView,
-			detailsView,
-		)
+		mainContent = lipgloss.JoinHorizontal(lipgloss.Top, listView, detailsView)
 	} else {
-		// Single panel: list only
 		mainContent = m.list.View()
 	}
 
-	// Create footer with divider
-	// Calculate divider width based on content width
-	dividerWidth := m.width - (4 * 2) - 2 // outer padding + border
-	if dividerWidth < 40 {
-		dividerWidth = 40
-	}
-	divider := lipgloss.NewStyle().
-		Foreground(ColorTeal).
-		Width(dividerWidth).
-		Render(strings.Repeat("─", dividerWidth))
+	// Footer with cached divider (rebuilt on WindowSizeMsg)
 	footer := m.renderFooter()
-
-	// Compose: main content + divider + footer
-	content := lipgloss.JoinVertical(lipgloss.Left, mainContent, divider, footer)
-
-	// Apply inner box border
+	content := lipgloss.JoinVertical(lipgloss.Left, mainContent, m.cachedDivider, footer)
 	boxed := masterStyle.Render(content)
 
 	// Add download progress if active
@@ -222,19 +208,10 @@ func (m BrowserModel) View() string {
 		if len(m.downloadQueue) > 0 {
 			label = fmt.Sprintf("[%d remaining] %s", len(m.downloadQueue)+1, label)
 		}
-
-		progressView := lipgloss.NewStyle().
-			Foreground(ColorYellow).
-			Render(label + "\n" + progressBar)
-
-		boxed = lipgloss.JoinVertical(lipgloss.Left, boxed, "", progressView)
+		boxed = lipgloss.JoinVertical(lipgloss.Left, boxed, "", StyleProgress.Render(label+"\n"+progressBar))
 	} else if m.downloadErr != "" {
-		errorView := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9")).
-			Render(m.downloadErr)
-		boxed = lipgloss.JoinVertical(lipgloss.Left, boxed, "", errorView)
+		boxed = lipgloss.JoinVertical(lipgloss.Left, boxed, "", StyleError.Render(m.downloadErr))
 	}
 
-	// Apply outer container for floating effect
-	return outerStyle.Render(boxed)
+	return viewOuterStyle.Render(boxed)
 }

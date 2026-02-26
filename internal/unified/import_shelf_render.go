@@ -21,11 +21,18 @@ func (m ImportShelfModel) View() string {
 	case importShelfSourceInput:
 		return m.renderSourceInput()
 	case importShelfShelfPicking:
-		return tui.StyleBorder.Render(m.shelfList.View())
+		return tui.RenderWithFooter(m.shelfList.View(), []tui.ShortcutEntry{
+			{Key: "enter", Label: "enter select"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 	case importShelfScanning:
 		return m.renderMessage("Scanning source shelf...", "Loading catalogs and checking for duplicates")
 	case importShelfBookPicking:
-		return tui.StyleBorder.Render(m.ms.View())
+		return tui.RenderWithFooter(m.ms.View(), []tui.ShortcutEntry{
+			{Key: " ", Label: "space toggle"},
+			{Key: "enter", Label: "enter import"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 	case importShelfProcessing:
 		return m.renderMessage(m.statusMsg, "Please wait")
 	case importShelfCommitting:
@@ -70,8 +77,8 @@ func (m ImportShelfModel) renderSourceInput() string {
 
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "enter", Label: "Enter Submit"},
-		{Key: "", Label: "Esc Back"},
-	}, ""))
+		{Key: "q", Label: "Esc Back"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)

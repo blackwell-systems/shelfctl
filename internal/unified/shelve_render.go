@@ -69,7 +69,10 @@ func (m ShelveModel) renderMessage(title, help string) string {
 }
 
 func (m ShelveModel) renderShelfPicker() string {
-	return tui.StyleBorder.Render(m.shelfList.View())
+	return tui.RenderWithFooter(m.shelfList.View(), []tui.ShortcutEntry{
+		{Key: "enter", Label: "enter select"},
+		{Key: "q", Label: "q/esc back"},
+	}, m.activeCmd)
 }
 
 func (m ShelveModel) renderURLInput() string {
@@ -92,7 +95,7 @@ func (m ShelveModel) renderURLInput() string {
 
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "enter", Label: "Enter Submit"},
-		{Key: "", Label: "Esc Back"},
+		{Key: "q", Label: "Esc Back"},
 	}, m.activeCmd))
 	b.WriteString("\n")
 
@@ -164,7 +167,7 @@ func (m ShelveModel) renderForm() string {
 		{Key: "tab", Label: "Tab/↑↓ Navigate"},
 		{Key: "space", Label: "Space Toggle"},
 		{Key: "enter", Label: "Enter Submit"},
-		{Key: "", Label: "Esc Cancel"},
+		{Key: "q", Label: "Esc Cancel"},
 	}, m.activeCmd))
 	b.WriteString("\n")
 

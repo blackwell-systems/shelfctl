@@ -21,11 +21,18 @@ func (m ImportRepoModel) View() string {
 	case importRepoSourceInput:
 		return m.renderSourceInput()
 	case importRepoShelfPicking:
-		return tui.StyleBorder.Render(m.shelfList.View())
+		return tui.RenderWithFooter(m.shelfList.View(), []tui.ShortcutEntry{
+			{Key: "enter", Label: "enter select"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 	case importRepoScanning:
 		return m.renderMessage("Scanning repository...", "Searching for book files (pdf, epub, mobi, djvu, azw3, cbz, cbr)")
 	case importRepoFilePicking:
-		return tui.StyleBorder.Render(m.ms.View())
+		return tui.RenderWithFooter(m.ms.View(), []tui.ShortcutEntry{
+			{Key: " ", Label: "space toggle"},
+			{Key: "enter", Label: "enter import"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 	case importRepoProcessing:
 		return m.renderMessage(m.statusMsg, "Please wait")
 	case importRepoCommitting:
@@ -70,8 +77,8 @@ func (m ImportRepoModel) renderSourceInput() string {
 
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "enter", Label: "Enter Submit"},
-		{Key: "", Label: "Esc Back"},
-	}, ""))
+		{Key: "q", Label: "Esc Back"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)

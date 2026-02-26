@@ -108,6 +108,8 @@ type ImportShelfModel struct {
 	successCount  int
 	failCount     int
 	dupeCount     int
+
+	activeCmd string
 }
 
 // NewImportShelfModel creates a new import-from-shelf view
@@ -175,15 +177,19 @@ func (m ImportShelfModel) Update(msg tea.Msg) (ImportShelfModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.KeyMsg:
 		if m.empty {
-			if msg.String() == "enter" || msg.String() == "esc" {
+			if msg.String() == "enter" || msg.String() == "esc" || msg.String() == "q" {
 				return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 			}
 			return m, nil
 		}
 		if m.phase == importShelfDone {
-			if msg.String() == "enter" || msg.String() == "esc" {
+			if msg.String() == "enter" || msg.String() == "esc" || msg.String() == "q" {
 				return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 			}
 			return m, nil
@@ -301,7 +307,7 @@ func (m ImportShelfModel) updateSourceInput(msg tea.KeyMsg) (ImportShelfModel, t
 
 func (m ImportShelfModel) updateShelfPicking(msg tea.KeyMsg) (ImportShelfModel, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
+	case "q", "esc":
 		m.phase = importShelfSourceInput
 		m.sourceInput.Focus()
 		return m, textinput.Blink
@@ -320,7 +326,7 @@ func (m ImportShelfModel) updateShelfPicking(msg tea.KeyMsg) (ImportShelfModel, 
 
 func (m ImportShelfModel) updateBookPicking(msg tea.KeyMsg) (ImportShelfModel, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
+	case "q", "esc":
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 	case "enter":
 		selected := collectSelectedShelfBooks(&m.ms)

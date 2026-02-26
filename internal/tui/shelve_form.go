@@ -137,7 +137,8 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Toggle checkbox if focused on it
 			if m.focused == fieldCache {
 				m.cacheLocally = !m.cacheLocally
-				return m, SetActiveCmd(&m.activeCmd, " ")
+				m.activeCmd = " "
+				return m, HighlightCmd()
 			}
 
 		case "tab", "down":
@@ -146,11 +147,12 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputs[m.focused].Blur()
 			}
 			m.focused = (m.focused + 1) % (fieldCache + 1)
+			m.activeCmd = "tab"
 			if m.focused < fieldID+1 {
 				m.inputs[m.focused].Focus()
-				return m, tea.Batch(m.inputs[m.focused].Focus(), SetActiveCmd(&m.activeCmd, "tab"))
+				return m, tea.Batch(m.inputs[m.focused].Focus(), HighlightCmd())
 			}
-			return m, SetActiveCmd(&m.activeCmd, "tab")
+			return m, HighlightCmd()
 
 		case "shift+tab", "up":
 			// Move to previous field (including checkbox)
@@ -161,11 +163,12 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.focused < 0 {
 				m.focused = fieldCache
 			}
+			m.activeCmd = "tab"
 			if m.focused < fieldID+1 {
 				m.inputs[m.focused].Focus()
-				return m, tea.Batch(m.inputs[m.focused].Focus(), SetActiveCmd(&m.activeCmd, "tab"))
+				return m, tea.Batch(m.inputs[m.focused].Focus(), HighlightCmd())
 			}
-			return m, SetActiveCmd(&m.activeCmd, "tab")
+			return m, HighlightCmd()
 		}
 	}
 

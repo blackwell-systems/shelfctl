@@ -13,6 +13,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var appVersion = "dev"
+
+// SetVersion sets the application version (called from main with ldflags value).
+func SetVersion(v string) {
+	appVersion = v
+	rootCmd.Version = v
+}
+
 var (
 	cfg      *config.Config
 	gh       *ghclient.Client
@@ -62,6 +70,11 @@ func init() {
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		util.InitColor(flagNoColor)
 
+		// version needs no config at all.
+		if cmd.Name() == "version" {
+			return nil
+		}
+
 		// Allow init and root (hub) to run without an existing config.
 		if (cmd.Name() == "init" || cmd.Name() == "shelfctl") && cmd.Parent() == nil {
 			var err error
@@ -95,6 +108,7 @@ func init() {
 
 	// Register sub-commands.
 	rootCmd.AddCommand(
+		newVersionCmd(),
 		newInitCmd(),
 		newShelvesCmd(),
 		newDeleteShelfCmd(),

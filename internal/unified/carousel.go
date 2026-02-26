@@ -76,7 +76,7 @@ func (m EditBookModel) updateCarouselFromMsg(msg tea.KeyMsg) (EditBookModel, tea
 	case "ctrl+c":
 		return m, func() tea.Msg { return QuitAppMsg{} }
 
-	case "esc":
+	case "q", "esc":
 		m.inCarousel = false
 		m.initFormForBook(m.editIndex)
 		return m, textinput.Blink
@@ -118,7 +118,7 @@ func (m EditBookModel) updateBulkEdit(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
 		return m, func() tea.Msg { return QuitAppMsg{} }
-	case "esc":
+	case "q", "esc":
 		m.inBulkEdit = false
 		return m, nil
 	case "up", "k":

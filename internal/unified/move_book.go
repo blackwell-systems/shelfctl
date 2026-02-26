@@ -210,7 +210,8 @@ func (m MoveBookModel) updateBookPicking(msg tea.KeyMsg) (MoveBookModel, tea.Cmd
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 	case " ":
 		m.ms.Toggle()
-		return m, tui.SetActiveCmd(&m.activeCmd, "space")
+		m.activeCmd = " "
+		return m, tui.HighlightCmd()
 	case "enter":
 		selected := tui.CollectSelectedBooks(&m.ms)
 		if len(selected) == 0 {
@@ -231,7 +232,8 @@ func (m MoveBookModel) updateBookPicking(msg tea.KeyMsg) (MoveBookModel, tea.Cmd
 		// Transition to type picking
 		m.phase = moveTypePicking
 		m.typeSelected = 0
-		return m, tui.SetActiveCmd(&m.activeCmd, "enter")
+		m.activeCmd = "enter"
+		return m, tui.HighlightCmd()
 	}
 
 	var cmd tea.Cmd
@@ -245,10 +247,10 @@ func (m MoveBookModel) updateTypePicking(msg tea.KeyMsg) (MoveBookModel, tea.Cmd
 	switch msg.String() {
 	case "ctrl+c":
 		return m, func() tea.Msg { return QuitAppMsg{} }
-	case "esc":
-		// Go back to book picking
+	case "q", "esc":
 		m.phase = moveBookPicking
-		return m, nil
+		m.activeCmd = "q"
+		return m, tui.HighlightCmd()
 	case "up", "k":
 		if m.typeSelected > 0 {
 			m.typeSelected--
@@ -260,17 +262,20 @@ func (m MoveBookModel) updateTypePicking(msg tea.KeyMsg) (MoveBookModel, tea.Cmd
 		}
 		return m, nil
 	case "1":
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "1")
+		m.activeCmd = "1"
+		highlightCmd := tui.HighlightCmd()
 		m.typeSelected = moveToShelf
 		m, cmd := m.selectMoveType()
 		return m, tea.Batch(cmd, highlightCmd)
 	case "2":
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "2")
+		m.activeCmd = "2"
+		highlightCmd := tui.HighlightCmd()
 		m.typeSelected = moveToRelease
 		m, cmd := m.selectMoveType()
 		return m, tea.Batch(cmd, highlightCmd)
 	case "enter":
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "enter")
+		m.activeCmd = "enter"
+		highlightCmd := tui.HighlightCmd()
 		m, cmd := m.selectMoveType()
 		return m, tea.Batch(cmd, highlightCmd)
 	}
@@ -369,11 +374,12 @@ func (m MoveBookModel) updateDestShelfPicking(msg tea.KeyMsg) (MoveBookModel, te
 	switch msg.String() {
 	case "ctrl+c":
 		return m, func() tea.Msg { return QuitAppMsg{} }
-	case "esc":
+	case "q", "esc":
 		// Go back to type picking
 		m.phase = moveTypePicking
 		m.err = nil
-		return m, nil
+		m.activeCmd = "q"
+		return m, tui.HighlightCmd()
 	case "enter":
 		if item, ok := m.destShelfList.SelectedItem().(tui.ShelfOption); ok {
 			m.destShelfName = item.Name
@@ -417,18 +423,19 @@ func (m MoveBookModel) updateConfirming(msg tea.KeyMsg) (MoveBookModel, tea.Cmd)
 	switch msg.String() {
 	case "ctrl+c":
 		return m, func() tea.Msg { return QuitAppMsg{} }
-	case "esc", "n":
+	case "q", "esc", "n":
 		// Go back to destination picking
 		if m.moveType == moveToShelf {
 			m.phase = moveDestPicking
 		} else {
 			m.phase = moveDestPicking
 		}
-		return m, nil
+		m.activeCmd = "q"
+		return m, tui.HighlightCmd()
 	case "enter", "y":
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, msg.String())
+		m.activeCmd = msg.String()
 		m.phase = moveProcessing
-		return m, tea.Batch(m.moveAsync(), highlightCmd)
+		return m, tea.Batch(m.moveAsync(), tui.HighlightCmd())
 	}
 
 	return m, nil

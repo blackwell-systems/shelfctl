@@ -19,14 +19,21 @@ func (m MoveBookModel) View() string {
 
 	switch m.phase {
 	case moveBookPicking:
-		return tui.StyleBorder.Render(m.ms.View())
+		return tui.RenderWithFooter(m.ms.View(), []tui.ShortcutEntry{
+			{Key: " ", Label: "space toggle"},
+			{Key: "enter", Label: "enter confirm"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 
 	case moveTypePicking:
 		return m.renderTypePicker()
 
 	case moveDestPicking:
 		if m.moveType == moveToShelf {
-			return tui.StyleBorder.Render(m.destShelfList.View())
+			return tui.RenderWithFooter(m.destShelfList.View(), []tui.ShortcutEntry{
+				{Key: "enter", Label: "enter select"},
+				{Key: "q", Label: "q/esc back"},
+			}, m.activeCmd)
 		}
 		return m.renderReleaseInput()
 
@@ -94,7 +101,7 @@ func (m MoveBookModel) renderTypePicker() string {
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "1", Label: "↑↓/1-2 Select"},
 		{Key: "enter", Label: "Enter Confirm"},
-		{Key: "", Label: "Esc Back"},
+		{Key: "q", Label: "q/Esc Back"},
 	}, m.activeCmd))
 	b.WriteString("\n")
 
@@ -127,7 +134,7 @@ func (m MoveBookModel) renderReleaseInput() string {
 
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "enter", Label: "Enter Confirm"},
-		{Key: "", Label: "Esc Back"},
+		{Key: "q", Label: "Esc Back"},
 	}, m.activeCmd))
 	b.WriteString("\n")
 
@@ -173,7 +180,7 @@ func (m MoveBookModel) renderConfirmation() string {
 
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "enter", Label: "Enter/y Confirm"},
-		{Key: "", Label: "Esc/n Back"},
+		{Key: "q", Label: "q/Esc/n Back"},
 	}, m.activeCmd))
 	b.WriteString("\n")
 

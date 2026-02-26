@@ -157,7 +157,8 @@ func (m CacheClearModel) updatePicking(msg tea.KeyMsg) (CacheClearModel, tea.Cmd
 	case " ":
 		// Toggle checkbox
 		m.ms.Toggle()
-		return m, tui.SetActiveCmd(&m.activeCmd, "space")
+		m.activeCmd = " "
+		return m, tui.HighlightCmd()
 
 	case "enter":
 		// Collect selected books
@@ -193,7 +194,8 @@ func (m CacheClearModel) updatePicking(msg tea.KeyMsg) (CacheClearModel, tea.Cmd
 
 		// Switch to confirmation phase
 		m.phase = cacheClearConfirming
-		return m, tui.SetActiveCmd(&m.activeCmd, "enter")
+		m.activeCmd = "enter"
+		return m, tui.HighlightCmd()
 	}
 
 	// Forward other keys to multiselect
@@ -207,16 +209,17 @@ func (m CacheClearModel) updateConfirming(msg tea.KeyMsg) (CacheClearModel, tea.
 	case "ctrl+c":
 		return m, func() tea.Msg { return QuitAppMsg{} }
 
-	case "esc", "n":
+	case "q", "esc", "n":
 		// Go back to picker
 		m.phase = cacheClearPicking
-		return m, nil
+		m.activeCmd = "q"
+		return m, tui.HighlightCmd()
 
 	case "enter", "y":
 		// Confirm - start processing
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, msg.String())
+		m.activeCmd = msg.String()
 		m.phase = cacheClearProcessing
-		return m, tea.Batch(m.clearCacheAsync(), highlightCmd)
+		return m, tea.Batch(m.clearCacheAsync(), tui.HighlightCmd())
 	}
 
 	return m, nil
@@ -236,7 +239,11 @@ func (m CacheClearModel) View() string {
 
 	switch m.phase {
 	case cacheClearPicking:
-		return tui.StyleBorder.Render(m.ms.View())
+		return tui.RenderWithFooter(m.ms.View(), []tui.ShortcutEntry{
+			{Key: " ", Label: "space toggle"},
+			{Key: "enter", Label: "enter confirm"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 
 	case cacheClearConfirming:
 		return m.renderConfirmation()
@@ -296,7 +303,7 @@ func (m CacheClearModel) renderConfirmation() string {
 	// Help
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "enter", Label: "Enter/y Confirm"},
-		{Key: "", Label: "Esc/n Cancel"},
+		{Key: "q", Label: "q/Esc/n Cancel"},
 	}, m.activeCmd))
 	b.WriteString("\n")
 

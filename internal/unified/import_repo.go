@@ -104,6 +104,8 @@ type ImportRepoModel struct {
 	importedBooks []catalog.Book
 	successCount  int
 	failCount     int
+
+	activeCmd string
 }
 
 // NewImportRepoModel creates a new import-from-repo view
@@ -171,15 +173,19 @@ func (m ImportRepoModel) Update(msg tea.Msg) (ImportRepoModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.KeyMsg:
 		if m.empty {
-			if msg.String() == "enter" || msg.String() == "esc" {
+			if msg.String() == "enter" || msg.String() == "esc" || msg.String() == "q" {
 				return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 			}
 			return m, nil
 		}
 		if m.phase == importRepoDone {
-			if msg.String() == "enter" || msg.String() == "esc" {
+			if msg.String() == "enter" || msg.String() == "esc" || msg.String() == "q" {
 				return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 			}
 			return m, nil
@@ -286,7 +292,7 @@ func (m ImportRepoModel) updateSourceInput(msg tea.KeyMsg) (ImportRepoModel, tea
 
 func (m ImportRepoModel) updateShelfPicking(msg tea.KeyMsg) (ImportRepoModel, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
+	case "q", "esc":
 		m.phase = importRepoSourceInput
 		m.sourceInput.Focus()
 		return m, textinput.Blink
@@ -305,7 +311,7 @@ func (m ImportRepoModel) updateShelfPicking(msg tea.KeyMsg) (ImportRepoModel, te
 
 func (m ImportRepoModel) updateFilePicking(msg tea.KeyMsg) (ImportRepoModel, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
+	case "q", "esc":
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 	case "enter":
 		selected := collectSelectedRepoFiles(&m.ms)

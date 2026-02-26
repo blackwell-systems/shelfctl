@@ -156,7 +156,8 @@ func (m BrowserModel) Init() tea.Cmd {
 
 // setActiveCmd sets the footer highlight and returns a tick command to clear it.
 func (m *BrowserModel) setActiveCmd(key string) tea.Cmd {
-	return SetActiveCmd(&m.activeCmd, key)
+	m.activeCmd = key
+	return HighlightCmd()
 }
 
 func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -236,7 +237,8 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Toggle details panel
 			m.showDetails = !m.showDetails
 			m.updateListSize()
-			return m, m.setActiveCmd("tab")
+			m.activeCmd = "tab"
+			return m, HighlightCmd()
 
 		case key.Matches(msg, keys.enter):
 			// If details showing, use as action, otherwise toggle details
@@ -281,7 +283,8 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.list.SetItems(items)
 				}
 			}
-			return m, m.setActiveCmd(" ")
+			m.activeCmd = " "
+			return m, HighlightCmd()
 
 		case key.Matches(msg, keys.clearSelect):
 			// Clear all selections
@@ -293,7 +296,8 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			m.list.SetItems(items)
-			return m, m.setActiveCmd("c")
+			m.activeCmd = "c"
+			return m, HighlightCmd()
 
 		case key.Matches(msg, keys.get):
 			// Download book(s)

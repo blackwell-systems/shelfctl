@@ -279,7 +279,8 @@ func (m EditBookModel) updatePicking(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 
 	case " ":
 		m.ms.Toggle()
-		return m, tui.SetActiveCmd(&m.activeCmd, "space")
+		m.activeCmd = " "
+		return m, tui.HighlightCmd()
 
 	case "enter":
 		selected := tui.CollectSelectedBooks(&m.ms)
@@ -292,15 +293,16 @@ func (m EditBookModel) updatePicking(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 		m.edits = nil
 		m.formStates = initFormStates(selected)
 		m.phase = editBookEditing
+		m.activeCmd = "enter"
 		if len(selected) > 1 {
 			m.carouselModel = newCarouselModel()
 			m.carouselModel.SetSize(m.width, m.height)
 			m.rebuildCarouselItems()
 			m.inCarousel = true
-			return m, tui.SetActiveCmd(&m.activeCmd, "enter")
+			return m, tui.HighlightCmd()
 		}
 		m.initFormForBook(0)
-		return m, tea.Batch(textinput.Blink, tui.SetActiveCmd(&m.activeCmd, "enter"))
+		return m, tea.Batch(textinput.Blink, tui.HighlightCmd())
 	}
 
 	var cmd tea.Cmd
@@ -366,7 +368,8 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 
 	case "enter":
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "enter")
+		m.activeCmd = "enter"
+		highlightCmd := tui.HighlightCmd()
 		if m.confirming {
 			m, cmd := m.submitCurrentBook()
 			return m, tea.Batch(cmd, highlightCmd)
@@ -376,14 +379,16 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 
 	case "y", "Y":
 		if m.confirming {
-			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "y")
+			m.activeCmd = "y"
+			highlightCmd := tui.HighlightCmd()
 			m, cmd := m.submitCurrentBook()
 			return m, tea.Batch(cmd, highlightCmd)
 		}
 
 	case "n", "N":
 		if m.confirming {
-			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "n")
+			m.activeCmd = "n"
+			highlightCmd := tui.HighlightCmd()
 			m, cmd := m.advanceToNextBook()
 			return m, tea.Batch(cmd, highlightCmd)
 		}
@@ -393,7 +398,8 @@ func (m EditBookModel) updateEditing(msg tea.KeyMsg) (EditBookModel, tea.Cmd) {
 			return m, nil
 		}
 
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
+		m.activeCmd = "tab"
+		highlightCmd := tui.HighlightCmd()
 
 		if msg.String() == "up" || msg.String() == "shift+tab" {
 			// Up from the first field in multi-book edit: open carousel
@@ -532,7 +538,11 @@ func (m EditBookModel) View() string {
 
 	switch m.phase {
 	case editBookPicking:
-		return tui.StyleBorder.Render(m.ms.View())
+		return tui.RenderWithFooter(m.ms.View(), []tui.ShortcutEntry{
+			{Key: " ", Label: "space toggle"},
+			{Key: "enter", Label: "enter confirm"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 
 	case editBookEditing:
 		if m.inCarousel {
@@ -674,13 +684,13 @@ func (m EditBookModel) renderEditForm() string {
 		footer = tui.RenderFooterBar([]tui.ShortcutEntry{
 			{Key: "y", Label: "Y Confirm"},
 			{Key: "n", Label: "N Skip"},
-			{Key: "", Label: "Esc Back"},
+			{Key: "q", Label: "Esc Back"},
 		}, m.activeCmd)
 	} else {
 		footer = tui.RenderFooterBar([]tui.ShortcutEntry{
 			{Key: "tab", Label: "Tab/↑↓ Navigate"},
 			{Key: "enter", Label: "Enter Submit"},
-			{Key: "", Label: "Esc Cancel"},
+			{Key: "q", Label: "Esc Cancel"},
 		}, m.activeCmd)
 	}
 

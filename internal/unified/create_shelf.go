@@ -116,7 +116,8 @@ func (m CreateShelfModel) Update(msg tea.Msg) (CreateShelfModel, tea.Cmd) {
 			repoName := "shelf-" + repoSuffix
 
 			// Start async creation
-			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "enter")
+			m.activeCmd = "enter"
+			highlightCmd := tui.HighlightCmd()
 			m.processing = true
 			m.statusMsg = "Creating shelf..."
 			m.err = nil
@@ -124,7 +125,8 @@ func (m CreateShelfModel) Update(msg tea.Msg) (CreateShelfModel, tea.Cmd) {
 
 		case "tab", "shift+tab", "up", "down":
 			// Navigate between fields
-			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
+			m.activeCmd = "tab"
+			highlightCmd := tui.HighlightCmd()
 
 			if msg.String() == "up" || msg.String() == "shift+tab" {
 				m.focused--
@@ -152,7 +154,8 @@ func (m CreateShelfModel) Update(msg tea.Msg) (CreateShelfModel, tea.Cmd) {
 
 		case " ", "space":
 			// Toggle checkboxes when focused
-			highlightCmd := tui.SetActiveCmd(&m.activeCmd, "space")
+			m.activeCmd = " "
+			highlightCmd := tui.HighlightCmd()
 			switch m.focused {
 			case createShelfFieldCreateRepo:
 				m.createRepoFlag = !m.createRepoFlag
@@ -277,7 +280,7 @@ func (m CreateShelfModel) View() string {
 			{Key: "tab", Label: "Tab/↑↓ Navigate"},
 			{Key: "space", Label: "Space Toggle"},
 			{Key: "enter", Label: "Enter Create"},
-			{Key: "", Label: "Esc Cancel"},
+			{Key: "q", Label: "Esc Cancel"},
 		}, m.activeCmd))
 	}
 	b.WriteString("\n")

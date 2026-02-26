@@ -5,12 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1] - 2026-02-25
+## [Unreleased]
 
 ### Added
-- **Native TUI for "Add from URL"** — "Add from URL" now stays in the TUI instead of dropping to console; adds a `shelveURLInput` phase to the existing `ShelveModel` with a URL text input, then reuses the full ingest/form/upload pipeline (`ingest.Resolve` already handles HTTP URLs and GitHub paths)
-- **Native TUI for "Cache Info"** — cache statistics now render in the TUI with total/cached/modified counts, cache size, per-shelf breakdown, lists of uncached and locally-modified books
-- **Native TUI for "Delete Shelf"** — shelf deletion now stays in the TUI with a shelf picker, "Keep repo" vs "Delete permanently" selector, and a type-the-name confirmation gate for destructive deletes; Esc cancels at every step
+- **`version` command** — `shelfctl version` and `shelfctl --version` now work; GoReleaser ldflags inject the build version at compile time, defaults to `dev` for local builds
+- **Universal `q` as back** — pressing `q` now consistently works as back/cancel across all TUI views (pickers, confirmations, done screens, carousel); only suppressed in text input phases where the user might be typing the letter `q`
+- **Native TUI for "View Shelves"** — shelf validation and health display now stays in the TUI instead of dropping to console; shows each shelf with owner/repo, book count, and health status (healthy/error) loaded asynchronously
+- **`RenderWithFooter` helper** — new `tui.RenderWithFooter()` wraps component views (multiselect lists, shelf pickers) with a highlight-capable footer bar inside a border; applied to 10 picker/list views that previously had no interactive footer
+
+### Fixed
+- **Footer keypress highlights broken on all screens** — 500ms highlight flash on keypress was completely non-functional due to a Go evaluation order bug: `return m, SetActiveCmd(&m.activeCmd, "key")` copies `m` (with empty `activeCmd`) before the pointer write takes effect; fixed by setting `m.activeCmd` directly before the return and using new `HighlightCmd()` function; deprecated `SetActiveCmd` with a warning comment
+- **Space key highlight mismatch** — `m.activeCmd = "space"` didn't match footer `Key: " "`; fixed 6 instances across create-shelf, shelve, move-book, edit-book, delete-book, and cache-clear views to use `m.activeCmd = " "`
+- **Multiselect/list views missing footer bar** — picker screens (delete-book, cache-clear, move-book, edit-book, import-shelf, import-repo, delete-shelf, shelve shelf-picker) rendered with `StyleBorder.Render(m.ms.View())` which had no footer; replaced with `RenderWithFooter` to add highlight-capable shortcut bars
 
 ## [0.3.0] - 2026-02-25
 

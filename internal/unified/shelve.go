@@ -632,7 +632,8 @@ func (m ShelveModel) updateForm(msg tea.KeyMsg) (ShelveModel, tea.Cmd) {
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 
 	case "enter":
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "enter")
+		m.activeCmd = "enter"
+		highlightCmd := tui.HighlightCmd()
 		m, cmd := m.submitForm()
 		return m, tea.Batch(cmd, highlightCmd)
 
@@ -640,12 +641,14 @@ func (m ShelveModel) updateForm(msg tea.KeyMsg) (ShelveModel, tea.Cmd) {
 		// Toggle cache checkbox if focused on it
 		if m.focused == shelveFieldCache {
 			m.cacheLocally = !m.cacheLocally
-			return m, tui.SetActiveCmd(&m.activeCmd, "space")
+			m.activeCmd = " "
+			return m, tui.HighlightCmd()
 		}
 
 	case "tab", "down":
 		// Move to next field (including cache checkbox)
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
+		m.activeCmd = "tab"
+		highlightCmd := tui.HighlightCmd()
 		if m.focused < len(m.inputs) {
 			m.inputs[m.focused].Blur()
 		}
@@ -657,7 +660,8 @@ func (m ShelveModel) updateForm(msg tea.KeyMsg) (ShelveModel, tea.Cmd) {
 
 	case "shift+tab", "up":
 		// Move to previous field
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, "tab")
+		m.activeCmd = "tab"
+		highlightCmd := tui.HighlightCmd()
 		if m.focused < len(m.inputs) {
 			m.inputs[m.focused].Blur()
 		}

@@ -207,7 +207,8 @@ func (m editFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inputs[i].Blur()
 				}
 			}
-			cmds[len(m.inputs)] = SetActiveCmd(&m.activeCmd, "tab")
+			m.activeCmd = "tab"
+			cmds[len(m.inputs)] = HighlightCmd()
 			return m, tea.Batch(cmds...)
 		}
 	}

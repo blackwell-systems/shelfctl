@@ -33,6 +33,7 @@ const (
 	ViewDeleteShelf View = "delete-shelf"
 	ViewImportShelf View = "import-shelf"
 	ViewImportRepo  View = "import-repo"
+	ViewShelves     View = "shelves"
 )
 
 // Model is the unified TUI orchestrator that manages view switching
@@ -54,6 +55,7 @@ type Model struct {
 	moveBook    MoveBookModel
 	importShelf ImportShelfModel
 	importRepo  ImportRepoModel
+	shelves     ShelvesModel
 
 	// Context passed between views
 	hubContext tui.HubContext
@@ -193,6 +195,8 @@ func (m Model) View() string {
 		content = m.importShelf.View()
 	case ViewImportRepo:
 		content = m.importRepo.View()
+	case ViewShelves:
+		content = m.shelves.View()
 	default:
 		content = "Unknown view"
 	}
@@ -266,6 +270,10 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var importRepoModel ImportRepoModel
 		importRepoModel, cmd = m.importRepo.Update(msg)
 		m.importRepo = importRepoModel
+	case ViewShelves:
+		var shelvesModel ShelvesModel
+		shelvesModel, cmd = m.shelves.Update(msg)
+		m.shelves = shelvesModel
 	}
 
 	return m, cmd
@@ -425,13 +433,11 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		)
 
 	case "shelves":
-		// Non-TUI command - just run command and return
-		return m, func() tea.Msg {
-			return CommandRequestMsg{
-				Command:  "shelves",
-				ReturnTo: "hub",
-			}
-		}
+		m.currentView = ViewShelves
+		m.shelves = NewShelvesModel(m.gh, m.cfg)
+		return m, tea.Batch(m.shelves.Init(), func() tea.Msg {
+			return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+		})
 
 	case "index":
 		// Non-TUI command - just run command and return

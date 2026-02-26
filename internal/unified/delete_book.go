@@ -163,7 +163,8 @@ func (m DeleteBookModel) updatePicking(msg tea.KeyMsg) (DeleteBookModel, tea.Cmd
 	case " ":
 		// Toggle checkbox
 		m.ms.Toggle()
-		return m, tui.SetActiveCmd(&m.activeCmd, "space")
+		m.activeCmd = " "
+		return m, tui.HighlightCmd()
 
 	case "enter":
 		// Collect selected books
@@ -176,7 +177,8 @@ func (m DeleteBookModel) updatePicking(msg tea.KeyMsg) (DeleteBookModel, tea.Cmd
 
 		// Switch to confirmation phase
 		m.phase = deleteBookConfirming
-		return m, tui.SetActiveCmd(&m.activeCmd, "enter")
+		m.activeCmd = "enter"
+		return m, tui.HighlightCmd()
 	}
 
 	// Forward other keys to multiselect
@@ -190,16 +192,17 @@ func (m DeleteBookModel) updateConfirming(msg tea.KeyMsg) (DeleteBookModel, tea.
 	case "ctrl+c":
 		return m, func() tea.Msg { return QuitAppMsg{} }
 
-	case "esc", "n":
+	case "q", "esc", "n":
 		// Go back to picker
 		m.phase = deleteBookPicking
-		return m, nil
+		m.activeCmd = "q"
+		return m, tui.HighlightCmd()
 
 	case "enter", "y":
 		// Confirm - start processing
-		highlightCmd := tui.SetActiveCmd(&m.activeCmd, msg.String())
+		m.activeCmd = msg.String()
 		m.phase = deleteBookProcessing
-		return m, tea.Batch(m.deleteAsync(), highlightCmd)
+		return m, tea.Batch(m.deleteAsync(), tui.HighlightCmd())
 	}
 
 	return m, nil
@@ -219,7 +222,11 @@ func (m DeleteBookModel) View() string {
 
 	switch m.phase {
 	case deleteBookPicking:
-		return tui.StyleBorder.Render(m.ms.View())
+		return tui.RenderWithFooter(m.ms.View(), []tui.ShortcutEntry{
+			{Key: " ", Label: "space toggle"},
+			{Key: "enter", Label: "enter confirm"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 
 	case deleteBookConfirming:
 		return m.renderConfirmation()
@@ -275,7 +282,7 @@ func (m DeleteBookModel) renderConfirmation() string {
 	// Help
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "enter", Label: "Enter/y Confirm"},
-		{Key: "", Label: "Esc/n Cancel"},
+		{Key: "q", Label: "q/Esc/n Cancel"},
 	}, m.activeCmd))
 	b.WriteString("\n")
 

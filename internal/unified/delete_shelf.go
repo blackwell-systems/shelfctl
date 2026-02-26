@@ -55,6 +55,8 @@ type DeleteShelfModel struct {
 	// Result
 	done    bool
 	message string
+
+	activeCmd string
 }
 
 // NewDeleteShelfModel creates a new delete-shelf view
@@ -104,9 +106,13 @@ func (m DeleteShelfModel) Update(msg tea.Msg) (DeleteShelfModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case tui.ClearActiveCmdMsg:
+		m.activeCmd = ""
+		return m, nil
+
 	case tea.KeyMsg:
 		if m.empty || m.phase == deleteShelfDone {
-			if msg.String() == "enter" || msg.String() == "esc" {
+			if msg.String() == "enter" || msg.String() == "esc" || msg.String() == "q" {
 				return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 			}
 			return m, nil
@@ -151,7 +157,7 @@ func (m DeleteShelfModel) Update(msg tea.Msg) (DeleteShelfModel, tea.Cmd) {
 
 func (m DeleteShelfModel) updatePicking(msg tea.KeyMsg) (DeleteShelfModel, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
+	case "q", "esc":
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 	case "enter":
 		if item, ok := m.shelfList.SelectedItem().(tui.ShelfOption); ok {
@@ -173,7 +179,7 @@ func (m DeleteShelfModel) updatePicking(msg tea.KeyMsg) (DeleteShelfModel, tea.C
 
 func (m DeleteShelfModel) updateConfirming(msg tea.KeyMsg) (DeleteShelfModel, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
+	case "q", "esc":
 		if len(m.shelfOptions) == 1 {
 			return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 		}
@@ -304,7 +310,10 @@ func (m DeleteShelfModel) View() string {
 
 	switch m.phase {
 	case deleteShelfPicking:
-		return tui.StyleBorder.Render(m.shelfList.View())
+		return tui.RenderWithFooter(m.shelfList.View(), []tui.ShortcutEntry{
+			{Key: "enter", Label: "enter select"},
+			{Key: "q", Label: "q/esc back"},
+		}, m.activeCmd)
 	case deleteShelfConfirming:
 		return m.renderConfirm()
 	case deleteShelfTypeName:
@@ -380,8 +389,8 @@ func (m DeleteShelfModel) renderConfirm() string {
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "1", Label: "↑↓/1-2 Select"},
 		{Key: "enter", Label: "Enter Confirm"},
-		{Key: "", Label: "Esc Cancel"},
-	}, ""))
+		{Key: "q", Label: "q/Esc Cancel"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)
@@ -414,8 +423,8 @@ func (m DeleteShelfModel) renderTypeName() string {
 
 	b.WriteString(tui.RenderFooterBar([]tui.ShortcutEntry{
 		{Key: "enter", Label: "Enter Confirm"},
-		{Key: "", Label: "Esc Cancel"},
-	}, ""))
+		{Key: "q", Label: "Esc Cancel"},
+	}, m.activeCmd))
 	b.WriteString("\n")
 
 	innerPadding := lipgloss.NewStyle().Padding(0, 2, 0, 1)

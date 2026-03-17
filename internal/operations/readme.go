@@ -123,6 +123,7 @@ func AppendToShelfREADME(existingREADME string, book catalog.Book) string {
 			result = append(result, line)
 			if i == quickStatsIdx {
 				// Find end of Quick Stats section
+				foundNextSection := false
 				for j := i + 1; j < len(lines); j++ {
 					result = append(result, lines[j])
 					if strings.HasPrefix(lines[j], "##") {
@@ -139,6 +140,16 @@ func AppendToShelfREADME(existingREADME string, book catalog.Book) string {
 						return strings.Join(result, "\n")
 					}
 				}
+				// Inner loop exhausted without finding next section:
+				// append Recently Added at the end and stop outer loop
+				if !foundNextSection {
+					result = append(result, "")
+					result = append(result, "## Recently Added")
+					result = append(result, "")
+					result = append(result, bookEntry)
+					return strings.Join(result, "\n")
+				}
+				break
 			}
 		}
 	} else {

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- `catalog.Manager.gh` field narrowed to a new `GitHubClient` interface, enabling
+  mock injection in tests without affecting production call sites (`catalog/manager.go`).
 - `generateHTML`, `renderBookCard`, and `renderUncachedCard` in the HTML index
   generator are now methods on `*cache.Manager`, eliminating the need to thread
   `baseDir` as a parameter through the call chain (`cache/html_index.go`).
@@ -33,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   open in browser) instead of shelling out and dropping back to the terminal.
   `shelfctl index [--open]` CLI command is unchanged (`unified/index.go`,
   `unified/model.go`).
+
+### Tests
+- `catalog.Manager` now has full test coverage via mock `GitHubClient` injection:
+  `Load`, `Save`, `Update`, `FindByID`, `Remove`, and `Append` (happy path, load
+  error, save error, fn error, not-found cases) (`catalog/manager_test.go`).
+- Added `app/info_test.go`: table-driven coverage of `humanBytes` across all
+  unit boundaries (B, KiB, MiB, GiB).
+- Added `app/shelves_test.go`: coverage of `stripAnsi`, `padRight`,
+  `padRightColored`, `formatBookCount`, and `formatStatus`.
 
 ## [0.3.3] - 2026-03-17
 

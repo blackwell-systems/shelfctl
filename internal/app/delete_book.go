@@ -267,18 +267,13 @@ func deleteSingleBook(item tui.BookItem) error {
 		return fmt.Errorf("could not get release: %w", err)
 	}
 
-	// Find the asset
+	// Find the asset (to get asset.ID for later deletion)
 	asset, err := gh.FindAsset(item.Owner, item.Repo, rel.ID, item.Book.Source.Asset)
 	if err != nil {
 		return fmt.Errorf("could not find asset: %w", err)
 	}
 	if asset == nil {
 		return fmt.Errorf("asset %q not found in release", item.Book.Source.Asset)
-	}
-
-	// Delete the asset from GitHub
-	if err := gh.DeleteAsset(item.Owner, item.Repo, asset.ID); err != nil {
-		return fmt.Errorf("could not delete asset: %w", err)
 	}
 
 	// Load catalog
@@ -297,7 +292,7 @@ func deleteSingleBook(item tui.BookItem) error {
 		return fmt.Errorf("book %q not found in catalog", item.Book.ID)
 	}
 
-	// Marshal and commit updated catalog
+	// Marshal and commit updated catalog FIRST (before deleting asset)
 	updatedData, err := catalog.Marshal(books)
 	if err != nil {
 		return fmt.Errorf("could not marshal catalog: %w", err)
@@ -305,6 +300,11 @@ func deleteSingleBook(item tui.BookItem) error {
 	commitMsg := fmt.Sprintf("delete: %s", item.Book.ID)
 	if err := gh.CommitFile(item.Owner, item.Repo, catalogPath, updatedData, commitMsg); err != nil {
 		return fmt.Errorf("could not commit catalog: %w", err)
+	}
+
+	// Delete the asset from GitHub AFTER catalog is safely committed
+	if err := gh.DeleteAsset(item.Owner, item.Repo, asset.ID); err != nil {
+		return fmt.Errorf("could not delete asset: %w", err)
 	}
 
 	// Clear from cache

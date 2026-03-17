@@ -140,10 +140,6 @@ type BrowserModel struct {
 	progress        progress.Model
 	progressCh      <-chan float64 // Active progress channel for streaming updates
 
-	// Cover preview: when true, View() renders the selected book's cover
-	// full-screen. Any key press dismisses it and resumes the normal view.
-	showCover bool
-
 	// Unified mode flag - when true, never returns tea.Quit
 	// Instead, sets quitting flag for wrapper to handle
 	unifiedMode bool
@@ -170,14 +166,6 @@ func (m *BrowserModel) setActiveCmd(key string) tea.Cmd {
 }
 
 func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Any key press dismisses the full-screen cover preview.
-	if m.showCover {
-		if _, ok := msg.(tea.KeyMsg); ok {
-			m.showCover = false
-			return m, nil
-		}
-	}
-
 	switch msg := msg.(type) {
 	case ClearActiveCmdMsg:
 		m.activeCmd = ""
@@ -478,10 +466,10 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, highlightCmd
 
 		case key.Matches(msg, keys.preview):
-			// Full-screen cover preview (any key dismisses)
+			// Cover preview: suspend TUI, render image outside alt-screen, resume.
 			if item, ok := m.list.SelectedItem().(BookItem); ok && item.HasCover {
-				if cachedImageProtocol() != ProtocolNone {
-					m.showCover = true
+				if protocol := cachedImageProtocol(); protocol != ProtocolNone {
+					return m, CoverPreviewCmd(item.CoverPath, protocol)
 				}
 			}
 			return m, nil

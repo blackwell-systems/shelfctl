@@ -3,8 +3,11 @@ package tui
 import (
 	"encoding/base64"
 	"fmt"
+	"io"
 	"os"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // TerminalImageProtocol represents the image protocol supported by the terminal
@@ -84,4 +87,41 @@ func renderKittyImage(data []byte) string {
 func renderITerm2Image(data []byte) string {
 	encoded := base64.StdEncoding.EncodeToString(data)
 	return fmt.Sprintf("\x1b]1337;File=inline=1;width=80%%:%s\x07", encoded)
+}
+
+// coverPreviewExec implements tea.ExecCommand to show a cover image outside
+// the alt-screen. tea.Exec suspends the Bubble Tea TUI (exits alt-screen),
+// runs Run() with raw terminal I/O, then resumes the TUI. This avoids the
+// renderer's line-erasing behaviour, which would overwrite image cells.
+type coverPreviewExec struct {
+	imagePath string
+	protocol  TerminalImageProtocol
+	stdout    io.Writer
+	stdin     io.Reader
+}
+
+func (c *coverPreviewExec) SetStdin(r io.Reader)  { c.stdin = r }
+func (c *coverPreviewExec) SetStdout(w io.Writer) { c.stdout = w }
+func (c *coverPreviewExec) SetStderr(_ io.Writer) {}
+
+func (c *coverPreviewExec) Run() error {
+	img := RenderInlineImage(c.imagePath, c.protocol)
+	if img == "" || c.stdout == nil {
+		return nil
+	}
+	fmt.Fprint(c.stdout, img)
+	fmt.Fprint(c.stdout, "\n\n  Press any key to close...\n")
+	if c.stdin != nil {
+		buf := make([]byte, 1)
+		_, _ = c.stdin.Read(buf)
+	}
+	return nil
+}
+
+// CoverPreviewCmd returns a tea.Cmd that suspends the TUI and shows the cover
+// image at imagePath using the given protocol, then waits for a keypress.
+func CoverPreviewCmd(imagePath string, protocol TerminalImageProtocol) tea.Cmd {
+	return tea.Exec(&coverPreviewExec{imagePath: imagePath, protocol: protocol}, func(err error) tea.Msg {
+		return nil
+	})
 }

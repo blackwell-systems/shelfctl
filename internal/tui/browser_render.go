@@ -160,17 +160,6 @@ func (m BrowserModel) View() string {
 		return ""
 	}
 
-	// Full-screen cover preview: raw image sequence — no lipgloss processing.
-	// Kitty/iTerm2 APC sequences must never pass through lipgloss layout operations.
-	if m.showCover {
-		if item, ok := m.list.SelectedItem().(BookItem); ok && item.HasCover {
-			if img := RenderInlineImage(item.CoverPath, cachedImageProtocol()); img != "" {
-				return img + "\n\n  press any key to close"
-			}
-		}
-		// Fallback: no image rendered, drop back to normal view.
-	}
-
 	// Inner content box with border — copy base and set dimensions
 	masterStyle := viewMasterBase
 	if m.width > 0 && m.height > 0 {

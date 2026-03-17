@@ -51,18 +51,20 @@ func (m BrowserModel) renderDetailsPane() string {
 		Width(detailsWidth).
 		Padding(0, 1)
 
-	var s strings.Builder
-
-	// Show cover image if available and terminal supports it
+	// Capture cover image sequence BEFORE any lipgloss rendering.
+	// Kitty/iTerm2 APC escape sequences are binary data that lipgloss does not
+	// recognise as ANSI — it miscalculates line widths and can split the sequence
+	// mid-stream, corrupting it. We prepend the raw sequence to the final string
+	// after all lipgloss operations are done.
+	var coverImg string
 	if bookItem.HasCover {
 		protocol := cachedImageProtocol()
 		if protocol != ProtocolNone {
-			if img := RenderInlineImage(bookItem.CoverPath, protocol); img != "" {
-				s.WriteString(img)
-				s.WriteString("\n\n")
-			}
+			coverImg = RenderInlineImage(bookItem.CoverPath, protocol)
 		}
 	}
+
+	var s strings.Builder
 
 	// Title
 	s.WriteString(StyleHeader.Render("Book Details"))
@@ -130,8 +132,12 @@ func (m BrowserModel) renderDetailsPane() string {
 	s.WriteString(truncateText(bookItem.Book.Format, maxTextWidth))
 	s.WriteString("\n")
 
-	// Apply details panel styling
-	return detailsStyle.Render(s.String())
+	// Apply details panel styling — cover image is prepended raw, outside lipgloss.
+	text := detailsStyle.Render(s.String())
+	if coverImg != "" {
+		return coverImg + "\n" + text
+	}
+	return text
 }
 
 // renderFooter creates a footer with all available keyboard shortcuts.

@@ -67,15 +67,15 @@ func RenderInlineImage(imagePath string, protocol TerminalImageProtocol) string 
 }
 
 // renderKittyImage uses Kitty's graphics protocol
-// Format: \x1b_Ga=T,f=100,t=f;<base64>\x1b\\
+// Format: \x1b_Ga=T,f=100,t=d;<base64>\x1b\\
 func renderKittyImage(data []byte) string {
 	encoded := base64.StdEncoding.EncodeToString(data)
 
 	// Kitty protocol:
-	// - a=T: transmit image
-	// - f=100: format is png/jpeg (100)
-	// - t=f: data is transmitted inline
-	return fmt.Sprintf("\x1b_Ga=T,f=100,t=f;%s\x1b\\", encoded)
+	// - a=T: transmit and display image
+	// - f=100: PNG/JPEG format (terminal decodes)
+	// - t=d: data is inline base64 (direct); t=f would mean a file path
+	return fmt.Sprintf("\x1b_Ga=T,f=100,t=d;%s\x1b\\", encoded)
 }
 
 // renderITerm2Image uses iTerm2's inline images protocol

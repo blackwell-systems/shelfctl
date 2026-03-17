@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `baseDir` as a parameter through the call chain (`cache/html_index.go`).
 
 ### Fixed
+- Cover images in the browse TUI details pane now render correctly on Kitty and
+  Ghostty terminals. Two bugs prevented them from ever displaying: the Kitty
+  graphics protocol `t=f` parameter (file path) was used instead of `t=d`
+  (inline base64), and the APC escape sequences were passed through lipgloss
+  layout operations that corrupted them. The cover image is now rendered outside
+  the lipgloss pipeline (`tui/image.go`, `tui/browser_render.go`).
 - HTML index cover images now display correctly for all books. The wave agent's
   BUG 25 fix incorrectly used `filepath.Dir(book.FilePath)` as the anchor for
   relative cover paths; `FilePath` is the cached PDF path (empty for uncached

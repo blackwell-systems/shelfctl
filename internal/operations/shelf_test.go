@@ -16,7 +16,7 @@ func TestAddShelfToConfig_LoadError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create an invalid config file (not valid YAML)
 	configPath := filepath.Join(tmpDir, "config.yml")
@@ -179,7 +179,7 @@ func TestAddShelfToConfig_NoDuplicates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a valid initial config file
 	configPath := filepath.Join(tmpDir, "config.yml")

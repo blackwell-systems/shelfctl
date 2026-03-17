@@ -123,7 +123,7 @@ Add books using shelfctl.
 		t.Error("Expected all three sections to be present")
 	}
 
-	if !(quickStatsIdx < recentlyAddedIdx && recentlyAddedIdx < addingBooksIdx) {
+	if quickStatsIdx >= recentlyAddedIdx || recentlyAddedIdx >= addingBooksIdx {
 		t.Error("Expected order: Quick Stats < Recently Added < Adding Books")
 		t.Logf("Result:\n%s", result)
 	}

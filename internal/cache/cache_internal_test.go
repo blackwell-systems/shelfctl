@@ -178,7 +178,7 @@ func TestRemove_NonExistent(t *testing.T) {
 // --- generateHTML ---
 
 func TestGenerateHTML_Empty(t *testing.T) {
-	html := generateHTML(nil)
+	html := generateHTML(nil, "/tmp")
 	if !strings.Contains(html, "<!DOCTYPE html>") {
 		t.Error("should contain DOCTYPE")
 	}
@@ -199,7 +199,7 @@ func TestGenerateHTML_WithBooks(t *testing.T) {
 			IsCached:  true,
 		},
 	}
-	html := generateHTML(books)
+	html := generateHTML(books, "/tmp")
 	if !strings.Contains(html, "sicp") {
 		t.Error("should contain book ID")
 	}
@@ -224,7 +224,7 @@ func TestGenerateHTML_UncachedSection(t *testing.T) {
 			IsCached: false,
 		},
 	}
-	html := generateHTML(books)
+	html := generateHTML(books, "/tmp")
 	if !strings.Contains(html, "Not yet downloaded") {
 		t.Error("should contain uncached section title")
 	}
@@ -304,7 +304,7 @@ func TestRenderBookCard_WithCover(t *testing.T) {
 		HasCover:  true,
 		IsCached:  true,
 	}
-	renderBookCard(&s, book, 0)
+	renderBookCard(&s, book, 0, "/tmp")
 	html := s.String()
 
 	if !strings.Contains(html, "<img") {
@@ -323,7 +323,7 @@ func TestRenderBookCard_NoCover(t *testing.T) {
 		HasCover: false,
 		IsCached: true,
 	}
-	renderBookCard(&s, book, 0)
+	renderBookCard(&s, book, 0, "/tmp")
 	html := s.String()
 
 	if !strings.Contains(html, "no-cover") {
@@ -343,7 +343,7 @@ func TestGenerateHTML_TagFilters(t *testing.T) {
 			IsCached:  true,
 		},
 	}
-	html := generateHTML(books)
+	html := generateHTML(books, "/tmp")
 	if !strings.Contains(html, "tag-filter") {
 		t.Error("should contain tag filter buttons")
 	}
@@ -360,7 +360,7 @@ func TestGenerateHTML_CachedCountSubtitle(t *testing.T) {
 		{Book: catalog.Book{ID: "a"}, IsCached: true, ShelfName: "s", FilePath: "/a.pdf"},
 		{Book: catalog.Book{ID: "b"}, IsCached: false},
 	}
-	html := generateHTML(books)
+	html := generateHTML(books, "/tmp")
 	if !strings.Contains(html, "2 books (1 cached)") {
 		t.Errorf("subtitle should show cached count, got html containing subtitle")
 	}

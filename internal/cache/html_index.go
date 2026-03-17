@@ -25,7 +25,7 @@ type IndexBook struct {
 func (m *Manager) GenerateHTMLIndex(books []IndexBook) error {
 	indexPath := filepath.Join(m.baseDir, "index.html")
 
-	html := generateHTML(books)
+	html := generateHTML(books, m.baseDir)
 
 	if err := os.WriteFile(indexPath, []byte(html), 0644); err != nil {
 		return fmt.Errorf("writing index.html: %w", err)
@@ -34,7 +34,7 @@ func (m *Manager) GenerateHTMLIndex(books []IndexBook) error {
 	return nil
 }
 
-func generateHTML(books []IndexBook) string {
+func generateHTML(books []IndexBook, baseDir string) string {
 	var s strings.Builder
 
 	// Collect all unique tags
@@ -441,7 +441,7 @@ func generateHTML(books []IndexBook) string {
 `, html.EscapeString(shelfName), html.EscapeString(shelfName), len(shelfBookList))
 
 		for _, book := range shelfBookList {
-			renderBookCard(&s, book, bookIndex)
+			renderBookCard(&s, book, bookIndex, baseDir)
 			bookIndex++
 		}
 
@@ -618,7 +618,7 @@ func generateHTML(books []IndexBook) string {
 	return s.String()
 }
 
-func renderBookCard(s *strings.Builder, book IndexBook, index int) {
+func renderBookCard(s *strings.Builder, book IndexBook, index int, baseDir string) {
 	// Convert tags to lowercase for search
 	tags := strings.Join(book.Book.Tags, ", ")
 
@@ -642,11 +642,9 @@ func renderBookCard(s *strings.Builder, book IndexBook, index int) {
 	)
 
 	if book.HasCover {
-		// Make cover path relative to index.html location
-		indexDir := filepath.Dir(book.FilePath) // directory containing index.html
-		relCoverPath, err := filepath.Rel(indexDir, book.CoverPath)
+		// Make cover path relative to index.html location (baseDir/index.html)
+		relCoverPath, err := filepath.Rel(baseDir, book.CoverPath)
 		if err != nil {
-			// Fall back to absolute path
 			relCoverPath = book.CoverPath
 		}
 		fmt.Fprintf(s, `<img src="%s" alt="Cover">`,

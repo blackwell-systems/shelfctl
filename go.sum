@@ -4,6 +4,16 @@ github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiE
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/aymanbagabas/go-udiff v0.3.1 h1:LV+qyBQ2pqe0u42ZsUEtPiCaUoqgA9gYRDs3vj1nolY=
 github.com/aymanbagabas/go-udiff v0.3.1/go.mod h1:G0fsKmG+P6ylD0r6N/KgQD/nWzgfnl8ZBcNLgcbrw8E=
+github.com/blackwell-systems/bubbletea-carousel v0.1.0 h1:jvAzqWcRTZwSW8/CZCkvNuf2Wb6DMqXmcN4fTnDrRe8=
+github.com/blackwell-systems/bubbletea-carousel v0.1.0/go.mod h1:WpAURtPWARQ72u9OeLDs1VMp+JL0jHif6Ud3u9+mW2M=
+github.com/blackwell-systems/bubbletea-commandpalette v0.1.0 h1:Sfoe4f0okHXVrAgDrgIMY4KjWlxyvlDFrKKc3bFe9no=
+github.com/blackwell-systems/bubbletea-commandpalette v0.1.0/go.mod h1:qDz4DXj4cl5szGdtcp/OfCuibKPSD4lY0Ew8GDe2QIk=
+github.com/blackwell-systems/bubbletea-millercolumns v0.1.0 h1:M/Amx+xIpvzrDSpPvA9hxWeDOW+kqOtmPkNeqxiHbl0=
+github.com/blackwell-systems/bubbletea-millercolumns v0.1.0/go.mod h1:43b7xJwO0F4o3+L7lOLuIthdxJCPTFHN+9AKI5nGpxQ=
+github.com/blackwell-systems/bubbletea-multiselect v0.1.0 h1:IXqF9UZkZ/hUFEx1FrAm0MmSiDzipbftuKLe0HiDneQ=
+github.com/blackwell-systems/bubbletea-multiselect v0.1.0/go.mod h1:2jPyAfjAOqKIlJ8lU/P9sW0tKmHELV73xgEndPQUNq4=
+github.com/blackwell-systems/bubbletea-picker v0.1.0 h1:DRM00zxLLNfYzEhWjGuY+vpymWc5TPRtx2WY5Th3E1Y=
+github.com/blackwell-systems/bubbletea-picker v0.1.0/go.mod h1:/UiACbvXqFMsAKYF3NXKM/DyjVkExoC9ywFPSRABV7w=
 github.com/charmbracelet/bubbles v1.0.0 h1:12J8/ak/uCZEMQ6KU7pcfwceyjLlWsDLAxB5fXonfvc=
 github.com/charmbracelet/bubbles v1.0.0/go.mod h1:9d/Zd5GdnauMI5ivUIVisuEm3ave1XwXtD1ckyV6r3E=
 github.com/charmbracelet/bubbletea v1.3.10 h1:otUDHWMMzQSB0Pkc87rm691KZ3SWa4KUlvF9nRvCICw=

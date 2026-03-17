@@ -666,23 +666,12 @@ func updateCatalogsForCrossShelfMove(id string, b *catalog.Book, srcShelf *confi
 		}
 	}
 
-	// Remove from source
-	books, _ = catalog.Remove(books, id)
-	srcData, err := catalog.Marshal(books)
-	if err != nil {
-		return err
-	}
-	if err := gh.CommitFile(srcOwner, srcShelf.Repo, srcCatalogPath, srcData,
-		fmt.Sprintf("move: remove %s (moved to %s)", id, dst.shelf.Name)); err != nil {
-		return err
-	}
-
 	// Update book metadata for destination
 	b.Source.Release = dst.release
 	b.Source.Owner = dst.owner
 	b.Source.Repo = dst.repo
 
-	// Add to destination catalog (Append replaces if ID exists)
+	// Add to destination catalog FIRST (Append replaces if ID exists)
 	dstBooks = catalog.Append(dstBooks, *b)
 	dstCatalogData, err := catalog.Marshal(dstBooks)
 	if err != nil {
@@ -690,6 +679,17 @@ func updateCatalogsForCrossShelfMove(id string, b *catalog.Book, srcShelf *confi
 	}
 	if err := gh.CommitFile(dst.owner, dst.repo, dstCatalogPath, dstCatalogData,
 		fmt.Sprintf("move: add %s (from %s)", id, srcShelf.Name)); err != nil {
+		return err
+	}
+
+	// Remove from source catalog AFTER destination is safely written
+	books, _ = catalog.Remove(books, id)
+	srcData, err := catalog.Marshal(books)
+	if err != nil {
+		return err
+	}
+	if err := gh.CommitFile(srcOwner, srcShelf.Repo, srcCatalogPath, srcData,
+		fmt.Sprintf("move: remove %s (moved to %s)", id, dst.shelf.Name)); err != nil {
 		return err
 	}
 

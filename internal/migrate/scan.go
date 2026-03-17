@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // FileEntry is one file discovered in a source repo.
@@ -29,7 +30,7 @@ func ScanRepo(token, apiBase, owner, repo, ref string, exts []string) ([]FileEnt
 	if apiBase == "" {
 		apiBase = "https://api.github.com"
 	}
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	var results []FileEntry
 	if err := scanDir(client, token, apiBase, owner, repo, ref, "", exts, &results); err != nil {
 		return nil, err
@@ -39,7 +40,10 @@ func ScanRepo(token, apiBase, owner, repo, ref string, exts []string) ([]FileEnt
 
 func scanDir(client *http.Client, token, apiBase, owner, repo, ref, dirPath string, exts []string, out *[]FileEntry) error {
 	url := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", apiBase, owner, repo, dirPath, ref)
-	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("building request for %s: %w", url, err)
+	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")

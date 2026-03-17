@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `generateHTML`, `renderBookCard`, and `renderUncachedCard` in the HTML index
+  generator are now methods on `*cache.Manager`, eliminating the need to thread
+  `baseDir` as a parameter through the call chain (`cache/html_index.go`).
+
 ### Fixed
 - HTML index cover images now display correctly for all books. The wave agent's
   BUG 25 fix incorrectly used `filepath.Dir(book.FilePath)` as the anchor for

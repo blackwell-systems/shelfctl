@@ -643,7 +643,12 @@ func renderBookCard(s *strings.Builder, book IndexBook, index int) {
 
 	if book.HasCover {
 		// Make cover path relative to index.html location
-		relCoverPath, _ := filepath.Rel(filepath.Dir(filepath.Join(book.FilePath, "..")), book.CoverPath)
+		indexDir := filepath.Dir(book.FilePath) // directory containing index.html
+		relCoverPath, err := filepath.Rel(indexDir, book.CoverPath)
+		if err != nil {
+			// Fall back to absolute path
+			relCoverPath = book.CoverPath
+		}
 		fmt.Fprintf(s, `<img src="%s" alt="Cover">`,
 			html.EscapeString(relCoverPath))
 	} else {

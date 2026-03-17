@@ -99,7 +99,6 @@ func newCacheInfoCmd() *cobra.Command {
 // clearAllCache removes the entire cache directory
 func clearAllCache(force bool) error {
 	cacheDir := cacheMgr.Path("", "", "", "")
-	cacheDir = filepath.Dir(cacheDir) // Go up one level to get base dir
 
 	// Check if cache exists
 	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
@@ -441,7 +440,7 @@ func showAllCacheInfo() error {
 		printField("modified", fmt.Sprintf("%d (annotations/highlights)", modifiedCount))
 	}
 	printField("cache_size", humanBytes(totalSize))
-	printField("cache_dir", filepath.Dir(cacheMgr.Path("", "", "", "")))
+	printField("cache_dir", cacheMgr.Path("", "", "", ""))
 
 	uncachedCount := totalBooks - cachedCount
 	if uncachedCount > 0 {

@@ -156,7 +156,7 @@ shelfctl browse --shelf %s
 func addShelfToConfig(cfg *config.Config, shelfName, owner, repoName string) error {
 	currentCfg, err := config.Load()
 	if err != nil {
-		currentCfg = &config.Config{}
+		return fmt.Errorf("loading config: %w", err)
 	}
 
 	// Don't duplicate

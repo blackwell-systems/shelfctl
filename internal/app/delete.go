@@ -1,7 +1,10 @@
 package app
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
@@ -81,8 +84,9 @@ Examples:
 				fmt.Println(color.RedString("  2. Delete it permanently") + " - Delete repository and all books forever")
 				fmt.Println()
 				fmt.Print("Your choice (1/2): ")
-				var response string
-				_, _ = fmt.Scanln(&response)
+				reader := bufio.NewReader(os.Stdin)
+				response, _ := reader.ReadString('\n')
+				response = strings.TrimSpace(response)
 				if response == "2" {
 					deleteRepo = true
 				}
@@ -117,8 +121,9 @@ Examples:
 			// Confirm
 			if !skipConfirm {
 				fmt.Print("Type the shelf name to confirm deletion: ")
-				var confirmation string
-				_, _ = fmt.Scanln(&confirmation)
+				reader := bufio.NewReader(os.Stdin)
+				confirmation, _ := reader.ReadString('\n')
+				confirmation = strings.TrimSpace(confirmation)
 
 				if confirmation != shelfName {
 					return fmt.Errorf("confirmation did not match - aborted")
@@ -126,18 +131,17 @@ Examples:
 			}
 
 			// Delete from config
-			newShelves := make([]config.ShelfConfig, 0, len(cfg.Shelves)-1)
-			for _, s := range cfg.Shelves {
-				if s.Name != shelfName {
-					newShelves = append(newShelves, s)
-				}
-			}
-
 			currentCfg, err := config.Load()
 			if err != nil {
 				return fmt.Errorf("loading config: %w", err)
 			}
 
+			newShelves := make([]config.ShelfConfig, 0, len(currentCfg.Shelves))
+			for _, s := range currentCfg.Shelves {
+				if s.Name != shelfName {
+					newShelves = append(newShelves, s)
+				}
+			}
 			currentCfg.Shelves = newShelves
 
 			if err := config.Save(currentCfg); err != nil {

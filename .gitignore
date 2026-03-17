@@ -47,3 +47,7 @@ dist/
 # MkDocs
 site/
 .venv/
+
+# Claude Code worktrees and SAW coordination state
+.claude/
+.saw-state/

@@ -20,33 +20,27 @@ const (
 	ProtocolITerm2
 )
 
-// insideTmux reports whether the process is running inside a tmux session.
-func insideTmux() bool {
-	term := os.Getenv("TERM")
-	termProgram := os.Getenv("TERM_PROGRAM")
-	return strings.HasPrefix(term, "tmux") || termProgram == "tmux" || os.Getenv("TMUX") != ""
-}
-
 // DetectImageProtocol detects which terminal image protocol is supported.
-// Works correctly inside tmux by checking Ghostty/Kitty-specific env vars
-// that survive through the tmux session.
+// Works correctly inside tmux by checking Ghostty-specific env vars that
+// survive through the tmux session (TERM_PROGRAM becomes "tmux" inside tmux,
+// but GHOSTTY_RESOURCES_DIR is inherited from the parent shell).
 func DetectImageProtocol() TerminalImageProtocol {
 	termProgram := os.Getenv("TERM_PROGRAM")
 	term := os.Getenv("TERM")
 
-	// Check for Kitty terminal (direct or via TERM)
+	// Kitty terminal (direct session)
 	if strings.Contains(term, "kitty") {
 		return ProtocolKitty
 	}
 
-	// Check for Ghostty (supports Kitty protocol).
-	// TERM_PROGRAM is set to "ghostty" in direct sessions; inside tmux it
-	// becomes "tmux", so we also check GHOSTTY_RESOURCES_DIR which survives.
+	// Ghostty supports Kitty graphics protocol natively, including inside tmux.
+	// TERM_PROGRAM="ghostty" in direct sessions; inside tmux it becomes "tmux",
+	// but GHOSTTY_RESOURCES_DIR is always set in Ghostty-spawned shells.
 	if termProgram == "ghostty" || os.Getenv("GHOSTTY_RESOURCES_DIR") != "" {
 		return ProtocolKitty
 	}
 
-	// Check for iTerm2
+	// iTerm2
 	if termProgram == "iTerm.app" {
 		return ProtocolITerm2
 	}
@@ -55,9 +49,9 @@ func DetectImageProtocol() TerminalImageProtocol {
 }
 
 // RenderInlineImage renders an image inline using the terminal's protocol.
-// Returns the terminal escape sequences to display the image, or empty string on error.
-// Automatically wraps sequences in tmux DCS passthrough when inside tmux
-// (requires `set -g allow-passthrough on` in tmux.conf).
+// Returns the terminal escape sequence to display the image, or empty string on error.
+// Ghostty handles Kitty APC sequences transparently even inside tmux — no
+// DCS passthrough wrapping required.
 func RenderInlineImage(imagePath string, protocol TerminalImageProtocol) string {
 	if protocol == ProtocolNone {
 		return ""
@@ -68,20 +62,13 @@ func RenderInlineImage(imagePath string, protocol TerminalImageProtocol) string 
 		return ""
 	}
 
-	var seq string
 	switch protocol {
 	case ProtocolKitty:
-		seq = renderKittyImage(data)
+		return renderKittyImage(data)
 	case ProtocolITerm2:
-		seq = renderITerm2Image(data)
-	default:
-		return ""
+		return renderITerm2Image(data)
 	}
-
-	if insideTmux() {
-		seq = wrapTmuxPassthrough(seq)
-	}
-	return seq
+	return ""
 }
 
 // renderKittyImage encodes image data using the Kitty graphics protocol.
@@ -97,15 +84,4 @@ func renderKittyImage(data []byte) string {
 func renderITerm2Image(data []byte) string {
 	encoded := base64.StdEncoding.EncodeToString(data)
 	return fmt.Sprintf("\x1b]1337;File=inline=1;width=80%%:%s\x07", encoded)
-}
-
-// wrapTmuxPassthrough wraps a terminal escape sequence in tmux's DCS passthrough.
-// tmux intercepts most escape sequences; passthrough forwards them to the
-// outer terminal. Requires `set -g allow-passthrough on` in tmux.conf.
-// Each ESC byte inside the payload must be doubled (\x1b → \x1b\x1b).
-func wrapTmuxPassthrough(seq string) string {
-	// Double every ESC byte inside the payload so tmux doesn't treat them as
-	// the end of the DCS string.
-	inner := strings.ReplaceAll(seq, "\x1b", "\x1b\x1b")
-	return fmt.Sprintf("\x1bPtmux;%s\x1b\\", inner)
 }

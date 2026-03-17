@@ -25,7 +25,7 @@ type IndexBook struct {
 func (m *Manager) GenerateHTMLIndex(books []IndexBook) error {
 	indexPath := filepath.Join(m.baseDir, "index.html")
 
-	html := generateHTML(books, m.baseDir)
+	html := m.generateHTML(books)
 
 	if err := os.WriteFile(indexPath, []byte(html), 0644); err != nil {
 		return fmt.Errorf("writing index.html: %w", err)
@@ -34,7 +34,7 @@ func (m *Manager) GenerateHTMLIndex(books []IndexBook) error {
 	return nil
 }
 
-func generateHTML(books []IndexBook, baseDir string) string {
+func (m *Manager) generateHTML(books []IndexBook) string {
 	var s strings.Builder
 
 	// Collect all unique tags
@@ -441,7 +441,7 @@ func generateHTML(books []IndexBook, baseDir string) string {
 `, html.EscapeString(shelfName), html.EscapeString(shelfName), len(shelfBookList))
 
 		for _, book := range shelfBookList {
-			renderBookCard(&s, book, bookIndex, baseDir)
+			m.renderBookCard(&s, book, bookIndex)
 			bookIndex++
 		}
 
@@ -460,7 +460,7 @@ func generateHTML(books []IndexBook, baseDir string) string {
 `, len(uncached))
 
 		for _, book := range uncached {
-			renderUncachedCard(&s, book, bookIndex)
+			m.renderUncachedCard(&s, book, bookIndex)
 			bookIndex++
 		}
 
@@ -618,7 +618,7 @@ func generateHTML(books []IndexBook, baseDir string) string {
 	return s.String()
 }
 
-func renderBookCard(s *strings.Builder, book IndexBook, index int, baseDir string) {
+func (m *Manager) renderBookCard(s *strings.Builder, book IndexBook, index int) {
 	// Convert tags to lowercase for search
 	tags := strings.Join(book.Book.Tags, ", ")
 
@@ -643,7 +643,7 @@ func renderBookCard(s *strings.Builder, book IndexBook, index int, baseDir strin
 
 	if book.HasCover {
 		// Make cover path relative to index.html location (baseDir/index.html)
-		relCoverPath, err := filepath.Rel(baseDir, book.CoverPath)
+		relCoverPath, err := filepath.Rel(m.baseDir, book.CoverPath)
 		if err != nil {
 			relCoverPath = book.CoverPath
 		}
@@ -679,7 +679,7 @@ func renderBookCard(s *strings.Builder, book IndexBook, index int, baseDir strin
 `)
 }
 
-func renderUncachedCard(s *strings.Builder, book IndexBook, index int) {
+func (m *Manager) renderUncachedCard(s *strings.Builder, book IndexBook, index int) {
 	tags := strings.Join(book.Book.Tags, ", ")
 
 	fmt.Fprintf(s, `

@@ -7,35 +7,31 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 )
 
-// mockGitHubClient is a test stub for github.Client.
 type mockGitHubClient struct {
-	// State for mocking GetFileContent
-	content      []byte
-	contentErr   error
-	contentCalls int
-
-	// State for mocking CommitFile
-	commitCalls   int
-	commitErr     error
-	lastCommitMsg string
+	content        []byte
+	contentErr     error
+	commitCalls    int
+	commitErr      error
+	lastCommitData []byte
+	lastCommitMsg  string
 }
 
 func (m *mockGitHubClient) GetFileContent(owner, repo, path, ref string) ([]byte, string, error) {
-	m.contentCalls++
 	return m.content, "", m.contentErr
 }
 
 func (m *mockGitHubClient) CommitFile(owner, repo, path string, data []byte, message string) error {
 	m.commitCalls++
+	m.lastCommitData = data
 	m.lastCommitMsg = message
 	return m.commitErr
 }
 
-// TestManager_Remove_NotFound verifies that when a book is not found,
-// Manager.Remove does NOT call Save (i.e., does NOT commit to GitHub).
-func TestManager_Remove_NotFound(t *testing.T) {
-	// Setup: catalog with two books
-	initialCatalog := []byte(`
+func newMgr(mock *mockGitHubClient) *catalog.Manager {
+	return catalog.NewManager(mock, "owner", "repo", "catalog.yaml")
+}
+
+var sampleCatalog = []byte(`
 - id: book1
   title: "Book One"
   format: pdf
@@ -44,181 +40,260 @@ func TestManager_Remove_NotFound(t *testing.T) {
   format: epub
 `)
 
-	mock := &mockGitHubClient{
-		content:    initialCatalog,
-		contentErr: nil,
-	}
+// --- Load ---
 
-	// We need to create a Manager using the mock client.
-	// Since Manager expects a *github.Client, we'll use an interface-based approach
-	// or directly create the manager with mock fields.
-	// However, Manager's constructor takes a concrete github.Client.
-	// For testing, we'll use a test helper that constructs Manager with our mock.
-
-	// Create manager with mock (we'll adapt the constructor signature in test scope)
-	mgr := newTestManager(mock)
-
-	// Call Remove with a book ID that doesn't exist
-	books, found, err := mgr.Remove("nonexistent", "remove: nonexistent")
-
-	// Assertions
+func TestLoad_Happy(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	books, err := newMgr(mock).Load()
 	if err != nil {
-		t.Fatalf("Remove returned unexpected error: %v", err)
-	}
-	if found {
-		t.Error("Remove reported found=true for nonexistent book")
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(books) != 2 {
-		t.Errorf("expected 2 books in result, got %d", len(books))
-	}
-
-	// Critical assertion: Save should NOT have been called
-	if mock.commitCalls > 0 {
-		t.Errorf("Save was called %d time(s) when book not found; expected 0 calls", mock.commitCalls)
+		t.Fatalf("expected 2 books, got %d", len(books))
 	}
 }
 
-// TestManager_Remove_Found verifies that when a book IS found,
-// Manager.Remove DOES call Save to commit the change.
-func TestManager_Remove_Found(t *testing.T) {
-	initialCatalog := []byte(`
-- id: book1
-  title: "Book One"
-  format: pdf
-- id: book2
-  title: "Book Two"
-  format: epub
-`)
-
-	mock := &mockGitHubClient{
-		content:    initialCatalog,
-		contentErr: nil,
-	}
-
-	mgr := newTestManager(mock)
-
-	// Call Remove with an existing book ID
-	books, found, err := mgr.Remove("book1", "remove: book1")
-
-	// Assertions
+func TestLoad_NotFound(t *testing.T) {
+	mock := &mockGitHubClient{contentErr: errors.New("not found")}
+	books, err := newMgr(mock).Load()
 	if err != nil {
-		t.Fatalf("Remove returned unexpected error: %v", err)
+		t.Fatalf("not-found should return empty slice, got error: %v", err)
 	}
-	if !found {
-		t.Error("Remove reported found=false for existing book")
-	}
-	if len(books) != 1 {
-		t.Errorf("expected 1 book after removal, got %d", len(books))
-	}
-	if books[0].ID != "book2" {
-		t.Errorf("wrong book remaining: got %q, want %q", books[0].ID, "book2")
-	}
-
-	// Critical assertion: Save SHOULD have been called exactly once
-	if mock.commitCalls != 1 {
-		t.Errorf("Save was called %d time(s); expected 1", mock.commitCalls)
-	}
-	if mock.lastCommitMsg != "remove: book1" {
-		t.Errorf("commit message = %q, want %q", mock.lastCommitMsg, "remove: book1")
+	if len(books) != 0 {
+		t.Fatalf("expected 0 books, got %d", len(books))
 	}
 }
 
-// TestManager_Remove_LoadError verifies error handling when Load fails.
-func TestManager_Remove_LoadError(t *testing.T) {
-	mock := &mockGitHubClient{
-		contentErr: errors.New("network error"),
-	}
-
-	mgr := newTestManager(mock)
-
-	_, _, err := mgr.Remove("book1", "remove: book1")
+func TestLoad_OtherError(t *testing.T) {
+	mock := &mockGitHubClient{contentErr: errors.New("network error")}
+	// "network error" != "not found", so Load should propagate it.
+	// But the current implementation only special-cases "not found".
+	// The mock returns "network error" so Load should return an error.
+	_, err := newMgr(mock).Load()
 	if err == nil {
-		t.Error("expected error when Load fails, got nil")
-	}
-
-	// Save should not be called if Load fails
-	if mock.commitCalls > 0 {
-		t.Errorf("Save was called when Load failed; expected 0 calls")
+		t.Fatal("expected error for non-not-found failure, got nil")
 	}
 }
 
-// TestManager_Remove_SaveError verifies error handling when Save fails.
-func TestManager_Remove_SaveError(t *testing.T) {
-	initialCatalog := []byte(`
-- id: book1
-  title: "Book One"
-  format: pdf
-`)
+// --- Save ---
 
-	mock := &mockGitHubClient{
-		content:   initialCatalog,
-		commitErr: errors.New("commit failed"),
-	}
-
-	mgr := newTestManager(mock)
-
-	_, found, err := mgr.Remove("book1", "remove: book1")
-	if err == nil {
-		t.Error("expected error when Save fails, got nil")
-	}
-	if !found {
-		t.Error("found should be true even when Save fails")
+func TestSave_Happy(t *testing.T) {
+	mock := &mockGitHubClient{}
+	books := []catalog.Book{{ID: "b1", Title: "T", Format: "pdf"}}
+	err := newMgr(mock).Save(books, "save msg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if mock.commitCalls != 1 {
-		t.Errorf("Save should have been called once; got %d", mock.commitCalls)
+		t.Fatalf("expected 1 commit call, got %d", mock.commitCalls)
+	}
+	if mock.lastCommitMsg != "save msg" {
+		t.Errorf("commit msg = %q, want %q", mock.lastCommitMsg, "save msg")
 	}
 }
 
-// newTestManager creates a Manager using our mock client.
-// Since Manager's constructor expects a concrete *github.Client,
-// we'll have to use reflection or create a test-specific constructor.
-// For simplicity, we'll directly instantiate the Manager struct.
-func newTestManager(mock *mockGitHubClient) *testManagerWrapper {
-	return &testManagerWrapper{
-		mock:        mock,
-		owner:       "test-owner",
-		repo:        "test-repo",
-		catalogPath: "catalog.yaml",
+func TestSave_CommitError(t *testing.T) {
+	mock := &mockGitHubClient{commitErr: errors.New("commit failed")}
+	books := []catalog.Book{{ID: "b1", Title: "T", Format: "pdf"}}
+	err := newMgr(mock).Save(books, "msg")
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 
-// testManagerWrapper wraps our mock and implements Manager's methods.
-type testManagerWrapper struct {
-	mock        *mockGitHubClient
-	owner       string
-	repo        string
-	catalogPath string
-}
+// --- Update ---
 
-func (w *testManagerWrapper) Load() ([]catalog.Book, error) {
-	data, _, err := w.mock.GetFileContent(w.owner, w.repo, w.catalogPath, "")
+func TestUpdate_Happy(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	called := false
+	err := newMgr(mock).Update(func(books []catalog.Book) ([]catalog.Book, error) {
+		called = true
+		return append(books, catalog.Book{ID: "book3", Title: "Book Three", Format: "pdf"}), nil
+	}, "update msg")
 	if err != nil {
-		return nil, err
+		t.Fatalf("unexpected error: %v", err)
 	}
-	return catalog.Parse(data)
+	if !called {
+		t.Error("update fn was not called")
+	}
+	if mock.commitCalls != 1 {
+		t.Errorf("expected 1 commit, got %d", mock.commitCalls)
+	}
 }
 
-func (w *testManagerWrapper) Save(books []catalog.Book, commitMsg string) error {
-	data, err := catalog.Marshal(books)
-	if err != nil {
-		return err
+func TestUpdate_LoadError(t *testing.T) {
+	mock := &mockGitHubClient{contentErr: errors.New("network error")}
+	err := newMgr(mock).Update(func(books []catalog.Book) ([]catalog.Book, error) {
+		return books, nil
+	}, "msg")
+	if err == nil {
+		t.Fatal("expected error from load, got nil")
 	}
-	return w.mock.CommitFile(w.owner, w.repo, w.catalogPath, data, commitMsg)
+	if mock.commitCalls != 0 {
+		t.Errorf("should not commit when load fails, got %d", mock.commitCalls)
+	}
 }
 
-func (w *testManagerWrapper) Remove(bookID, commitMsg string) ([]catalog.Book, bool, error) {
-	books, err := w.Load()
-	if err != nil {
-		return nil, false, err
+func TestUpdate_FnError(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	err := newMgr(mock).Update(func(books []catalog.Book) ([]catalog.Book, error) {
+		return nil, errors.New("fn failed")
+	}, "msg")
+	if err == nil {
+		t.Fatal("expected fn error to propagate, got nil")
 	}
+	if mock.commitCalls != 0 {
+		t.Errorf("should not commit when fn fails, got %d", mock.commitCalls)
+	}
+}
 
-	books, found := catalog.Remove(books, bookID)
+// --- FindByID ---
 
+func TestFindByID_Found(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	book, err := newMgr(mock).FindByID("book1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if book == nil {
+		t.Fatal("expected book, got nil")
+	}
+	if book.ID != "book1" {
+		t.Errorf("got ID %q, want %q", book.ID, "book1")
+	}
+}
+
+func TestFindByID_NotFound(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	book, err := newMgr(mock).FindByID("nonexistent")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if book != nil {
+		t.Errorf("expected nil, got %+v", book)
+	}
+}
+
+func TestFindByID_LoadError(t *testing.T) {
+	mock := &mockGitHubClient{contentErr: errors.New("network error")}
+	_, err := newMgr(mock).FindByID("book1")
+	if err == nil {
+		t.Fatal("expected error from load, got nil")
+	}
+}
+
+// --- Remove ---
+
+func TestRemove_Found(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	books, found, err := newMgr(mock).Remove("book1", "remove: book1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !found {
+		t.Error("expected found=true")
+	}
+	if len(books) != 1 || books[0].ID != "book2" {
+		t.Errorf("unexpected books after remove: %+v", books)
+	}
+	if mock.commitCalls != 1 {
+		t.Errorf("expected 1 commit, got %d", mock.commitCalls)
+	}
+}
+
+func TestRemove_NotFound(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	books, found, err := newMgr(mock).Remove("nonexistent", "remove: nonexistent")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if found {
-		if err := w.Save(books, commitMsg); err != nil {
-			return nil, found, err
+		t.Error("expected found=false")
+	}
+	if len(books) != 2 {
+		t.Errorf("expected 2 books unchanged, got %d", len(books))
+	}
+	if mock.commitCalls != 0 {
+		t.Errorf("should not commit when not found, got %d", mock.commitCalls)
+	}
+}
+
+func TestRemove_LoadError(t *testing.T) {
+	mock := &mockGitHubClient{contentErr: errors.New("network error")}
+	_, _, err := newMgr(mock).Remove("book1", "remove: book1")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if mock.commitCalls != 0 {
+		t.Errorf("should not commit when load fails, got %d", mock.commitCalls)
+	}
+}
+
+func TestRemove_SaveError(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog, commitErr: errors.New("commit failed")}
+	_, found, err := newMgr(mock).Remove("book1", "remove: book1")
+	if err == nil {
+		t.Fatal("expected error from save, got nil")
+	}
+	if !found {
+		t.Error("found should be true even when save fails")
+	}
+}
+
+// --- Append ---
+
+func TestAppend_AddsBook(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	newBook := catalog.Book{ID: "book3", Title: "Book Three", Format: "mobi"}
+	books, err := newMgr(mock).Append(newBook, "add: book3")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(books) != 3 {
+		t.Fatalf("expected 3 books, got %d", len(books))
+	}
+	if mock.commitCalls != 1 {
+		t.Errorf("expected 1 commit, got %d", mock.commitCalls)
+	}
+	if mock.lastCommitMsg != "add: book3" {
+		t.Errorf("commit msg = %q, want %q", mock.lastCommitMsg, "add: book3")
+	}
+}
+
+func TestManager_Append_ReplacesExisting(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog}
+	updated := catalog.Book{ID: "book1", Title: "Book One Updated", Format: "epub"}
+	books, err := newMgr(mock).Append(updated, "update: book1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Append replaces if same ID exists
+	found := false
+	for _, b := range books {
+		if b.ID == "book1" {
+			found = true
+			if b.Title != "Book One Updated" {
+				t.Errorf("title not updated: got %q", b.Title)
+			}
 		}
 	}
+	if !found {
+		t.Error("book1 not found after append/replace")
+	}
+}
 
-	return books, found, nil
+func TestAppend_LoadError(t *testing.T) {
+	mock := &mockGitHubClient{contentErr: errors.New("network error")}
+	_, err := newMgr(mock).Append(catalog.Book{ID: "b"}, "msg")
+	if err == nil {
+		t.Fatal("expected error from load, got nil")
+	}
+}
+
+func TestAppend_SaveError(t *testing.T) {
+	mock := &mockGitHubClient{content: sampleCatalog, commitErr: errors.New("commit failed")}
+	_, err := newMgr(mock).Append(catalog.Book{ID: "book3"}, "msg")
+	if err == nil {
+		t.Fatal("expected error from save, got nil")
+	}
 }

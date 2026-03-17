@@ -2,21 +2,26 @@ package catalog
 
 import (
 	"fmt"
-
-	"github.com/blackwell-systems/shelfctl/internal/github"
 )
+
+// GitHubClient is the subset of github.Client that Manager needs.
+// Using an interface here lets tests inject a stub without a real HTTP client.
+type GitHubClient interface {
+	GetFileContent(owner, repo, path, ref string) ([]byte, string, error)
+	CommitFile(owner, repo, path string, data []byte, message string) error
+}
 
 // Manager provides high-level catalog operations.
 // It centralizes the common pattern of load → parse → modify → marshal → commit.
 type Manager struct {
-	gh          *github.Client
+	gh          GitHubClient
 	owner       string
 	repo        string
 	catalogPath string
 }
 
 // NewManager creates a new catalog manager.
-func NewManager(gh *github.Client, owner, repo, catalogPath string) *Manager {
+func NewManager(gh GitHubClient, owner, repo, catalogPath string) *Manager {
 	return &Manager{
 		gh:          gh,
 		owner:       owner,

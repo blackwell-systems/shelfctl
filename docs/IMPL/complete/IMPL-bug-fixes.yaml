@@ -1,0 +1,1339 @@
+completion_date: "2026-03-16"
+title: 'Bug Fix: 27-Bug Audit Remediation'
+feature_slug: bug-fixes
+verdict: SUITABLE
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: internal/app/cache.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/app/delete_book.go
+      agent: B
+      wave: 1
+      action: modify
+    - file: internal/app/move.go
+      agent: C
+      wave: 1
+      action: modify
+    - file: internal/app/verify.go
+      agent: D
+      wave: 2
+      action: modify
+    - file: internal/app/shelve.go
+      agent: E
+      wave: 2
+      action: modify
+    - file: internal/app/open.go
+      agent: E
+      wave: 2
+      action: modify
+    - file: internal/app/browse.go
+      agent: E
+      wave: 2
+      action: modify
+    - file: internal/app/sync.go
+      agent: E
+      wave: 2
+      action: modify
+    - file: internal/github/gitops.go
+      agent: F
+      wave: 2
+      action: modify
+    - file: internal/app/migrate.go
+      agent: G
+      wave: 2
+      action: modify
+    - file: internal/operations/shelf.go
+      agent: H
+      wave: 2
+      action: modify
+    - file: internal/operations/readme.go
+      agent: H
+      wave: 2
+      action: modify
+    - file: internal/migrate/scan.go
+      agent: I
+      wave: 2
+      action: modify
+    - file: internal/ingest/resolver.go
+      agent: I
+      wave: 2
+      action: modify
+    - file: internal/catalog/manager.go
+      agent: J
+      wave: 3
+      action: modify
+    - file: internal/app/delete.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/app/helpers.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/ingest/pdfmeta.go
+      agent: L
+      wave: 3
+      action: modify
+    - file: internal/cache/html_index.go
+      agent: L
+      wave: 3
+      action: modify
+    - file: internal/app/edit_book.go
+      agent: M
+      wave: 3
+      action: modify
+    - file: internal/app/open.go
+      agent: M
+      wave: 3
+      action: modify
+    - file: internal/github/client.go
+      agent: M
+      wave: 3
+      action: modify
+interface_contracts:
+    - name: catalog.Remove (existing — iterator-safe)
+      description: |
+        BUG 4 fix: verify.go:130 iterates `books` with range and calls catalog.Remove
+        inside the loop, which modifies the slice in-place and skips subsequent elements.
+        The fix collects IDs to remove first, then removes them in a second pass after
+        the loop. No signature change; this is a usage fix, not an API change.
+      definition: |
+        // Existing signature — unchanged:
+        func Remove(books []Book, id string) ([]Book, bool)
+      location: internal/catalog/catalog.go
+    - name: cacheMgr.Path (corrected usage)
+      description: |
+        BUG 15: clearAllCache calls filepath.Dir(cacheMgr.Path("","","","")) which
+        returns the PARENT of the cache dir, not the cache dir itself. The fix calls
+        cacheMgr.BaseDir() or uses the path directly without filepath.Dir.
+        showAllCacheInfo:444 has the same pattern.
+      definition: |
+        // cache.Manager must expose a method returning the base directory:
+        // func (m *Manager) BaseDir() string
+        // If BaseDir() does not exist, the fix removes the filepath.Dir() wrapper.
+      location: internal/cache/manager.go
+    - name: updateCatalogsForCrossShelfMove (BUG 27 — commit ordering)
+      description: |
+        BUG 27 fix: in move.go:675, src catalog is removed BEFORE dst catalog is
+        written. Network failure between those two commits leaves book lost from both.
+        Fix: write dst catalog first, then remove from src catalog.
+      definition: |
+        // No signature change; internal reordering of CommitFile calls in
+        // updateCatalogsForCrossShelfMove.
+      location: internal/app/move.go
+    - name: deleteSingleBook (BUG 3 — commit before delete)
+      description: |
+        BUG 3 fix: DeleteAsset is called before CommitFile for catalog removal.
+        Fix: load catalog, remove entry, CommitFile the catalog update FIRST,
+        then DeleteAsset.
+      definition: |
+        // No signature change; internal reordering in deleteSingleBook.
+      location: internal/app/delete_book.go
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |
+            ## What to Implement
+
+            Fix BUG 15 in `internal/app/cache.go`.
+
+            **BUG 15 — wrong cache directory path (CRITICAL)**
+            Lines 101-102: `clearAllCache` does:
+            ```go
+            cacheDir := cacheMgr.Path("", "", "", "")
+            cacheDir = filepath.Dir(cacheDir) // Go up one level to get base dir
+            ```
+            `cacheMgr.Path("","","","")` already returns the base cache directory.
+            Calling `filepath.Dir()` on it goes UP one level to the parent directory
+            (the shelfctl data dir), then `os.RemoveAll` deletes ALL shelfctl data.
+
+            Line 444: `showAllCacheInfo` has the same pattern:
+            ```go
+            printField("cache_dir", filepath.Dir(cacheMgr.Path("", "", "", "")))
+            ```
+
+            **Fix:**
+            1. In `clearAllCache` (line 101-102): remove the `filepath.Dir()` wrapper.
+               `cacheDir` should equal `cacheMgr.Path("", "", "", "")` directly.
+            2. In `showAllCacheInfo` (line 444): remove `filepath.Dir()` wrapper.
+               Display `cacheMgr.Path("", "", "", "")` directly.
+
+            Before making the fix, read the `cache.Manager` to confirm what
+            `cacheMgr.Path("","","","")` actually returns (look at
+            `internal/cache/manager.go`). If `cacheMgr.Path` with empty args
+            does NOT return the base cache dir, find the correct method/path to use.
+            Do not introduce `filepath.Dir` at any level.
+
+            ## Tests to Write
+
+            No unit test required for this path-arithmetic fix (it exercises OS
+            filesystem calls); verify correctness by code review and build only.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/app/... ./internal/cache/...
+            ```
+
+            ## Constraints
+
+            - Only modify `internal/app/cache.go`.
+            - Do not change any other file.
+            - Do not alter the behaviour of `clearShelfCache`, `clearSpecificBooks`,
+              or `clearBooksInteractive`; those paths are correct.
+          files:
+            - internal/app/cache.go
+        - id: B
+          task: |
+            ## What to Implement
+
+            Fix BUG 3 in `internal/app/delete_book.go`.
+
+            **BUG 3 — delete asset before catalog commit (HIGH)**
+            In `deleteSingleBook` (line 279), the current order is:
+            1. `gh.DeleteAsset(...)` — asset deleted from GitHub
+            2. Load catalog, remove book entry
+            3. `gh.CommitFile(...)` — catalog updated
+
+            If the network fails between step 1 and step 3, the asset is gone but
+            the catalog still references the book (orphaned catalog entry, unrecoverable).
+
+            **Fix:**
+            Reorder the operations so the catalog is committed FIRST:
+            1. Load catalog, remove book entry, `gh.CommitFile(...)` commit catalog
+            2. THEN `gh.DeleteAsset(...)` — delete asset from GitHub
+
+            New order in `deleteSingleBook`:
+            ```
+            1. gh.GetReleaseByTag — find release
+            2. gh.FindAsset       — find asset (to get asset.ID for later)
+            3. gh.GetFileContent  — load catalog
+            4. catalog.Remove     — remove entry
+            5. catalog.Marshal    — marshal updated catalog
+            6. gh.CommitFile      — commit catalog UPDATE FIRST
+            7. gh.DeleteAsset     — delete asset AFTER catalog is safe
+            8. cacheMgr.Remove    — clear local cache
+            9. updateREADMEAfterRemove
+            ```
+
+            ## Tests to Write
+
+            No unit test needed (integration-level GitHub operations); verify by
+            code review that the ordering matches the spec above.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/app/...
+            ```
+
+            ## Constraints
+
+            - Only modify `internal/app/delete_book.go`.
+            - Do not change function signatures.
+            - If `asset` is nil after FindAsset, return early before any commits.
+          files:
+            - internal/app/delete_book.go
+        - id: C
+          task: |
+            ## What to Implement
+
+            Fix BUG 27 in `internal/app/move.go`.
+
+            **BUG 27 — cross-shelf move removes source before writing destination (HIGH)**
+            In `updateCatalogsForCrossShelfMove` (around line 675), the current order is:
+            1. Load src catalog
+            2. Load dst catalog
+            3. Remove book from src catalog → `gh.CommitFile` src (SOURCE REMOVED FIRST)
+            4. Update book metadata
+            5. Add book to dst catalog → `gh.CommitFile` dst
+
+            If step 5 fails (network error, conflict), the book is already removed from
+            source but never written to destination — book is permanently lost.
+
+            **Fix:**
+            Swap the ordering so destination is committed FIRST:
+            1. Load src catalog
+            2. Load dst catalog
+            3. Update book metadata for destination
+            4. Add book to dst catalog → `gh.CommitFile` dst  ← DESTINATION FIRST
+            5. Remove book from src catalog → `gh.CommitFile` src  ← SOURCE AFTER
+
+            In the worst case (step 5 fails), the book exists in BOTH catalogs, which
+            is a recoverable duplicate rather than a permanent loss.
+
+            The function to modify is `updateCatalogsForCrossShelfMove`.
+            The cache removal before step 3 can remain in place (it's local, not network).
+
+            ## Tests to Write
+
+            No unit test needed (integration-level); verify ordering by code review.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/app/...
+            ```
+
+            ## Constraints
+
+            - Only modify `internal/app/move.go`.
+            - Do not alter `updateCatalogForSameShelfMove` (same-shelf move is safe).
+            - Keep the cache removal (`cacheMgr.Remove`) before catalog operations
+              (it is local and harmless if subsequent steps fail).
+          files:
+            - internal/app/move.go
+    - number: 2
+      agents:
+        - id: D
+          task: |
+            ## What to Implement
+
+            Fix BUG 4 in `internal/app/verify.go`.
+
+            **BUG 4 — iterator invalidation in range loop (MEDIUM)**
+            In `verifySingleShelf`, the "find orphaned catalog entries" loop (line 130):
+            ```go
+            for i := range books {
+                b := &books[i]
+                if _, exists := assetNames[b.Source.Asset]; !exists {
+                    if fix {
+                        books, _ = catalog.Remove(books, b.ID)  // modifies slice!
+                    }
+                }
+            }
+            ```
+            `catalog.Remove` re-slices `books` in place. When two consecutive entries
+            are orphaned, the second one is silently skipped because the range loop
+            uses the original length.
+
+            **Fix:**
+            Two-pass approach:
+            ```go
+            // Pass 1: collect IDs of orphaned entries
+            var toRemove []string
+            for i := range books {
+                b := &books[i]
+                if _, exists := assetNames[b.Source.Asset]; !exists {
+                    issues = append(issues, ...)
+                    if fix {
+                        toRemove = append(toRemove, b.ID)
+                        ok("Removing %s from catalog", b.ID)
+                        // cache removal can stay here
+                    }
+                }
+            }
+            // Pass 2: remove collected IDs
+            if fix {
+                for _, id := range toRemove {
+                    books, _ = catalog.Remove(books, id)
+                }
+                catalogModified = len(toRemove) > 0
+            }
+            ```
+
+            Move the `catalogModified = true` and cache removal inside pass 1 (per-entry),
+            but do the actual `catalog.Remove` calls in pass 2 after the loop completes.
+
+            ## Tests to Write
+
+            1. `TestVerifyConsecutiveOrphans` — create a books slice with 3 entries where
+               entries 0 and 1 are both orphaned (no matching asset). Confirm that after
+               fix both are removed, not just entry 0.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/app/...
+            ```
+
+            ## Constraints
+
+            - Only modify `internal/app/verify.go`.
+            - The test file `internal/app/verify_test.go` may be created (new file).
+            - Do not change `catalog.Remove` signature.
+          files:
+            - internal/app/verify.go
+        - id: E
+          task: |
+            ## What to Implement
+
+            Fix BUG 6 across four files: context cancellation not propagated to
+            upload/download goroutines.
+
+            **BUG 6 — cancel during upload/download doesn't stop goroutine (MEDIUM)**
+
+            In each of the four files, when the user cancels (tui.ShowProgress returns
+            an error), the goroutine running UploadAsset or the store operation
+            continues running in the background. The fix adds a context that is
+            cancelled when ShowProgress returns, so goroutines respect cancellation.
+
+            ### `internal/app/shelve.go` (line 480 — uploadAsset function)
+
+            The goroutine calls `gh.UploadAsset(...)`. When `tui.ShowProgress` returns
+            (cancel or error), the goroutine keeps running.
+
+            Fix: create a `context.WithCancel` before the goroutine. Pass the context
+            to `gh.UploadAsset` (add `ctx context.Context` as first argument to
+            `UploadAsset` if the GitHub client supports it — check `github/client.go`
+            first; if it doesn't accept context yet, skip context plumbing and instead
+            drain the errCh after cancelling to ensure the goroutine exits):
+            ```go
+            ctx, cancel := context.WithCancel(context.Background())
+            go func() {
+                // ... existing goroutine body ...
+            }()
+            label := ...
+            if err := tui.ShowProgress(label, size, progressCh); err != nil {
+                cancel() // signal goroutine to stop
+                <-errCh  // wait for goroutine to exit before returning
+                return err
+            }
+            cancel() // normal completion
+            ```
+
+            If `UploadAsset`/`DownloadAsset` don't accept context, the drain pattern
+            (`<-errCh` after cancel signal) is sufficient to prevent goroutine leaks.
+
+            ### `internal/app/open.go` (line 64 — download goroutine)
+
+            Same pattern: add cancel + drain of errCh when ShowProgress returns error.
+
+            ### `internal/app/browse.go` (line 471 — DownloadWithProgress)
+
+            `browserDownloader.Download` (line 27) ignores the error from
+            `DownloadWithProgress`:
+            ```go
+            func (d *browserDownloader) Download(...) (bool, error) {
+                return d.DownloadWithProgress(..., nil) == nil, nil
+            }
+            ```
+            This always returns `nil` error regardless of outcome (BUG 25).
+            Fix: propagate the error:
+            ```go
+            func (d *browserDownloader) Download(...) (bool, error) {
+                err := d.DownloadWithProgress(..., nil)
+                return err == nil, err
+            }
+            ```
+
+            For the goroutine in browse.go (if any), apply the same cancel+drain pattern.
+
+            ### `internal/app/sync.go` (line 212 — upload goroutine)
+
+            Apply the cancel+drain pattern: when `tui.ShowProgress` returns an error,
+            call `cancel()` and drain `<-errCh` before returning.
+
+            ## Tests to Write
+
+            No unit tests required for goroutine plumbing changes. Verify by code review.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/app/...
+            ```
+
+            ## Constraints
+
+            - Modify `internal/app/shelve.go`, `internal/app/open.go`,
+              `internal/app/browse.go`, `internal/app/sync.go`.
+            - Do NOT modify `internal/github/client.go` — that is owned by Agent M.
+            - If `UploadAsset` or `DownloadAsset` don't yet accept context.Context,
+              use the drain pattern only; do not add context parameters to them.
+            - For BUG 25 (`browse.go` line 27): the fix is a one-liner change to
+              `browserDownloader.Download`.
+          files:
+            - internal/app/shelve.go
+            - internal/app/open.go
+            - internal/app/browse.go
+            - internal/app/sync.go
+        - id: F
+          task: |
+            ## What to Implement
+
+            Fix BUG 8 in `internal/github/gitops.go`.
+
+            **BUG 8 — pull--rebase runs after commit but asset already uploaded (MEDIUM)**
+            Current flow in `CommitFile`:
+            ```
+            clone → write file → add → commit → pull --rebase → push
+            ```
+            If `pull --rebase` finds a conflict, it fails and the function returns
+            an error. But the asset was already uploaded by the caller BEFORE
+            `CommitFile` was called (e.g., in `shelve.go`: UploadAsset → CommitFile).
+            So a conflict = asset on GitHub but catalog not updated.
+
+            Fix: move `pull --rebase` to BEFORE the commit, so the sequence is:
+            ```
+            clone → pull --rebase → write file → add → commit → push
+            ```
+            This way, if rebase fails (conflict), no commit has happened yet and the
+            caller can retry or handle the error cleanly. The asset is still uploaded
+            by the caller before CommitFile is called, but at least the catalog state
+            is consistent — if CommitFile fails, the catalog was never partially applied.
+
+            The actual "asset before catalog" ordering in shelve.go is an architectural
+            concern beyond the scope of this bug; the gitops.go fix ensures that the
+            rebase step doesn't leave the catalog in a half-committed state.
+
+            New sequence in `CommitFile`:
+            ```go
+            runGit(tmpDir, "clone", "--depth=1", cloneURL, ".")
+            runGit(tmpDir, "pull", "--rebase")   // ← move here, BEFORE writing file
+            // write file
+            runGit(tmpDir, "config", "user.email", ...)
+            runGit(tmpDir, "config", "user.name", ...)
+            runGit(tmpDir, "add", filePath)
+            runGit(tmpDir, "commit", "-m", message)
+            runGit(tmpDir, "push")
+            ```
+
+            ## Tests to Write
+
+            No unit test required (git subprocess integration); verify by code review.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/github/...
+            ```
+
+            ## Constraints
+
+            - Only modify `internal/github/gitops.go`.
+            - Do not change the function signature of `CommitFile`.
+            - The `pull --rebase` after clone with `--depth=1` is valid git; the
+              shallow clone will be deepened as needed by the rebase.
+          files:
+            - internal/github/gitops.go
+        - id: G
+          task: |
+            ## What to Implement
+
+            Fix BUG 10+11 and BUG 18 in `internal/app/migrate.go`.
+
+            **BUG 10+11 — non-EOF read error breaks loop with wrong SHA256/size (MEDIUM)**
+            In `fetchAndHash` (lines 221-228, approximate), the read loop is:
+            ```go
+            hr := ingest.NewReader(bytes.NewReader(fileData))
+            buf := make([]byte, 32*1024)
+            for {
+                _, readErr := hr.Read(buf)
+                if readErr != nil {
+                    break   // breaks on ANY error, including non-EOF
+                }
+            }
+            return fileData, hr.SHA256(), hr.Size(), nil
+            ```
+            If a non-EOF read error occurs (e.g., I/O error mid-stream), the loop
+            breaks with a partial SHA256 and partial size. `UploadAsset` is then
+            called with a wrong `ContentLength`, producing a corrupt/truncated asset.
+
+            Fix: distinguish EOF from real errors:
+            ```go
+            for {
+                _, readErr := hr.Read(buf)
+                if readErr == io.EOF {
+                    break
+                }
+                if readErr != nil {
+                    return nil, "", 0, fmt.Errorf("hashing file: %w", readErr)
+                }
+            }
+            ```
+            Add `"io"` to imports if not already present.
+
+            **BUG 18 — failed migrations increment processed counter (MEDIUM)**
+            In `processMigrationQueue` (line 347):
+            ```go
+            if err := oneCmd.Execute(); err != nil {
+                warn("Failed: %v", err)
+            }
+            processed++  // increments even on failure
+            ```
+            Fix: only increment `processed` when the migration succeeded:
+            ```go
+            if err := oneCmd.Execute(); err != nil {
+                warn("Failed: %v", err)
+                // do NOT increment processed
+                continue
+            }
+            processed++
+            ```
+
+            **BUG 9 — processMigrationQueue spawns newMigrateOneCmd() bypassing PersistentPreRunE (LOW)**
+            This is documented as LOW severity. Note it in a code comment but do NOT
+            attempt to fix the cobra command tree here — it requires architectural
+            changes to how `cfg` and `gh` are initialized. Add a TODO comment:
+            ```go
+            // TODO(bug9): newMigrateOneCmd() bypasses PersistentPreRunE so cfg/gh
+            // are not re-initialized per migration. Fix by calling migrateOne()
+            // helper directly instead of spawning a cobra subcommand.
+            ```
+
+            ## Tests to Write
+
+            1. No unit tests required for these fixes. Verify by code review.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/app/... ./internal/migrate/...
+            ```
+
+            ## Constraints
+
+            - Only modify `internal/app/migrate.go`.
+            - Add `"io"` import if needed.
+            - BUG 9 is TODO-comment only; do not attempt to fix the cobra plumbing.
+          files:
+            - internal/app/migrate.go
+        - id: H
+          task: |
+            ## What to Implement
+
+            Fix BUG 13 in `internal/operations/shelf.go` and
+            BUG 17 in `internal/operations/readme.go`.
+
+            **BUG 13 — config load error replaced with empty config (MEDIUM)**
+            In `addShelfToConfig` (line 157):
+            ```go
+            currentCfg, err := config.Load()
+            if err != nil {
+                currentCfg = &config.Config{}  // ← silently drops all existing shelves!
+            }
+            ```
+            If `config.Load()` fails (file unreadable, YAML parse error), all existing
+            shelves are silently lost because the empty config is then saved.
+
+            Fix: return the error instead of swallowing it:
+            ```go
+            currentCfg, err := config.Load()
+            if err != nil {
+                return fmt.Errorf("loading config: %w", err)
+            }
+            ```
+
+            **BUG 17 — line duplication in AppendToShelfREADME when only Quick Stats exists (MEDIUM)**
+            In `AppendToShelfREADME` (operations/readme.go around line 120), the
+            `quickStatsIdx >= 0` branch uses an outer `for i, line` loop and an
+            inner `for j` loop. When the inner `for j` loop exhausts the file
+            without finding a next `##` heading, the outer loop continues and
+            appends lines again, duplicating everything after Quick Stats.
+
+            Fix: when the inner loop exits without returning, break out of the
+            outer loop to prevent re-appending:
+            ```go
+            for i, line := range lines {
+                result = append(result, line)
+                if i == quickStatsIdx {
+                    foundNextSection := false
+                    for j := i + 1; j < len(lines); j++ {
+                        result = append(result, lines[j])
+                        if strings.HasPrefix(lines[j], "##") {
+                            // Found next section — insert before it
+                            result = result[:len(result)-1]
+                            result = append(result, "")
+                            result = append(result, "## Recently Added")
+                            result = append(result, "")
+                            result = append(result, bookEntry)
+                            result = append(result, "")
+                            result = append(result, lines[j])
+                            result = append(result, lines[j+1:]...)
+                            return strings.Join(result, "\n")
+                        }
+                    }
+                    // Inner loop exhausted without finding next section:
+                    // append Recently Added at the end and stop outer loop
+                    if !foundNextSection {
+                        result = append(result, "")
+                        result = append(result, "## Recently Added")
+                        result = append(result, "")
+                        result = append(result, bookEntry)
+                        return strings.Join(result, "\n")
+                    }
+                    break
+                }
+            }
+            ```
+
+            ## Tests to Write
+
+            1. `TestAppendToShelfREADME_QuickStatsOnly` — README with Quick Stats but
+               no other `##` section; confirm that after append the book entry appears
+               once, not duplicated.
+            2. `TestAddShelfToConfig_LoadError` — if config.Load returns an error,
+               confirm addShelfToConfig propagates it (mock or stub).
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/operations/...
+            ```
+
+            ## Constraints
+
+            - Modify `internal/operations/shelf.go` and `internal/operations/readme.go`.
+            - Test file `internal/operations/readme_test.go` may be created.
+            - Do not modify any other file.
+          files:
+            - internal/operations/shelf.go
+            - internal/operations/readme.go
+        - id: I
+          task: |
+            ## What to Implement
+
+            Fix BUG 20, BUG 21, BUG 22, and BUG 19 across two files.
+
+            ### `internal/migrate/scan.go`
+
+            **BUG 20 — http.Client{} has no Timeout (MEDIUM)**
+            Line 32: `client := &http.Client{}` — hangs forever on slow networks.
+            Fix:
+            ```go
+            client := &http.Client{Timeout: 30 * time.Second}
+            ```
+            Add `"time"` to imports.
+
+            **BUG 21 — http.NewRequest error ignored, req can be nil → panic (MEDIUM)**
+            Line 42:
+            ```go
+            req, _ := http.NewRequest(http.MethodGet, url, nil)
+            req.Header.Set(...)  // panics if req is nil
+            ```
+            Fix:
+            ```go
+            req, err := http.NewRequest(http.MethodGet, url, nil)
+            if err != nil {
+                return fmt.Errorf("building request for %s: %w", url, err)
+            }
+            req.Header.Set(...)
+            ```
+
+            ### `internal/ingest/resolver.go`
+
+            **BUG 22 — http.NewRequest error ignored, req can be nil → panic (MEDIUM)**
+            Line 107 (inside the `Open` closure of `resolveGitHub`):
+            ```go
+            req, _ := http.NewRequest(http.MethodGet, contentURL, nil)
+            req.Header.Set(...)  // panics if req is nil
+            ```
+            Fix:
+            ```go
+            req, err := http.NewRequest(http.MethodGet, contentURL, nil)
+            if err != nil {
+                return nil, fmt.Errorf("building request: %w", err)
+            }
+            req.Header.Set(...)
+            ```
+
+            **BUG 19 — eager HEAD request wastes 15s on slow servers (LOW)**
+            In `resolveHTTP` (line 60-68), a HEAD request is made immediately at
+            resolve time, even though the file may never actually be downloaded
+            (e.g., dry-run mode). This is a design smell but safe to fix here:
+            Defer the HEAD request to when `Open()` is called, or remove it and
+            accept that `Size` will always be -1 for HTTP sources (progress bars
+            will show indeterminate). The simpler fix is to remove the eager HEAD
+            and just set `Size: -1` by default:
+            ```go
+            func resolveHTTP(url string) (*Source, error) {
+                name := guessFilenameFromURL(url)
+                client := &http.Client{Timeout: 30 * time.Second}
+                return &Source{
+                    Name: name,
+                    Size: -1,
+                    Open: func() (io.ReadCloser, error) {
+                        r, err := client.Get(url)
+                        if err != nil {
+                            return nil, err
+                        }
+                        if r.StatusCode != http.StatusOK {
+                            _ = r.Body.Close()
+                            return nil, fmt.Errorf("get %s: status %d", url, r.StatusCode)
+                        }
+                        return r.Body, nil
+                    },
+                }, nil
+            }
+            ```
+            This removes the 15-second blocking HEAD entirely.
+
+            ## Tests to Write
+
+            1. `TestScanDir_RequestError` — confirm that a bad URL returns an error
+               rather than panicking (exercises the BUG 21 fix).
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/migrate/... ./internal/ingest/...
+            ```
+
+            ## Constraints
+
+            - Modify `internal/migrate/scan.go` and `internal/ingest/resolver.go`.
+            - Add `"time"` import to scan.go.
+            - For BUG 19: removing the eager HEAD is the preferred fix. If you find
+              that callers depend on `Size` being set for progress bars and removing
+              the HEAD would break UX significantly, add a TODO comment and leave it
+              as-is, fixing only BUGs 20, 21, 22.
+          files:
+            - internal/migrate/scan.go
+            - internal/ingest/resolver.go
+    - number: 3
+      agents:
+        - id: J
+          task: |
+            ## What to Implement
+
+            Fix BUG 1 in `internal/catalog/manager.go`.
+
+            **BUG 1 — Remove calls Save even when book not found (LOW)**
+            In `Manager.Remove` (line 101-113):
+            ```go
+            func (m *Manager) Remove(bookID, commitMsg string) ([]Book, bool, error) {
+                books, err := m.Load()
+                ...
+                books, found := Remove(books, bookID)
+                if err := m.Save(books, commitMsg); err != nil {  // always called!
+                    ...
+                }
+                return books, found, nil
+            }
+            ```
+            When `found == false`, `m.Save` still commits an unchanged catalog to
+            GitHub, creating a pointless git commit with no actual diff.
+
+            Fix: guard `m.Save` with `if found`:
+            ```go
+            books, found := Remove(books, bookID)
+            if found {
+                if err := m.Save(books, commitMsg); err != nil {
+                    return nil, found, err
+                }
+            }
+            return books, found, nil
+            ```
+
+            ## Tests to Write
+
+            1. `TestManager_Remove_NotFound` — call `Manager.Remove` with an ID that
+               does not exist in the catalog; confirm `found == false` and that no
+               `Save` call is made (mock the GitHub client or use an in-memory stub).
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/catalog/...
+            ```
+
+            ## Constraints
+
+            - Only modify `internal/catalog/manager.go`.
+            - Test file `internal/catalog/manager_test.go` may be created or extended.
+          files:
+            - internal/catalog/manager.go
+          dependencies:
+            - B
+            - C
+        - id: K
+          task: |
+            ## What to Implement
+
+            Fix BUG 12 and BUG 23 across `internal/app/delete.go` and
+            `internal/app/helpers.go`.
+
+            **BUG 12 — newShelves built from stale cfg.Shelves (LOW)**
+            In `delete.go` (line 129):
+            ```go
+            newShelves := make([]config.ShelfConfig, 0, len(cfg.Shelves)-1)
+            for _, s := range cfg.Shelves {        // iterates stale cfg.Shelves
+                if s.Name != shelfName {
+                    newShelves = append(newShelves, s)
+                }
+            }
+            currentCfg, err := config.Load()      // loads fresh config
+            ...
+            currentCfg.Shelves = newShelves        // assigns stale list!
+            ```
+            If `cfg.Shelves` differs from `currentCfg.Shelves` (e.g., another
+            process added a shelf), the freshly-loaded shelves are overwritten
+            by the stale filtered list.
+
+            Fix: build `newShelves` from `currentCfg.Shelves` instead:
+            ```go
+            currentCfg, err := config.Load()
+            if err != nil {
+                return fmt.Errorf("loading config: %w", err)
+            }
+            newShelves := make([]config.ShelfConfig, 0, len(currentCfg.Shelves))
+            for _, s := range currentCfg.Shelves {   // use fresh config
+                if s.Name != shelfName {
+                    newShelves = append(newShelves, s)
+                }
+            }
+            currentCfg.Shelves = newShelves
+            ```
+
+            **BUG 23 — fmt.Scanln breaks on shelf names with spaces (LOW)**
+            In `delete.go` (line 121) and `helpers.go` (line 28):
+            ```go
+            var confirmation string
+            _, _ = fmt.Scanln(&confirmation)
+            ```
+            `fmt.Scanln` stops at the first whitespace, so a shelf named
+            "my books" would only read "my" and the confirmation always fails.
+
+            Fix: use `bufio.NewReader(os.Stdin).ReadString('\n')` and
+            `strings.TrimSpace` (same pattern already used in `cache.go`):
+            ```go
+            reader := bufio.NewReader(os.Stdin)
+            confirmation, _ := reader.ReadString('\n')
+            confirmation = strings.TrimSpace(confirmation)
+            ```
+            Apply this fix in both `delete.go` (shelf name confirmation) and
+            `helpers.go` wherever `fmt.Scanln` is used for user-visible confirmations
+            that could contain spaces.
+
+            ## Tests to Write
+
+            No unit tests required (stdin interaction); verify by code review.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/app/...
+            ```
+
+            ## Constraints
+
+            - Modify `internal/app/delete.go` and `internal/app/helpers.go`.
+            - Add `"bufio"` and `"strings"` imports to any file that needs them.
+            - Do not modify any other file.
+          files:
+            - internal/app/delete.go
+            - internal/app/helpers.go
+        - id: L
+          task: |
+            ## What to Implement
+
+            Fix BUG 14 in `internal/ingest/pdfmeta.go` and
+            BUG 16 in `internal/cache/html_index.go`.
+
+            **BUG 14 — scanner buffer capped at 8192 bytes, scanner.Err() unchecked (LOW)**
+            In `ExtractPDFMetadata` (pdfmeta.go line 30-38):
+            ```go
+            scanner := bufio.NewScanner(f)
+            scanner.Buffer(make([]byte, 8192), 8192)
+            ...
+            for scanner.Scan() && lineCount < 500 {
+                ...
+            }
+            // scanner.Err() never checked
+            ```
+            The 8192-byte buffer cap means that any PDF line longer than 8192 bytes
+            causes `scanner.Scan()` to return false with a non-nil `scanner.Err()`
+            that is silently ignored.
+
+            Fix:
+            1. Increase the max token size to 64KB (reasonable for PDF lines):
+               ```go
+               scanner.Buffer(make([]byte, 64*1024), 64*1024)
+               ```
+            2. After the scan loop, check `scanner.Err()`:
+               ```go
+               for scanner.Scan() && lineCount < 500 {
+                   content.WriteString(scanner.Text())
+                   content.WriteString("\n")
+                   lineCount++
+               }
+               if err := scanner.Err(); err != nil {
+                   // Non-fatal: log and continue with partial data
+                   // (PDF metadata extraction is best-effort)
+                   _ = err // or: return nil, fmt.Errorf("scanning pdf: %w", err)
+               }
+               ```
+               Since metadata extraction is best-effort, logging and continuing is
+               acceptable. Return partial results rather than failing completely.
+
+            **BUG 16 — wrong cover path computation (LOW)**
+            In `html_index.go` (line 646):
+            ```go
+            relCoverPath, _ := filepath.Rel(
+                filepath.Dir(filepath.Join(book.FilePath, "..")),
+                book.CoverPath,
+            )
+            ```
+            `filepath.Dir(filepath.Join(book.FilePath, ".."))` is equivalent to
+            `filepath.Dir(filepath.Dir(book.FilePath))` — it goes up TWO levels
+            from the book file, not one. The error from `filepath.Rel` is also
+            silently discarded.
+
+            Fix:
+            ```go
+            indexDir := filepath.Dir(book.FilePath)  // directory containing index.html
+            relCoverPath, err := filepath.Rel(indexDir, book.CoverPath)
+            if err != nil {
+                // Fall back to absolute path
+                relCoverPath = book.CoverPath
+            }
+            fmt.Fprintf(s, `<img src="%s" alt="Cover">`, html.EscapeString(relCoverPath))
+            ```
+
+            ## Tests to Write
+
+            1. `TestExtractPDFMetadata_LongLine` — pass a synthetic "PDF" with a
+               line exceeding 8192 bytes; confirm it does not panic and returns
+               partial or empty metadata gracefully.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/ingest/... ./internal/cache/...
+            ```
+
+            ## Constraints
+
+            - Modify `internal/ingest/pdfmeta.go` and `internal/cache/html_index.go`.
+            - Test file `internal/ingest/pdfmeta_test.go` may be created.
+            - Do not modify any other file.
+          files:
+            - internal/ingest/pdfmeta.go
+            - internal/cache/html_index.go
+        - id: M
+          task: |
+            ## What to Implement
+
+            Fix BUG 26 in `internal/app/edit_book.go`,
+            BUG 24 in `internal/app/open.go` (case-sensitivity),
+            and BUG 2 in `internal/github/client.go`.
+
+            **BUG 26 — non-deterministic tag order (LOW)**
+            In `edit_book.go` (line 270-273):
+            ```go
+            tags := []string{}
+            for t := range tagSet {   // map iteration = random order
+                tags = append(tags, t)
+            }
+            updatedBook.Tags = tags
+            ```
+            Each edit causes a spurious catalog diff because tags are in a
+            different order every run.
+
+            Fix: sort the tags slice after building it:
+            ```go
+            import "sort"
+            ...
+            tags := []string{}
+            for t := range tagSet {
+                tags = append(tags, t)
+            }
+            sort.Strings(tags)
+            updatedBook.Tags = tags
+            ```
+
+            **BUG 24 — isPDF case-sensitive (LOW)**
+            `open.go` defines `isPDF` checking only `".pdf"` (lowercase). PDFs
+            with `.PDF` extension are not recognised.
+            `cache/store.go` uses `strings.ToLower` correctly; `open.go` should match.
+
+            Fix in `open.go`: wherever `isPDF` or an equivalent extension check is used:
+            ```go
+            strings.ToLower(filepath.Ext(filename)) == ".pdf"
+            ```
+            If there is a standalone `isPDF(filename string) bool` helper in `open.go`,
+            update it to use `strings.ToLower`. If the same function is duplicated in
+            another file in the `app` package, note it as a TODO rather than touching
+            the other file (leave cross-file deduplication for a separate refactor).
+
+            **BUG 2 — checkStatus reads body after deferred close (LOW)**
+            In `github/client.go` (line 86), `checkStatus` is called on a response
+            whose body is already protected by `defer resp.Body.Close()` in the caller.
+            `checkStatus` attempts to read the body for error details, but if the
+            defer has already fired it reads from a closed reader.
+
+            This is a design smell rather than a crash risk (the read just returns
+            empty/EOF). Fix: in `checkStatus`, do not read the body — return typed
+            errors based on status code only (which is what the existing switch
+            already does). If there is body-reading code in `checkStatus` for the
+            default/error case, remove it or ensure it's called before the deferred
+            close by reading eagerly in the caller.
+
+            Read `internal/github/client.go` around line 86-110 to see the exact
+            body-reading pattern before making changes.
+
+            ## Tests to Write
+
+            1. `TestEditBook_TagsDeterministic` — edit a book with multiple tags;
+               call the tag-rebuild logic twice and confirm the resulting Tags slice
+               is identical both times (sorted).
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            go vet ./...
+            go test ./internal/app/... ./internal/github/...
+            ```
+
+            ## Constraints
+
+            - Modify `internal/app/edit_book.go`, `internal/app/open.go`,
+              `internal/github/client.go`.
+            - Add `"sort"` import to `edit_book.go` if not present.
+            - For BUG 2, make the minimal change to remove the unsafe body read;
+              do not refactor the entire client.
+            - Do not touch `internal/app/shelve.go` or `internal/app/sync.go` —
+              those are owned by Agent E.
+          files:
+            - internal/app/edit_book.go
+            - internal/app/open.go
+            - internal/github/client.go
+          dependencies:
+            - E
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: go build ./...
+          required: true
+        - type: lint
+          command: go vet ./...
+          required: true
+        - type: test
+          command: go test ./...
+          required: true
+completion_reports:
+    A:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave1-agent-A
+        branch: wave1-agent-A
+        commit: d2d2c54ba83d610e6f7cb6a623e002d2b8b12985
+        files_changed:
+            - go.mod
+            - internal/app/cache.go
+        notes: auto-committed by orchestrator (API agent)
+    B:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave1-agent-B
+        branch: wave1-agent-B
+        commit: f97f2cd893c7985134c2c0e9fd7edde9f1fea295
+        files_changed:
+            - go.mod
+            - go.mod.bak
+            - internal/app/delete_book.go
+        notes: auto-committed by orchestrator (API agent)
+    C:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave1-agent-C
+        branch: wave1-agent-C
+        commit: 1d045a4563774e0c59349e1c14b676aeb6bd67e5
+        files_changed:
+            - go.mod
+            - go.sum
+            - internal/app/move.go
+        notes: auto-committed by orchestrator (API agent)
+    D:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave2-agent-D
+        branch: wave2-agent-D
+        commit: cee0e3fd41a5179e7faf6546273df9aa2be29b10
+        files_changed:
+            - go.mod
+            - internal/app/verify.go
+            - internal/app/verify_test.go
+        notes: auto-committed by orchestrator (API agent)
+    E:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave2-agent-E
+        branch: wave2-agent-E
+        commit: 584836dcf9cecf91727185364ff0459a1cf7a9e2
+        files_changed:
+            - BUG_6_FIX_SUMMARY.md
+            - go.mod
+            - internal/app/browse.go
+            - internal/app/open.go
+            - internal/app/shelve.go
+            - internal/app/sync.go
+        notes: auto-committed by orchestrator (API agent)
+    F:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave2-agent-F
+        branch: wave2-agent-F
+        commit: f067200546a52375c3bc5f3adf4869528346ea58
+        files_changed:
+            - internal/github/gitops.go
+        notes: auto-committed by orchestrator (API agent)
+    G:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave2-agent-G
+        branch: wave2-agent-G
+        commit: 381e3c2e1a73f69f8ff53257375749a4d2a4bd07
+        files_changed:
+            - go.mod
+            - internal/app/migrate.go
+        notes: auto-committed by orchestrator (API agent)
+    H:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave2-agent-H
+        branch: wave2-agent-H
+        commit: 549e728467e58f82b511ab74c256281a7e553499
+        files_changed:
+            - IMPLEMENTATION_SUMMARY.md
+            - internal/operations/readme.go
+            - internal/operations/readme_test.go
+            - internal/operations/shelf.go
+            - internal/operations/shelf_test.go
+        notes: auto-committed by orchestrator (API agent)
+    I:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave2-agent-I
+        branch: wave2-agent-I
+        commit: adf9b3d5f9bf334a17a1cf514a5bc1a8a177048f
+        files_changed:
+            - BUGFIX_SUMMARY.md
+            - internal/ingest/resolver.go
+            - internal/migrate/scan.go
+            - internal/migrate/scan_test.go
+        notes: auto-committed by orchestrator (API agent)
+    J:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave3-agent-J
+        branch: wave3-agent-J
+        commit: 7b5a72c1759cc06df154d3548938ef6f695c4e95
+        files_changed:
+            - internal/catalog/manager.go
+            - internal/catalog/manager_test.go
+        notes: auto-committed by orchestrator (API agent)
+    K:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave3-agent-K
+        branch: wave3-agent-K
+        commit: c5fb44053e033fcf84f6e4b1fd7939a87bd49adb
+        files_changed:
+            - internal/app/delete.go
+            - internal/app/helpers.go
+        notes: auto-committed by orchestrator (API agent)
+    L:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave3-agent-L
+        branch: wave3-agent-L
+        commit: ef31dc2473a74793fbcb887afb7ea1e357fc2357
+        files_changed:
+            - go.mod
+            - internal/cache/html_index.go
+            - internal/ingest/pdfmeta.go
+            - internal/ingest/pdfmeta_test.go
+        notes: auto-committed by orchestrator (API agent)
+    M:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave3-agent-M
+        branch: wave3-agent-M
+        commit: 55488407dc112d84cdc90c36b52d55db9be8efc1
+        files_changed:
+            - AGENT_M_IMPLEMENTATION_SUMMARY.md
+            - go.mod
+            - internal/app/edit_book.go
+            - internal/app/edit_book_test.go
+            - internal/app/open.go
+            - internal/github/client.go
+        notes: auto-committed by orchestrator (API agent)
+integration_reports:
+    wave1:
+        wave: 1
+        gaps: []
+        valid: true
+        summary: 'Wave 1: all exports are integrated (no gaps detected)'
+    wave2:
+        wave: 2
+        gaps: []
+        valid: true
+        summary: 'Wave 2: all exports are integrated (no gaps detected)'
+    wave3:
+        wave: 3
+        gaps:
+            - export_name: Subject
+              file_path: internal/ingest/pdfmeta.go
+              agent_id: L
+              category: field_init
+              severity: info
+              reason: exported field "Subject" has no call-sites outside its defining file
+              suggested_fix: Wire Subject into the codebase
+              search_results: []
+        valid: false
+        summary: 'Wave 3: 1 integration gap(s) detected'
+pre_mortem:
+    overall_risk: medium
+    rows:
+        - scenario: |
+            BUG 15 fix relies on cacheMgr.Path("","","","") returning the base cache directory. If that method returns something else (e.g., a file path ending in a filename), Agent A's fix will be wrong.
+          likelihood: low
+          impact: high
+          mitigation: |
+            Agent A must read internal/cache/manager.go before making the fix to confirm exactly what Path("","","","") returns.
+        - scenario: |
+            BUG 8 (move pull--rebase before write) may cause git to fail on the rebase step if the repo has diverged between clone and rebase. The --depth=1 clone fetches only the latest commit; a rebase may need more history.
+          likelihood: low
+          impact: medium
+          mitigation: |
+            If pull --rebase fails on shallow clone, consider using `git fetch --unshallow` or `git pull --rebase origin HEAD` with `--allow-unrelated-histories` as a fallback. Document in code comment.
+        - scenario: |
+            Agent E modifies four files (shelve.go, open.go, browse.go, sync.go) independently. If context.Context is not yet supported by gh.UploadAsset, the agent must use drain-only pattern — if it incorrectly adds a context parameter, the build will fail.
+          likelihood: medium
+          impact: medium
+          mitigation: |
+            Agent E must check github/client.go UploadAsset signature before writing any context-passing code. Use drain-only pattern if context not supported.
+        - scenario: |
+            BUG 27 fix swaps commit order in updateCatalogsForCrossShelfMove. If the destination CommitFile succeeds but source CommitFile fails, the book exists in both catalogs (duplicate). This is recoverable but visible.
+          likelihood: low
+          impact: low
+          mitigation: |
+            Duplicate is far better than data loss. Document the trade-off in a code comment. A future improvement can use two-phase commit with a tombstone entry.
+        - scenario: |
+            Agent M touches open.go (BUG 24) while Agent E also touches open.go (BUG 6 context cancel). This is a same-file conflict across agents in different waves.
+          likelihood: high
+          impact: low
+          mitigation: |
+            Agent E (Wave 2) completes before Agent M (Wave 3). Agent M must re-read open.go after Wave 2 merges to apply BUG 24 fix on top of Agent E's context changes. This is the correct cross-wave sequencing: M depends on E.
+known_issues:
+    - title: BUG 5 — catalog.ByID returns pointer into slice (latent)
+      description: |
+        app/sync.go:241: catalog.ByID returns a pointer into the books slice. Currently safe because the slice is not resized after this point in the function, but it is a latent risk if the code is later reorganised.
+      status: Acknowledged latent risk; out of scope for this remediation pass
+      workaround: No action needed; add a code comment noting the constraint
+    - title: BUG 7 — asset variable written by goroutine, read by main goroutine
+      description: |
+        app/shelve.go:488: The `asset` variable is written inside the goroutine and read outside. Currently safe due to channel ordering (errCh receive happens-before the read), but not obviously safe without the comment.
+      status: Low severity; should use explicit channel passing for clarity
+      workaround: |
+        Agent E should add an explicit channel for the asset value if time allows, but it is not a data race under the current code.
+state: SCOUT_PENDING

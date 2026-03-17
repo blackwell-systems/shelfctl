@@ -148,4 +148,3 @@ func TestFormatStatus_Healthy(t *testing.T) {
 		t.Errorf("got %q, want it to contain %q", got, "Healthy")
 	}
 }
-

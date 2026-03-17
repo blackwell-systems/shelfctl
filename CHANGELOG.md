@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- HTML index cover images now display correctly for all books. The wave agent's
+  BUG 25 fix incorrectly used `filepath.Dir(book.FilePath)` as the anchor for
+  relative cover paths; `FilePath` is the cached PDF path (empty for uncached
+  books), not the index directory. Covers are now resolved relative to `baseDir`
+  where `index.html` lives (`cache/html_index.go`).
+- HTML index view is now rendered natively in the TUI (scrollable book list with
+  search, cached/uncached indicators, `g` to generate HTML, `o` to generate and
+  open in browser) instead of shelling out and dropping back to the terminal.
+  `shelfctl index [--open]` CLI command is unchanged (`unified/index.go`,
+  `unified/model.go`).
+
 ## [0.3.3] - 2026-03-17
 
 ### Fixed

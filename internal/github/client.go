@@ -96,8 +96,7 @@ func checkStatus(resp *http.Response) error {
 	case http.StatusConflict:
 		return ErrConflict
 	default:
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("github API error %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("github API error %d", resp.StatusCode)
 	}
 }
 

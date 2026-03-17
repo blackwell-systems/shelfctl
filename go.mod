@@ -61,10 +61,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
-replace (
-	github.com/blackwell-systems/bubbletea-carousel => ../bubbletea-carousel
-	github.com/blackwell-systems/bubbletea-commandpalette => ../bubbletea-commandpalette
-	github.com/blackwell-systems/bubbletea-millercolumns => ../bubbletea-millercolumns
-	github.com/blackwell-systems/bubbletea-multiselect => ../bubbletea-multiselect
-	github.com/blackwell-systems/bubbletea-picker => ../bubbletea-picker
-)

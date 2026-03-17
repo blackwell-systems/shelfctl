@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/config"
@@ -163,5 +164,5 @@ func showPopplerHintIfNeeded(assetFilename string) {
 
 // isPDF checks if the filename indicates a PDF file
 func isPDF(filename string) bool {
-	return filepath.Ext(filename) == ".pdf"
+	return strings.ToLower(filepath.Ext(filename)) == ".pdf"
 }

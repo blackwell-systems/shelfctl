@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
@@ -271,6 +272,7 @@ Examples:
 							for t := range tagSet {
 								tags = append(tags, t)
 							}
+							sort.Strings(tags)
 							updatedBook.Tags = tags
 						}
 					}

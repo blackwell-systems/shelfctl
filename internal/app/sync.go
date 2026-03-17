@@ -220,7 +220,9 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 			label := fmt.Sprintf("%s Uploading %s → %s/%s", progressPrefix, b.Source.Asset, owner, shelf.Repo)
 			if err := tui.ShowProgress(label, item.size, progressCh); err != nil {
 				_ = f.Close()
-				return err // User cancelled
+				// User cancelled - wait for goroutine to exit
+				<-errCh
+				return err
 			}
 
 			uploadErr = <-errCh

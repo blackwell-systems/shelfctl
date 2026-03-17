@@ -498,7 +498,9 @@ func uploadAsset(cmd *cobra.Command, owner, repo string, releaseID int64, assetN
 		// Show progress UI
 		label := fmt.Sprintf("Uploading %s → %s/%s/%s", assetName, owner, repo, releaseTag)
 		if err := tui.ShowProgress(label, size, progressCh); err != nil {
-			return err // User cancelled
+			// User cancelled - wait for goroutine to exit
+			<-errCh
+			return err
 		}
 
 		// Get result

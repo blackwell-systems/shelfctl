@@ -1,7 +1,10 @@
 package app
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/operations"
@@ -24,8 +27,9 @@ func resolveOrCreateShelf(name string) (*config.ShelfConfig, error) {
 
 	if util.IsTTY() {
 		fmt.Printf("Shelf %q not found. Create it? (Y/n): ", name)
-		var response string
-		_, _ = fmt.Scanln(&response)
+		reader := bufio.NewReader(os.Stdin)
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(response)
 		if response == "" || response == "y" || response == "Y" || response == "yes" {
 			return createAndReloadShelf(name)
 		}

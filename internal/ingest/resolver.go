@@ -57,22 +57,11 @@ func resolveFile(path string) (*Source, error) {
 }
 
 func resolveHTTP(url string) (*Source, error) {
-	// HEAD the URL to try to get Content-Length and filename.
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Head(url)
-	size := int64(-1)
-	if err == nil && resp.StatusCode == http.StatusOK {
-		if cl := resp.ContentLength; cl > 0 {
-			size = cl
-		}
-		_ = resp.Body.Close()
-	}
-
 	name := guessFilenameFromURL(url)
-
+	client := &http.Client{Timeout: 30 * time.Second}
 	return &Source{
 		Name: name,
-		Size: size,
+		Size: -1,
 		Open: func() (io.ReadCloser, error) {
 			r, err := client.Get(url)
 			if err != nil {
@@ -104,7 +93,10 @@ func resolveGitHub(input, token, apiBase string) (*Source, error) {
 		Name: name,
 		Size: -1,
 		Open: func() (io.ReadCloser, error) {
-			req, _ := http.NewRequest(http.MethodGet, contentURL, nil)
+			req, err := http.NewRequest(http.MethodGet, contentURL, nil)
+			if err != nil {
+				return nil, fmt.Errorf("building request: %w", err)
+			}
 			req.Header.Set("Authorization", "Bearer "+token)
 			req.Header.Set("Accept", "application/vnd.github.raw")
 			req.Header.Set("X-GitHub-Api-Version", "2022-11-28")

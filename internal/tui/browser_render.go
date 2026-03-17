@@ -51,19 +51,6 @@ func (m BrowserModel) renderDetailsPane() string {
 		Width(detailsWidth).
 		Padding(0, 1)
 
-	// Capture cover image sequence BEFORE any lipgloss rendering.
-	// Kitty/iTerm2 APC escape sequences are binary data that lipgloss does not
-	// recognise as ANSI — it miscalculates line widths and can split the sequence
-	// mid-stream, corrupting it. We prepend the raw sequence to the final string
-	// after all lipgloss operations are done.
-	var coverImg string
-	if bookItem.HasCover {
-		protocol := cachedImageProtocol()
-		if protocol != ProtocolNone {
-			coverImg = RenderInlineImage(bookItem.CoverPath, protocol)
-		}
-	}
-
 	var s strings.Builder
 
 	// Title
@@ -132,12 +119,7 @@ func (m BrowserModel) renderDetailsPane() string {
 	s.WriteString(truncateText(bookItem.Book.Format, maxTextWidth))
 	s.WriteString("\n")
 
-	// Apply details panel styling — cover image is prepended raw, outside lipgloss.
-	text := detailsStyle.Render(s.String())
-	if coverImg != "" {
-		return coverImg + "\n" + text
-	}
-	return text
+	return detailsStyle.Render(s.String())
 }
 
 // renderFooter creates a footer with all available keyboard shortcuts.
@@ -152,6 +134,7 @@ func (m BrowserModel) renderFooter() string {
 		{Key: "x", Label: "x uncache"},
 		{Key: "s", Label: "s sync"},
 		{Key: "e", Label: "e edit"},
+		{Key: "p", Label: "p cover"},
 		{Key: " ", Label: "space select"},
 		{Key: "c", Label: "c clear"},
 		{Key: "tab", Label: "tab detail toggle"},
@@ -175,6 +158,17 @@ var (
 func (m BrowserModel) View() string {
 	if m.quitting {
 		return ""
+	}
+
+	// Full-screen cover preview: raw image sequence — no lipgloss processing.
+	// Kitty/iTerm2 APC sequences must never pass through lipgloss layout operations.
+	if m.showCover {
+		if item, ok := m.list.SelectedItem().(BookItem); ok && item.HasCover {
+			if img := RenderInlineImage(item.CoverPath, cachedImageProtocol()); img != "" {
+				return img + "\n\n  press any key to close"
+			}
+		}
+		// Fallback: no image rendered, drop back to normal view.
 	}
 
 	// Inner content box with border — copy base and set dimensions

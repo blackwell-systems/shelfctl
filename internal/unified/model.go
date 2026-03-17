@@ -34,6 +34,7 @@ const (
 	ViewImportShelf View = "import-shelf"
 	ViewImportRepo  View = "import-repo"
 	ViewShelves     View = "shelves"
+	ViewIndex       View = "index"
 )
 
 // Model is the unified TUI orchestrator that manages view switching
@@ -56,6 +57,7 @@ type Model struct {
 	importShelf ImportShelfModel
 	importRepo  ImportRepoModel
 	shelves     ShelvesModel
+	index       IndexModel
 
 	// Context passed between views
 	hubContext tui.HubContext
@@ -197,6 +199,8 @@ func (m Model) View() string {
 		content = m.importRepo.View()
 	case ViewShelves:
 		content = m.shelves.View()
+	case ViewIndex:
+		content = m.index.View()
 	default:
 		content = "Unknown view"
 	}
@@ -274,6 +278,10 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var shelvesModel ShelvesModel
 		shelvesModel, cmd = m.shelves.Update(msg)
 		m.shelves = shelvesModel
+	case ViewIndex:
+		var indexModel IndexModel
+		indexModel, cmd = m.index.Update(msg)
+		m.index = indexModel
 	}
 
 	return m, cmd
@@ -331,6 +339,46 @@ func (m Model) collectBooks() []tui.BookItem {
 	}
 
 	return allItems
+}
+
+// collectIndexBooks gathers books in the cache.IndexBook format needed by IndexModel.
+func (m Model) collectIndexBooks() []cache.IndexBook {
+	var result []cache.IndexBook
+
+	for i := range m.cfg.Shelves {
+		shelf := &m.cfg.Shelves[i]
+		owner := shelf.EffectiveOwner(m.cfg.GitHub.Owner)
+		catalogPath := shelf.EffectiveCatalogPath()
+
+		data, _, err := m.gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+		if err != nil {
+			continue
+		}
+		books, err := catalog.Parse(data)
+		if err != nil {
+			continue
+		}
+
+		for _, b := range books {
+			isCached := m.cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
+			var filePath string
+			if isCached {
+				filePath = m.cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
+			}
+			coverPath := m.cacheMgr.GetCoverPath(shelf.Repo, b.ID)
+			result = append(result, cache.IndexBook{
+				Book:      b,
+				ShelfName: shelf.Name,
+				Repo:      shelf.Repo,
+				FilePath:  filePath,
+				CoverPath: coverPath,
+				HasCover:  coverPath != "",
+				IsCached:  isCached,
+			})
+		}
+	}
+
+	return result
 }
 
 func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
@@ -440,13 +488,15 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		})
 
 	case "index":
-		// Non-TUI command - just run command and return
-		return m, func() tea.Msg {
-			return CommandRequestMsg{
-				Command:  "index",
-				ReturnTo: "hub",
-			}
-		}
+		m.currentView = ViewIndex
+		books := m.collectIndexBooks()
+		m.index = NewIndexModel(books, m.gh, m.cfg, m.cacheMgr)
+		return m, tea.Batch(
+			m.index.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
 
 	case "cache-info":
 		m.currentView = ViewCacheInfo

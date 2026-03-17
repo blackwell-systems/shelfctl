@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-03-17
+
 ### Fixed
 - Removed test functions that wrote to the real user config file at
   `~/.config/shelfctl/config.yml`, which could overwrite existing shelf
@@ -77,5 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed incorrect relative path computation for cover images in the HTML index
   generator (`cache/html_index.go`).
 
-[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.1...v0.3.2

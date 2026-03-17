@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -222,8 +223,11 @@ func fetchSourceFile(src config.MigrationSource, oldPath string) ([]byte, string
 	buf := make([]byte, 32*1024)
 	for {
 		_, readErr := hr.Read(buf)
-		if readErr != nil {
+		if readErr == io.EOF {
 			break
+		}
+		if readErr != nil {
+			return nil, "", 0, fmt.Errorf("hashing file: %w", readErr)
 		}
 	}
 
@@ -336,6 +340,9 @@ func processMigrationQueue(f *os.File, ledger *migrate.Ledger, n int, cont, dryR
 		}
 
 		fmt.Printf("[%d] %s …\n", processed+1, line)
+		// TODO(bug9): newMigrateOneCmd() bypasses PersistentPreRunE so cfg/gh
+		// are not re-initialized per migration. Fix by calling migrateOne()
+		// helper directly instead of spawning a cobra subcommand.
 		oneCmd := newMigrateOneCmd()
 		oneArgs := []string{line}
 		if noPush {
@@ -344,6 +351,8 @@ func processMigrationQueue(f *os.File, ledger *migrate.Ledger, n int, cont, dryR
 		oneCmd.SetArgs(oneArgs)
 		if err := oneCmd.Execute(); err != nil {
 			warn("Failed: %v", err)
+			// do NOT increment processed
+			continue
 		}
 		processed++
 	}

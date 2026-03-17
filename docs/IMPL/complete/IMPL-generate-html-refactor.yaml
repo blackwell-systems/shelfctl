@@ -1,0 +1,295 @@
+completion_date: "2026-03-17"
+title: Convert generateHTML and helpers to Manager methods
+feature_slug: generate-html-refactor
+verdict: SUITABLE_WITH_CAVEATS
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: internal/cache/html_index.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/cache/cache_internal_test.go
+      agent: B
+      wave: 1
+      action: modify
+interface_contracts:
+    - name: generateHTML
+      description: |
+        Promoted from free function to *Manager method. Removes the baseDir
+        parameter; the method reads m.baseDir directly.
+      definition: |
+        func (m *Manager) generateHTML(books []IndexBook) string
+      location: internal/cache/html_index.go
+    - name: renderBookCard
+      description: |
+        Promoted from free function to *Manager method. Removes the baseDir
+        parameter; the method reads m.baseDir directly for computing relative
+        cover paths.
+      definition: |
+        func (m *Manager) renderBookCard(s *strings.Builder, book IndexBook, index int)
+      location: internal/cache/html_index.go
+    - name: renderUncachedCard
+      description: |
+        Promoted from free function to *Manager method for consistency with
+        generateHTML and renderBookCard. Signature otherwise unchanged (no
+        baseDir parameter was threaded to it in the original, but promoting it
+        keeps all html_index.go helpers uniform).
+      definition: |
+        func (m *Manager) renderUncachedCard(s *strings.Builder, book IndexBook, index int)
+      location: internal/cache/html_index.go
+    - name: GenerateHTMLIndex
+      description: |
+        Public method — signature must NOT change. Internal body updates to call
+        m.generateHTML(books) instead of generateHTML(books, m.baseDir).
+      definition: |
+        func (m *Manager) GenerateHTMLIndex(books []IndexBook) error
+      location: internal/cache/html_index.go
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |
+            ## What to Implement
+
+            Refactor `internal/cache/html_index.go` to convert the three free
+            functions `generateHTML`, `renderBookCard`, and `renderUncachedCard`
+            into methods on `*Manager`.
+
+            **Rules:**
+            - The public method `GenerateHTMLIndex(books []IndexBook) error` must
+              keep its exact signature unchanged. Only its internal call site
+              changes: `generateHTML(books, m.baseDir)` becomes `m.generateHTML(books)`.
+            - Remove the `baseDir string` parameter from `generateHTML`.
+              Inside the method body, replace all references to the `baseDir`
+              local/parameter with `m.baseDir`.
+            - Remove the `baseDir string` parameter from `renderBookCard`.
+              Replace the `filepath.Rel(baseDir, book.CoverPath)` call with
+              `filepath.Rel(m.baseDir, book.CoverPath)`.
+            - Promote `renderUncachedCard` to a method for consistency. Its
+              current signature `func renderUncachedCard(s *strings.Builder, book IndexBook, index int)`
+              gains a `*Manager` receiver; no other parameter changes are needed
+              (it never used baseDir).
+            - Update the internal call site in `generateHTML` (now `m.generateHTML`)
+              where `renderBookCard(&s, book, bookIndex, baseDir)` is called — change
+              to `m.renderBookCard(&s, book, bookIndex)`.
+            - Update the internal call site where `renderUncachedCard(&s, book, bookIndex)`
+              is called — change to `m.renderUncachedCard(&s, book, bookIndex)`.
+            - Do NOT change the `IndexBook` type, any import paths, or any logic
+              inside the functions. This is a pure structural refactor.
+
+            ## New Method Signatures to Deliver
+
+            ```go
+            func (m *Manager) generateHTML(books []IndexBook) string
+            func (m *Manager) renderBookCard(s *strings.Builder, book IndexBook, index int)
+            func (m *Manager) renderUncachedCard(s *strings.Builder, book IndexBook, index int)
+            func (m *Manager) GenerateHTMLIndex(books []IndexBook) error  // public — unchanged
+            ```
+
+            ## Tests to Write
+
+            None. Agent A owns only the implementation file. Test updates are
+            handled by Agent B in a parallel worktree. After merge, the full
+            suite in `go test ./internal/cache/...` serves as verification.
+
+            ## Verification Gate
+
+            Run these commands inside the agent's worktree after completing the
+            refactor. Note: `cache_internal_test.go` calls the old free-function
+            signatures, so the package will not compile until both worktrees are
+            merged. Verify using build-only (not test) in isolation:
+
+            ```bash
+            # Build-only check (tests will fail until merge with Agent B's changes)
+            go build ./internal/cache/...
+            go vet ./internal/cache/...
+            ```
+
+            The test command (`go test ./internal/cache/...`) will succeed only
+            after merging both Agent A and Agent B's worktrees.
+
+            ## Constraints
+
+            - Do not change `GenerateHTMLIndex`'s public signature.
+            - Do not rename `IndexBook` or any of its fields.
+            - Do not add, remove, or reorder any imports unless one becomes unused
+              after the refactor (the `path/filepath` import remains used inside
+              `renderBookCard` for `filepath.Rel`).
+            - Do not alter HTML output, CSS, or JavaScript content inside
+              `generateHTML`.
+          files:
+            - internal/cache/html_index.go
+        - id: B
+          task: |
+            ## What to Implement
+
+            Update `internal/cache/cache_internal_test.go` to call the new
+            `*Manager` method forms of `generateHTML`, `renderBookCard`, and
+            `renderUncachedCard` that Agent A produces in `html_index.go`.
+
+            The test file is in `package cache` (a white-box test file) so it
+            has access to unexported methods on `*Manager`.
+
+            **Current call sites to update (exact locations in the file):**
+
+            1. `TestGenerateHTML_Empty` (line ~181):
+               ```go
+               // OLD:
+               html := generateHTML(nil, "/tmp")
+               // NEW:
+               m := New("/tmp")
+               html := m.generateHTML(nil)
+               ```
+
+            2. `TestGenerateHTML_WithBooks` (line ~193):
+               ```go
+               // OLD:
+               html := generateHTML(books, "/tmp")
+               // NEW:
+               m := New("/tmp")
+               html := m.generateHTML(books)
+               ```
+
+            3. `TestGenerateHTML_UncachedSection` (line ~214):
+               ```go
+               // OLD:
+               html := generateHTML(books, "/tmp")
+               // NEW:
+               m := New("/tmp")
+               html := m.generateHTML(books)
+               ```
+
+            4. `TestRenderBookCard_WithCover` (line ~294):
+               ```go
+               // OLD:
+               renderBookCard(&s, book, 0, "/tmp")
+               // NEW:
+               m := New("/tmp")
+               m.renderBookCard(&s, book, 0)
+               ```
+
+            5. `TestRenderBookCard_NoCover` (line ~318):
+               ```go
+               // OLD:
+               renderBookCard(&s, book, 0, "/tmp")
+               // NEW:
+               m := New("/tmp")
+               m.renderBookCard(&s, book, 0)
+               ```
+
+            6. `TestRenderUncachedCard` (line ~238):
+               ```go
+               // OLD:
+               renderUncachedCard(&s, book, 0)
+               // NEW:
+               m := New("")
+               m.renderUncachedCard(&s, book, 0)
+               ```
+
+            7. `TestGenerateHTML_TagFilters` (line ~337):
+               ```go
+               // OLD:
+               html := generateHTML(books, "/tmp")
+               // NEW:
+               m := New("/tmp")
+               html := m.generateHTML(books)
+               ```
+
+            8. `TestGenerateHTML_CachedCountSubtitle` (line ~358):
+               ```go
+               // OLD:
+               html := generateHTML(books, "/tmp")
+               // NEW:
+               m := New("/tmp")
+               html := m.generateHTML(books)
+               ```
+
+            **No test logic changes.** Only the call sites change. All assertions
+            remain identical. The `m.GenerateHTMLIndex` test (`TestGenerateHTMLIndex`)
+            already calls the public method through `*Manager` and requires no change.
+
+            ## New Method Signatures Being Called (from Agent A)
+
+            ```go
+            func (m *Manager) generateHTML(books []IndexBook) string
+            func (m *Manager) renderBookCard(s *strings.Builder, book IndexBook, index int)
+            func (m *Manager) renderUncachedCard(s *strings.Builder, book IndexBook, index int)
+            ```
+
+            ## Verification Gate
+
+            In this worktree, Agent A's changes are not present, so the package
+            will not compile (the old free-function signatures are gone from
+            Agent B's perspective). Verify the diff is correct by reviewing the
+            updated call sites manually and confirming no test logic was altered.
+
+            After merge of both worktrees, the full verification is:
+
+            ```bash
+            go build ./internal/cache/...
+            go vet ./internal/cache/...
+            go test ./internal/cache/...
+            ```
+
+            ## Constraints
+
+            - Do not change any test assertions or test logic — only call sites.
+            - Do not add new test cases.
+            - Use `New(baseDir)` to construct the manager in each test; reuse the
+              existing `dir := t.TempDir()` variable where available, or use a
+              literal string like `"/tmp"` matching what the original call used.
+            - `TestRenderUncachedCard` passes an empty `baseDir` to `New("")`
+              because `renderUncachedCard` never uses `m.baseDir` — any value works.
+          files:
+            - internal/cache/cache_internal_test.go
+      base_commit: d4162fe37564aa7f2c7c4163e931b478839a6e5a
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: go build ./...
+          required: true
+        - type: lint
+          command: go vet ./...
+          required: true
+        - type: test
+          command: go test ./internal/cache/...
+          required: true
+completion_reports:
+    A:
+        status: complete
+        branch: wave1-agent-A
+        commit: 34ef833
+        files_changed:
+            - internal/cache/html_index.go
+        verification: PASS (go build ./internal/cache/... clean; go vet errors only in Agent B test file as expected per brief)
+    B:
+        status: complete
+        branch: wave1-agent-B
+        commit: b4a0c80
+        files_changed:
+            - internal/cache/cache_internal_test.go
+        verification: PASS (manual diff review; full build/test/lint pending post-merge per brief)
+pre_mortem:
+    overall_risk: low
+    rows:
+        - scenario: |
+            Agent A or B misreads the current line numbers and edits the wrong call site, leaving one free-function call in the test file. The post-merge test run will immediately surface this as a compile error (undefined: generateHTML).
+          likelihood: low
+          impact: low
+          mitigation: |
+            The task description for Agent B lists every affected call site by function name and provides old/new snippets. A compile error is the failure mode, which is fast to diagnose and fix.
+        - scenario: |
+            An agent accidentally changes the public signature of GenerateHTMLIndex (e.g., removes the books parameter or adds a parameter). This would break callers outside internal/cache.
+          likelihood: low
+          impact: high
+          mitigation: |
+            The interface contract explicitly states GenerateHTMLIndex must remain unchanged. The post-merge `go build ./...` (not just ./internal/cache) would immediately catch any external-caller breakage.
+        - scenario: |
+            The merge of two worktrees touching the same package (but different files) produces a git conflict because both agents modified package-level declarations in html_index.go or cache_internal_test.go simultaneously.
+          likelihood: low
+          impact: low
+          mitigation: |
+            Agent A owns html_index.go exclusively; Agent B owns cache_internal_test.go exclusively. There is no file overlap, so git will merge cleanly with no conflicts.
+state: "COMPLETE"

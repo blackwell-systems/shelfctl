@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Removed test functions that wrote to the real user config file at
+  `~/.config/shelfctl/config.yml`, which could overwrite existing shelf
+  configuration when running the test suite (`operations/shelf_test.go`).
+
 ## [0.3.2] - 2026-03-17
 
 ### Fixed

@@ -106,8 +106,10 @@ func (m *Manager) Remove(bookID, commitMsg string) ([]Book, bool, error) {
 
 	books, found := Remove(books, bookID)
 
-	if err := m.Save(books, commitMsg); err != nil {
-		return nil, found, err
+	if found {
+		if err := m.Save(books, commitMsg); err != nil {
+			return nil, found, err
+		}
 	}
 
 	return books, found, nil

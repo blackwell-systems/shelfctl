@@ -25,10 +25,10 @@ func ExtractPDFMetadata(path string) (*PDFMetadata, error) {
 	}
 	defer func() { _ = f.Close() }()
 
-	// Read first 8KB looking for Info dictionary
+	// Read first 64KB looking for Info dictionary
 	// Most PDFs have metadata near the beginning or in the trailer
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 8192), 8192)
+	scanner.Buffer(make([]byte, 64*1024), 64*1024)
 
 	var content strings.Builder
 	lineCount := 0
@@ -37,19 +37,28 @@ func ExtractPDFMetadata(path string) (*PDFMetadata, error) {
 		content.WriteString("\n")
 		lineCount++
 	}
+	if err := scanner.Err(); err != nil {
+		// Non-fatal: PDF metadata extraction is best-effort
+		// Continue with partial data rather than failing completely
+		_ = err
+	}
 
 	text := content.String()
 
-	// Also read the trailer (last 8KB)
+	// Also read the trailer (last 64KB)
 	stat, err := f.Stat()
-	if err == nil && stat.Size() > 8192 {
-		if _, err := f.Seek(-8192, 2); err == nil {
+	if err == nil && stat.Size() > 64*1024 {
+		if _, err := f.Seek(-64*1024, 2); err == nil {
 			trailerScanner := bufio.NewScanner(f)
-			trailerScanner.Buffer(make([]byte, 8192), 8192)
+			trailerScanner.Buffer(make([]byte, 64*1024), 64*1024)
 			var trailer strings.Builder
 			for trailerScanner.Scan() {
 				trailer.WriteString(trailerScanner.Text())
 				trailer.WriteString("\n")
+			}
+			if err := trailerScanner.Err(); err != nil {
+				// Non-fatal: continue with partial data
+				_ = err
 			}
 			text += trailer.String()
 		}

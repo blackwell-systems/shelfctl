@@ -127,6 +127,8 @@ func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
 	var catalogModified bool
 
 	// 4. Find orphaned catalog entries (in catalog but asset missing)
+	// Pass 1: collect IDs of orphaned entries
+	var toRemove []string
 	for i := range books {
 		b := &books[i]
 		if _, exists := assetNames[b.Source.Asset]; !exists {
@@ -138,10 +140,8 @@ func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
 			})
 
 			if fix {
-				// Remove from catalog
-				books, _ = catalog.Remove(books, b.ID)
-				catalogModified = true
-				ok("Removed %s from catalog", b.ID)
+				toRemove = append(toRemove, b.ID)
+				ok("Removing %s from catalog", b.ID)
 
 				// Clear from cache if exists
 				if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
@@ -151,6 +151,13 @@ func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
 				}
 			}
 		}
+	}
+	// Pass 2: remove collected IDs
+	if fix {
+		for _, id := range toRemove {
+			books, _ = catalog.Remove(books, id)
+		}
+		catalogModified = len(toRemove) > 0
 	}
 
 	// 5. Find orphaned assets (in release but not in catalog)

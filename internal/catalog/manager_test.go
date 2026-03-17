@@ -10,9 +10,9 @@ import (
 // mockGitHubClient is a test stub for github.Client.
 type mockGitHubClient struct {
 	// State for mocking GetFileContent
-	content       []byte
-	contentErr    error
-	contentCalls  int
+	content      []byte
+	contentErr   error
+	contentCalls int
 
 	// State for mocking CommitFile
 	commitCalls   int
@@ -54,13 +54,13 @@ func TestManager_Remove_NotFound(t *testing.T) {
 	// or directly create the manager with mock fields.
 	// However, Manager's constructor takes a concrete github.Client.
 	// For testing, we'll use a test helper that constructs Manager with our mock.
-	
+
 	// Create manager with mock (we'll adapt the constructor signature in test scope)
 	mgr := newTestManager(mock)
 
 	// Call Remove with a book ID that doesn't exist
 	books, found, err := mgr.Remove("nonexistent", "remove: nonexistent")
-	
+
 	// Assertions
 	if err != nil {
 		t.Fatalf("Remove returned unexpected error: %v", err)
@@ -71,7 +71,7 @@ func TestManager_Remove_NotFound(t *testing.T) {
 	if len(books) != 2 {
 		t.Errorf("expected 2 books in result, got %d", len(books))
 	}
-	
+
 	// Critical assertion: Save should NOT have been called
 	if mock.commitCalls > 0 {
 		t.Errorf("Save was called %d time(s) when book not found; expected 0 calls", mock.commitCalls)
@@ -99,7 +99,7 @@ func TestManager_Remove_Found(t *testing.T) {
 
 	// Call Remove with an existing book ID
 	books, found, err := mgr.Remove("book1", "remove: book1")
-	
+
 	// Assertions
 	if err != nil {
 		t.Fatalf("Remove returned unexpected error: %v", err)
@@ -113,7 +113,7 @@ func TestManager_Remove_Found(t *testing.T) {
 	if books[0].ID != "book2" {
 		t.Errorf("wrong book remaining: got %q, want %q", books[0].ID, "book2")
 	}
-	
+
 	// Critical assertion: Save SHOULD have been called exactly once
 	if mock.commitCalls != 1 {
 		t.Errorf("Save was called %d time(s); expected 1", mock.commitCalls)
@@ -135,7 +135,7 @@ func TestManager_Remove_LoadError(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when Load fails, got nil")
 	}
-	
+
 	// Save should not be called if Load fails
 	if mock.commitCalls > 0 {
 		t.Errorf("Save was called when Load failed; expected 0 calls")

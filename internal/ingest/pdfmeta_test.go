@@ -270,7 +270,7 @@ func TestExtractPDFMetadata_BinaryData(t *testing.T) {
 	var buf bytes.Buffer
 	buf.WriteString("%PDF-1.4\n")
 	buf.WriteString("3 0 obj\n<<\n/Title (Test Binary PDF)\n/Author (Tester)\n>>\nendobj\n")
-	
+
 	// Add some binary data
 	buf.Write([]byte{0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD})
 	buf.WriteString("\n%%EOF\n")

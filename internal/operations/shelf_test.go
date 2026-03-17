@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +12,7 @@ import (
 // if config.Load returns an error, confirm addShelfToConfig propagates it.
 func TestAddShelfToConfig_LoadError(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir, err := ioutil.TempDir("", "shelfctl-test-*")
+	tmpDir, err := os.MkdirTemp("", "shelfctl-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -22,18 +21,18 @@ func TestAddShelfToConfig_LoadError(t *testing.T) {
 	// Create an invalid config file (not valid YAML)
 	configPath := filepath.Join(tmpDir, "config.yml")
 	invalidYAML := "this is not: valid: yaml: content: [unclosed"
-	if err := ioutil.WriteFile(configPath, []byte(invalidYAML), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(invalidYAML), 0644); err != nil {
 		t.Fatalf("Failed to write invalid config: %v", err)
 	}
 
 	// Set the config path environment variable
 	oldEnv := os.Getenv("SHELFCTL_CONFIG")
-	os.Setenv("SHELFCTL_CONFIG", configPath)
+	_ = os.Setenv("SHELFCTL_CONFIG", configPath)
 	defer func() {
 		if oldEnv == "" {
-			os.Unsetenv("SHELFCTL_CONFIG")
+			_ = os.Unsetenv("SHELFCTL_CONFIG")
 		} else {
-			os.Setenv("SHELFCTL_CONFIG", oldEnv)
+			_ = os.Setenv("SHELFCTL_CONFIG", oldEnv)
 		}
 	}()
 
@@ -67,23 +66,23 @@ func TestAddShelfToConfig_LoadError(t *testing.T) {
 func TestAddShelfToConfig_Success(t *testing.T) {
 	// For this test, we need to work with the default config path
 	// We'll temporarily move any existing config and restore it afterward
-	
+
 	defaultPath := filepath.Join(os.Getenv("HOME"), ".config", "shelfctl", "config.yml")
 	backupPath := defaultPath + ".test-backup"
-	
+
 	// Backup existing config if it exists
 	if _, err := os.Stat(defaultPath); err == nil {
-		data, _ := ioutil.ReadFile(defaultPath)
-		ioutil.WriteFile(backupPath, data, 0644)
+		data, _ := os.ReadFile(defaultPath)
+		_ = os.WriteFile(backupPath, data, 0644)
 		defer func() {
 			// Restore original config
-			data, _ := ioutil.ReadFile(backupPath)
-			ioutil.WriteFile(defaultPath, data, 0644)
-			os.Remove(backupPath)
+			data, _ := os.ReadFile(backupPath)
+			_ = os.WriteFile(defaultPath, data, 0644)
+			_ = os.Remove(backupPath)
 		}()
 	} else {
 		// No existing config, clean up after test
-		defer os.Remove(defaultPath)
+		defer func() { _ = os.Remove(defaultPath) }()
 	}
 
 	// Create a test config file at the default location
@@ -102,16 +101,16 @@ shelves:
 	if err := os.MkdirAll(filepath.Dir(defaultPath), 0755); err != nil {
 		t.Fatalf("Failed to create config dir: %v", err)
 	}
-	if err := ioutil.WriteFile(defaultPath, []byte(initialConfig), 0644); err != nil {
+	if err := os.WriteFile(defaultPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("Failed to write initial config: %v", err)
 	}
 
 	// Clear any environment override for config path
 	oldEnv := os.Getenv("SHELFCTL_CONFIG")
-	os.Unsetenv("SHELFCTL_CONFIG")
+	_ = os.Unsetenv("SHELFCTL_CONFIG")
 	defer func() {
 		if oldEnv != "" {
-			os.Setenv("SHELFCTL_CONFIG", oldEnv)
+			_ = os.Setenv("SHELFCTL_CONFIG", oldEnv)
 		}
 	}()
 
@@ -176,7 +175,7 @@ shelves:
 // doesn't create duplicates.
 func TestAddShelfToConfig_NoDuplicates(t *testing.T) {
 	// Create a temporary directory for testing
-	tmpDir, err := ioutil.TempDir("", "shelfctl-test-*")
+	tmpDir, err := os.MkdirTemp("", "shelfctl-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -199,18 +198,18 @@ shelves:
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		t.Fatalf("Failed to create config dir: %v", err)
 	}
-	if err := ioutil.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
 		t.Fatalf("Failed to write initial config: %v", err)
 	}
 
 	// Set the config path environment variable
 	oldEnv := os.Getenv("SHELFCTL_CONFIG")
-	os.Setenv("SHELFCTL_CONFIG", configPath)
+	_ = os.Setenv("SHELFCTL_CONFIG", configPath)
 	defer func() {
 		if oldEnv == "" {
-			os.Unsetenv("SHELFCTL_CONFIG")
+			_ = os.Unsetenv("SHELFCTL_CONFIG")
 		} else {
-			os.Setenv("SHELFCTL_CONFIG", oldEnv)
+			_ = os.Setenv("SHELFCTL_CONFIG", oldEnv)
 		}
 	}()
 
@@ -239,9 +238,9 @@ shelves:
 
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && 
-		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
-		 containsMiddle(s, substr)))
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
+		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
+			containsMiddle(s, substr)))
 }
 
 func containsMiddle(s, substr string) bool {

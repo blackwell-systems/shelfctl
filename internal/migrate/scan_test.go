@@ -15,7 +15,7 @@ func TestScanDir_RequestError(t *testing.T) {
 	// Create a test server that will never be called because the URL is invalid.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`[]`))
+		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer ts.Close()
 
@@ -25,13 +25,13 @@ func TestScanDir_RequestError(t *testing.T) {
 	// the underlying scanDir behavior. Since scanDir is not exported, we test
 	// through ScanRepo with a scenario that would cause http.NewRequest to fail
 	// if the URL contained invalid characters (control characters, etc.).
-	
+
 	// For a more direct test, we use an invalid owner/repo/ref combination
 	// that would still form a valid URL but test the error handling path.
 	// Actually, http.NewRequest rarely fails for string concatenation.
 	// The best test is to ensure the code compiles and doesn't panic.
 	// We'll create a test that calls ScanRepo and verifies it doesn't panic.
-	
+
 	// Simple smoke test: ScanRepo should not panic even with unusual input.
 	_, err := migrate.ScanRepo("token", ts.URL, "owner", "repo", "ref", nil)
 	// We expect an error because the test server doesn't return valid GitHub API JSON,
@@ -52,7 +52,7 @@ func TestScanRepo_Timeout(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`[]`))
+		_, _ = w.Write([]byte(`[]`))
 	}))
 	defer ts.Close()
 

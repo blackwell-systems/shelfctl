@@ -72,7 +72,9 @@ func newOpenCmd() *cobra.Command {
 					// Show progress UI
 					label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
 					if err := tui.ShowProgress(label, asset.Size, progressCh); err != nil {
-						return err // User cancelled
+						// User cancelled - wait for goroutine to exit
+						<-errCh
+						return err
 					}
 
 					// Get result

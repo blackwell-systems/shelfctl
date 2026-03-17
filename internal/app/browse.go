@@ -25,7 +25,8 @@ type browserDownloader struct {
 }
 
 func (d *browserDownloader) Download(owner, repo, bookID, release, asset, sha256 string) (bool, error) {
-	return d.DownloadWithProgress(owner, repo, bookID, release, asset, sha256, nil) == nil, nil
+	err := d.DownloadWithProgress(owner, repo, bookID, release, asset, sha256, nil)
+	return err == nil, err
 }
 
 func (d *browserDownloader) DownloadWithProgress(owner, repo, bookID, release, asset, sha256 string, progressCh chan<- float64) error {
@@ -479,7 +480,9 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 				// Show progress UI
 				label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
 				if err := tui.ShowProgress(label, asset.Size, progressCh); err != nil {
-					return err // User cancelled
+					// User cancelled - wait for goroutine to exit
+					<-errCh
+					return err
 				}
 
 				// Get result

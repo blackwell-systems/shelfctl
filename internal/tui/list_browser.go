@@ -25,7 +25,6 @@ type keyMap struct {
 	togglePanel  key.Binding
 	toggleSelect key.Binding
 	clearSelect  key.Binding
-	preview      key.Binding
 }
 
 var keys = keyMap{
@@ -72,10 +71,6 @@ var keys = keyMap{
 	clearSelect: key.NewBinding(
 		key.WithKeys("c"),
 		key.WithHelp("c", "clear selection"),
-	),
-	preview: key.NewBinding(
-		key.WithKeys("p"),
-		key.WithHelp("p", "cover preview"),
 	),
 }
 
@@ -465,14 +460,6 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, highlightCmd
 
-		case key.Matches(msg, keys.preview):
-			// Cover preview: suspend TUI, render image outside alt-screen, resume.
-			if item, ok := m.list.SelectedItem().(BookItem); ok && item.HasCover {
-				if protocol := cachedImageProtocol(); protocol != ProtocolNone {
-					return m, CoverPreviewCmd(item.CoverPath, protocol)
-				}
-			}
-			return m, nil
 		}
 
 	case tea.WindowSizeMsg:

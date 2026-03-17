@@ -249,15 +249,10 @@ func newBrowseCmd() *cobra.Command {
 								})
 							}
 
-							coverPathStr := cacheMgr.GetCoverPath(shelf.Repo, b.ID)
-							hasCover := coverPathStr != ""
-
 							sr.items = append(sr.items, tui.BookItem{
 								Book:        b,
 								ShelfName:   shelf.Name,
 								Cached:      cached,
-								HasCover:    hasCover,
-								CoverPath:   coverPathStr,
 								Owner:       owner,
 								Repo:        shelf.Repo,
 								Release:     releaseTag,
@@ -294,15 +289,6 @@ func newBrowseCmd() *cobra.Command {
 					}
 					wg.Wait()
 
-					// Update cover paths for items that now have covers
-					for i := range allItems {
-						if !allItems[i].HasCover {
-							if cp := cacheMgr.GetCoverPath(allItems[i].Repo, allItems[i].Book.ID); cp != "" {
-								allItems[i].HasCover = true
-								allItems[i].CoverPath = cp
-							}
-						}
-					}
 				}
 
 				if len(allItems) == 0 {

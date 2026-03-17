@@ -15,8 +15,6 @@ type BookItem struct {
 	Book        catalog.Book
 	ShelfName   string
 	Cached      bool
-	HasCover    bool
-	CoverPath   string
 	Owner       string
 	Repo        string
 	Release     string // Release tag for this book

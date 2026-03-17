@@ -3,23 +3,9 @@ package tui
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/charmbracelet/lipgloss"
 )
-
-// Cached image protocol detection (computed once)
-var (
-	detectedProtocol   TerminalImageProtocol
-	detectProtocolOnce sync.Once
-)
-
-func cachedImageProtocol() TerminalImageProtocol {
-	detectProtocolOnce.Do(func() {
-		detectedProtocol = DetectImageProtocol()
-	})
-	return detectedProtocol
-}
 
 func (m BrowserModel) renderDetailsPane() string {
 	selectedItem := m.list.SelectedItem()
@@ -134,7 +120,6 @@ func (m BrowserModel) renderFooter() string {
 		{Key: "x", Label: "x uncache"},
 		{Key: "s", Label: "s sync"},
 		{Key: "e", Label: "e edit"},
-		{Key: "p", Label: "p cover"},
 		{Key: " ", Label: "space select"},
 		{Key: "c", Label: "c clear"},
 		{Key: "tab", Label: "tab detail toggle"},

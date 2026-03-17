@@ -320,16 +320,10 @@ func (m Model) collectBooks() []tui.BookItem {
 				}
 			}
 
-			// Get best available cover (catalog > extracted > none)
-			coverPath := m.cacheMgr.GetCoverPath(shelf.Repo, b.ID)
-			hasCover := coverPath != ""
-
 			allItems = append(allItems, tui.BookItem{
 				Book:        b,
 				ShelfName:   shelf.Name,
 				Cached:      cached,
-				HasCover:    hasCover,
-				CoverPath:   coverPath,
 				Owner:       owner,
 				Repo:        shelf.Repo,
 				Release:     releaseTag,

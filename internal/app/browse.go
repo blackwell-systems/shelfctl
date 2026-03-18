@@ -578,6 +578,155 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 		ok("Book successfully updated: %s", b.ID)
 		return nil
 
+	case tui.ActionMove:
+		// Move book(s) to another shelf
+		// BookItems should be populated by TUI
+		if len(result.BookItems) == 0 {
+			return fmt.Errorf("no books selected")
+		}
+
+		// Build shelf options
+		var shelfOptions []tui.ShelfOption
+		for _, shelf := range cfg.Shelves {
+			shelfOptions = append(shelfOptions, tui.ShelfOption{
+				Name: shelf.Name,
+				Repo: shelf.Repo,
+			})
+		}
+
+		if len(shelfOptions) == 0 {
+			return fmt.Errorf("no shelves configured")
+		}
+
+		// Show shelf picker to select destination
+		targetShelfName, err := tui.RunShelfPicker(shelfOptions)
+		if err != nil {
+			// Handle cancellation gracefully
+			if err.Error() == "canceled by user" {
+				return nil
+			}
+			return fmt.Errorf("shelf picker: %w", err)
+		}
+
+		// Find destination shelf
+		targetShelf := cfg.ShelfByName(targetShelfName)
+		if targetShelf == nil {
+			return fmt.Errorf("shelf %q not found", targetShelfName)
+		}
+
+		targetOwner := targetShelf.EffectiveOwner(cfg.GitHub.Owner)
+		targetRelease := targetShelf.EffectiveRelease(cfg.Defaults.Release)
+		targetCatalogPath := targetShelf.EffectiveCatalogPath()
+
+		// Move each book
+		successCount := 0
+		for _, bookItem := range result.BookItems {
+			// Get source shelf
+			sourceShelf := cfg.ShelfByName(bookItem.ShelfName)
+			if sourceShelf == nil {
+				warn("Source shelf %q not found for book %s", bookItem.ShelfName, bookItem.Book.ID)
+				continue
+			}
+
+			// Skip if source and dest are the same
+			if bookItem.ShelfName == targetShelfName {
+				warn("Book %s is already on shelf %s", bookItem.Book.ID, targetShelfName)
+				continue
+			}
+
+			sourceOwner := sourceShelf.EffectiveOwner(cfg.GitHub.Owner)
+			sourceCatalogPath := sourceShelf.EffectiveCatalogPath()
+
+			// Load source catalog
+			sourceData, _, err := gh.GetFileContent(sourceOwner, sourceShelf.Repo, sourceCatalogPath, "")
+			if err != nil {
+				warn("Failed to load source catalog for %s: %v", bookItem.Book.ID, err)
+				continue
+			}
+			sourceBooks, err := catalog.Parse(sourceData)
+			if err != nil {
+				warn("Failed to parse source catalog for %s: %v", bookItem.Book.ID, err)
+				continue
+			}
+
+			// Remove book from source
+			sourceBooks, removed := catalog.Remove(sourceBooks, bookItem.Book.ID)
+			if !removed {
+				warn("Book %s not found in source catalog", bookItem.Book.ID)
+				continue
+			}
+
+			// Update book metadata for destination
+			movedBook := bookItem.Book
+			movedBook.Source.Release = targetRelease
+			movedBook.Source.Owner = targetOwner
+			movedBook.Source.Repo = targetShelf.Repo
+
+			// Load destination catalog
+			destData, _, err := gh.GetFileContent(targetOwner, targetShelf.Repo, targetCatalogPath, "")
+			if err != nil {
+				warn("Failed to load destination catalog for %s: %v", bookItem.Book.ID, err)
+				continue
+			}
+			destBooks, err := catalog.Parse(destData)
+			if err != nil {
+				warn("Failed to parse destination catalog for %s: %v", bookItem.Book.ID, err)
+				continue
+			}
+
+			// Append book to destination (replaces if ID exists)
+			destBooks = catalog.Append(destBooks, movedBook)
+
+			// Commit destination catalog first
+			destCatalogData, err := catalog.Marshal(destBooks)
+			if err != nil {
+				warn("Failed to marshal destination catalog for %s: %v", bookItem.Book.ID, err)
+				continue
+			}
+			commitMsg := fmt.Sprintf("move: add %s (from %s)", bookItem.Book.ID, bookItem.ShelfName)
+			if err := gh.CommitFile(targetOwner, targetShelf.Repo, targetCatalogPath, destCatalogData, commitMsg); err != nil {
+				warn("Failed to commit destination catalog for %s: %v", bookItem.Book.ID, err)
+				continue
+			}
+
+			// Commit source catalog after destination is safe
+			sourceCatalogData, err := catalog.Marshal(sourceBooks)
+			if err != nil {
+				warn("Failed to marshal source catalog for %s: %v", bookItem.Book.ID, err)
+				continue
+			}
+			commitMsg = fmt.Sprintf("move: remove %s (moved to %s)", bookItem.Book.ID, targetShelfName)
+			if err := gh.CommitFile(sourceOwner, sourceShelf.Repo, sourceCatalogPath, sourceCatalogData, commitMsg); err != nil {
+				warn("Failed to commit source catalog for %s: %v", bookItem.Book.ID, err)
+				continue
+			}
+
+			// Clear from cache if exists (path will be invalid after move)
+			if bookItem.Cached {
+				if err := cacheMgr.Remove(sourceOwner, sourceShelf.Repo, bookItem.Book.ID, bookItem.Book.Source.Asset); err != nil {
+					warn("Could not clear cache for %s: %v", bookItem.Book.ID, err)
+				}
+			}
+
+			successCount++
+		}
+
+		// Print summary
+		if len(result.BookItems) == 1 {
+			if successCount == 1 {
+				ok("Book successfully moved: %s", result.BookItems[0].Book.ID)
+			}
+		} else {
+			if successCount > 0 {
+				ok("Successfully moved %d books", successCount)
+			}
+			if successCount < len(result.BookItems) {
+				warn("%d books failed to move", len(result.BookItems)-successCount)
+			}
+		}
+
+		return nil
+
 	default:
 		return nil
 	}

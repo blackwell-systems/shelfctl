@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
@@ -75,6 +76,10 @@ type verifyIssue struct {
 }
 
 func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
+	return verifySingleShelfWithClient(shelf, fix, gh, cacheMgr)
+}
+
+func verifySingleShelfWithClient(shelf *config.ShelfConfig, fix bool, client GitHubClient, cacheMgr *cache.Manager) []verifyIssue {
 	owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 	catalogPath := shelf.EffectiveCatalogPath()
 	releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
@@ -85,7 +90,7 @@ func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
 	fmt.Printf("  Release: %s\n", releaseTag)
 
 	// 1. Load catalog
-	catalogData, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+	catalogData, _, err := client.GetFileContent(owner, shelf.Repo, catalogPath, "")
 	if err != nil {
 		warn("Could not load catalog for %s: %v", shelf.Name, err)
 		return nil
@@ -97,13 +102,13 @@ func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
 	}
 
 	// 2. Get release and all assets
-	rel, err := gh.GetReleaseByTag(owner, shelf.Repo, releaseTag)
+	rel, err := client.GetReleaseByTag(owner, shelf.Repo, releaseTag)
 	if err != nil {
 		warn("Could not get release for %s: %v", shelf.Name, err)
 		return nil
 	}
 
-	assets, err := gh.ListReleaseAssets(owner, shelf.Repo, rel.ID)
+	assets, err := client.ListReleaseAssets(owner, shelf.Repo, rel.ID)
 	if err != nil {
 		warn("Could not list assets for %s: %v", shelf.Name, err)
 		return nil
@@ -172,7 +177,7 @@ func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
 
 			if fix {
 				// Delete asset from release
-				if err := gh.DeleteAsset(owner, shelf.Repo, asset.ID); err != nil {
+				if err := client.DeleteAsset(owner, shelf.Repo, asset.ID); err != nil {
 					warn("Could not delete asset %s: %v", asset.Name, err)
 				} else {
 					ok("Deleted %s from release", asset.Name)
@@ -188,20 +193,20 @@ func verifySingleShelf(shelf *config.ShelfConfig, fix bool) []verifyIssue {
 			warn("Could not marshal catalog: %v", err)
 		} else {
 			commitMsg := fmt.Sprintf("verify: clean up %d orphaned entries", len(issues))
-			if err := gh.CommitFile(owner, shelf.Repo, catalogPath, updatedData, commitMsg); err != nil {
+			if err := client.CommitFile(owner, shelf.Repo, catalogPath, updatedData, commitMsg); err != nil {
 				warn("Could not commit catalog: %v", err)
 			} else {
 				ok("Catalog committed")
 
 				// Update README with new count
-				readmeData, _, readmeErr := gh.GetFileContent(owner, shelf.Repo, "README.md", "")
+				readmeData, _, readmeErr := client.GetFileContent(owner, shelf.Repo, "README.md", "")
 				if readmeErr == nil {
 					originalContent := string(readmeData)
 					readmeContent := operations.UpdateShelfREADMEStats(originalContent, len(books))
 
 					if readmeContent != originalContent {
 						readmeMsg := "Update README: verify cleanup"
-						if err := gh.CommitFile(owner, shelf.Repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
+						if err := client.CommitFile(owner, shelf.Repo, "README.md", []byte(readmeContent), readmeMsg); err != nil {
 							warn("Could not update README.md: %v", err)
 						}
 					}

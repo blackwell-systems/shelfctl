@@ -13,16 +13,19 @@ import (
 type ShelveFormData struct {
 	Title  string
 	Author string
+	Year   int    // Publication year
 	Tags   string // Comma-separated
 	ID     string
 	Cache  bool // Whether to cache locally after upload
 }
 
 // ShelveFormDefaults provides default values for form fields.
+// NOTE: shelve.go should pass params.year as Year to pre-fill from --year flag.
 type ShelveFormDefaults struct {
 	Filename string
 	Title    string
 	Author   string
+	Year     int // Pre-fill from --year flag or leave 0
 	ID       string
 }
 
@@ -42,6 +45,7 @@ type shelveFormModel struct {
 const (
 	fieldTitle = iota
 	fieldAuthor
+	fieldYear
 	fieldTags
 	fieldID
 	fieldCache // Checkbox position
@@ -49,7 +53,7 @@ const (
 
 func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 	m := shelveFormModel{
-		inputs:       make([]textinput.Model, 4), // Still 4 text inputs, checkbox is separate
+		inputs:       make([]textinput.Model, 5), // 5 text inputs: Title, Author, Year, Tags, ID
 		defaults:     defaults,
 		cacheLocally: true, // Default to caching
 	}
@@ -83,6 +87,17 @@ func newShelveForm(defaults ShelveFormDefaults) shelveFormModel {
 	m.inputs[fieldAuthor].CharLimit = 100
 	m.inputs[fieldAuthor].Width = inputWidth
 	m.inputs[fieldAuthor].Prompt = ""
+
+	// Year field
+	m.inputs[fieldYear] = textinput.New()
+	if defaults.Year > 0 {
+		m.inputs[fieldYear].Placeholder = fmt.Sprintf("%d", defaults.Year)
+	} else {
+		m.inputs[fieldYear].Placeholder = "Publication year"
+	}
+	m.inputs[fieldYear].CharLimit = 4
+	m.inputs[fieldYear].Width = inputWidth
+	m.inputs[fieldYear].Prompt = ""
 
 	// Tags field
 	m.inputs[fieldTags] = textinput.New()
@@ -127,6 +142,7 @@ func (m shelveFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.result = &ShelveFormData{
 				Title:  m.getValue(fieldTitle),
 				Author: m.inputs[fieldAuthor].Value(),
+				Year:   m.getYearValue(),
 				Tags:   m.inputs[fieldTags].Value(),
 				ID:     m.getValue(fieldID),
 				Cache:  m.cacheLocally,
@@ -205,7 +221,7 @@ func (m shelveFormModel) View() string {
 	b.WriteString("\n\n")
 
 	// Form fields
-	fields := []string{"Title", "Author", "Tags", "ID"}
+	fields := []string{"Title", "Author", "Year", "Tags", "ID"}
 	for i, label := range fields {
 		if i == m.focused {
 			b.WriteString(StyleHighlight.Render("> " + label + ":"))
@@ -269,6 +285,18 @@ func (m shelveFormModel) getValue(field int) string {
 	default:
 		return ""
 	}
+}
+
+// getYearValue parses the Year input field to int, returning default or 0 if empty/invalid.
+func (m shelveFormModel) getYearValue() int {
+	val := m.inputs[fieldYear].Value()
+	if val == "" {
+		return m.defaults.Year
+	}
+	// Parse the input, return 0 on error
+	year := 0
+	fmt.Sscanf(val, "%d", &year)
+	return year
 }
 
 // RunShelveForm launches an interactive form for book metadata entry.

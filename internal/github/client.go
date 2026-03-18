@@ -41,7 +41,10 @@ func New(token, apiBase string) *Client {
 // do executes the request with standard GitHub headers.
 func (c *Client) do(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/vnd.github+json")
+	// Only set Accept if not already set (allow custom Accept headers)
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", "application/vnd.github+json")
+	}
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	if req.Header.Get("Content-Type") == "" && req.Body != nil {
 		req.Header.Set("Content-Type", "application/json")

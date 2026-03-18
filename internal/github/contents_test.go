@@ -48,7 +48,7 @@ func TestGetFileContent_LargeFileFallback(t *testing.T) {
 	mux.HandleFunc("/repos/owner/repo/contents/large.bin", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{
+		_, _ = fmt.Fprintf(w, `{
 			"name": "large.bin",
 			"path": "large.bin",
 			"sha": "%s",
@@ -105,7 +105,7 @@ func TestGetFileContent_WithRef(t *testing.T) {
 		encoded := base64.StdEncoding.EncodeToString([]byte(content))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{
+		_, _ = fmt.Fprintf(w, `{
 			"name": "file.txt",
 			"path": "file.txt",
 			"sha": "ref123",
@@ -141,7 +141,7 @@ func TestGetFileContent_StripNewlines(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{
+		_, _ = fmt.Fprintf(w, `{
 			"name": "file.txt",
 			"path": "file.txt",
 			"sha": "wrapped123",

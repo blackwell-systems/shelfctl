@@ -1,0 +1,784 @@
+completion_date: "2026-03-17"
+title: 'Gaps and Improvements: Tests, Cross-Shelf Browse, PDF Metadata, Bulk TUI, Verify Fix'
+feature_slug: gaps-and-improvements
+verdict: SUITABLE
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: internal/github/client_test.go
+      agent: A
+      wave: 1
+      action: new
+    - file: internal/github/gitops_test.go
+      agent: A
+      wave: 1
+      action: new
+    - file: internal/github/contents_test.go
+      agent: A
+      wave: 1
+      action: new
+    - file: internal/app/interfaces.go
+      agent: B
+      wave: 1
+      action: new
+    - file: internal/app/open_test.go
+      agent: B
+      wave: 1
+      action: new
+    - file: internal/app/browse_test.go
+      agent: B
+      wave: 1
+      action: new
+    - file: internal/app/add_test.go
+      agent: C
+      wave: 1
+      action: modify
+    - file: internal/tui/shelve_form.go
+      agent: D
+      wave: 1
+      action: modify
+    - file: internal/tui/shelve_form_test.go
+      agent: D
+      wave: 1
+      action: new
+    - file: internal/tui/list_browser.go
+      agent: E
+      wave: 1
+      action: modify
+    - file: internal/tui/keys.go
+      agent: E
+      wave: 1
+      action: modify
+    - file: internal/app/browse.go
+      agent: F
+      wave: 2
+      action: modify
+    - file: internal/app/verify_e2e_test.go
+      agent: F
+      wave: 2
+      action: new
+interface_contracts:
+    - name: GitHubClientFacade
+      description: |
+        Interface extracted from *github.Client so app/ commands can be tested
+        without real HTTP calls. Covers the methods called by open, shelve,
+        sync, browse, and verify. Agent B defines this interface in
+        internal/app/interfaces.go; Agent A uses *github.Client directly via
+        httptest.NewServer (no facade needed — tests the real struct).
+      definition: |
+        // GitHubClient abstracts the GitHub API operations used by app commands.
+        // Implemented by *github.Client in production and by a fake in tests.
+        type GitHubClient interface {
+            GetReleaseByTag(owner, repo, tag string) (*github.Release, error)
+            EnsureRelease(owner, repo, tag string) (*github.Release, error)
+            FindAsset(owner, repo string, releaseID int64, name string) (*github.Asset, error)
+            ListReleaseAssets(owner, repo string, releaseID int64) ([]github.Asset, error)
+            DownloadAsset(owner, repo string, assetID int64) (io.ReadCloser, error)
+            UploadAsset(owner, repo string, releaseID int64, name string, r io.Reader, size int64, contentType string) (*github.Asset, error)
+            DeleteAsset(owner, repo string, assetID int64) error
+            GetFileContent(owner, repo, path, ref string) ([]byte, string, error)
+            CommitFile(owner, repo, filePath string, content []byte, message string) error
+        }
+      location: internal/app/interfaces.go
+    - name: FakeGitHubServer
+      description: |
+        httptest.Server-backed fake for github/ package tests. Agent A creates
+        this in internal/github/client_test.go (package github) so it can
+        exercise the private http field and all exported methods end-to-end.
+        Not an exported type — test-only helper in _test.go files.
+      definition: |
+        // newFakeServer spins up an httptest.Server with a mux that handles
+        // the GitHub API endpoints needed by each test case.
+        // Returns server + *Client pointed at server.URL.
+        func newFakeServer(t *testing.T, mux *http.ServeMux) (*httptest.Server, *Client)
+      location: internal/github/client_test.go
+    - name: ActionMove (BrowserAction constant)
+      description: |
+        New BrowserAction constant for multi-select move-to-shelf. Agent E adds
+        this constant to internal/tui/list_browser.go and the corresponding
+        key binding (m key). handleBrowserAction in internal/app/browse.go
+        (Wave 2, Agent F) wires it to the existing move logic.
+      definition: |
+        const ActionMove BrowserAction = "move"
+      location: internal/tui/list_browser.go
+    - name: BrowserResult.MoveTargetShelf
+      description: |
+        Added field on BrowserResult so the move action can communicate which
+        shelf the selected books should be moved to. Agent E populates this
+        after a shelf picker sub-TUI is invoked; Agent F reads it in
+        handleBrowserAction.
+      definition: |
+        type BrowserResult struct {
+            Action          BrowserAction
+            BookItem        *BookItem   // Single book (open, edit, details)
+            BookItems       []BookItem  // Multiple books (download, move)
+            MoveTargetShelf string      // Shelf name for ActionMove
+        }
+      location: internal/tui/list_browser.go
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |
+            ## What to Implement
+
+            Add comprehensive test coverage for the `internal/github` package.
+            Currently this package has zero test files (`[no test files]` in go test output).
+            Cover the three most critical paths: Client construction + HTTP dispatch,
+            CommitFile (the git clone/push path), and GetFileContent (including the
+            large-file blob fallback).
+
+            The package is `package github` (not `_test`) — use internal access to
+            inspect `c.token`, `c.apiBase`, and `c.http` fields directly.
+
+            ## Interfaces to Implement
+
+            None — these are test files using the real *Client struct.
+
+            ## Interfaces to Call
+
+            Use `net/http/httptest` to stand up a fake server. Pattern:
+
+            ```go
+            func newFakeServer(t *testing.T, mux *http.ServeMux) (*httptest.Server, *Client) {
+                srv := httptest.NewServer(mux)
+                t.Cleanup(srv.Close)
+                c := New("test-token", srv.URL)
+                return srv, c
+            }
+            ```
+
+            ## Tests to Write
+
+            ### internal/github/client_test.go
+            - TestNew_DefaultsAPIBase — empty apiBase uses defaultAPIBase constant
+            - TestNew_StripTrailingSlash — trailing slash is stripped from apiBase
+            - TestNew_CustomAPIBase — custom base is preserved
+            - TestClientDo_SetsAuthHeader — do() injects Authorization: Bearer header
+            - TestClientDo_SetsGitHubAPIVersion — do() sets X-GitHub-Api-Version header
+            - TestCheckStatus_OK — 200/201/204 return nil
+            - TestCheckStatus_NotFound — 404 returns ErrNotFound
+            - TestCheckStatus_Unauthorized — 401 returns ErrUnauthorized
+            - TestCheckStatus_Forbidden — 403 returns ErrForbidden
+            - TestCheckStatus_Conflict — 409 returns ErrConflict
+            - TestCheckStatus_UnknownError — 500 returns generic error with status code
+            - TestDoJSON_DecodeResponse — doJSON decodes JSON response into struct
+            - TestDoJSON_NilBody — doJSON with nil body sends request without body
+            - TestDoJSON_ErrorOnBadJSON — doJSON returns error on invalid JSON response
+
+            ### internal/github/contents_test.go
+            - TestGetFileContent_SmallFile — fetches base64-encoded file, decodes correctly
+            - TestGetFileContent_LargeFileFallback — when encoding=="none" and size>1MB,
+              falls back to getRawBlob (verify the Blobs API endpoint is called)
+            - TestGetFileContent_NotFound — returns ErrNotFound on 404
+            - TestGetFileContent_WithRef — ref query param is appended to URL
+            - TestGetFileContent_StripNewlines — base64 with embedded newlines decodes correctly
+
+            ### internal/github/gitops_test.go
+            CommitFile invokes real git commands (clone, pull, commit, push). Test the
+            helper functions that don't require a live git repo:
+            - TestSanitize_RedactsToken — sanitize() replaces token value with ***
+            - TestSanitize_NoToken — sanitize() with no token args is a no-op
+            - TestCommitFile_CloneError — CommitFile returns error when git clone fails
+              (point client at a URL that returns 401 so git clone fails fast)
+            - TestRunGit_Success — runGit() with valid args returns nil
+            - TestRunGit_Failure — runGit() with invalid command returns error containing
+              sanitized output
+
+            ## Verification Gate
+
+            ```bash
+            go build ./internal/github/...
+            go vet ./internal/github/...
+            go test ./internal/github/... -v
+            ```
+
+            ## Constraints
+
+            - Package declaration must be `package github` (not `package github_test`)
+              so internal fields are accessible.
+            - Do NOT make real network calls. All tests use httptest.Server.
+            - CommitFile is hard to test end-to-end without a real git server; limit to
+              the clone-failure case (point at an httptest.Server that returns 401, verify
+              error wraps "git clone").
+            - runGit() is package-private — test it directly since we are in package github.
+            - Keep test file imports minimal: testing, net/http, net/http/httptest,
+              encoding/json, strings, fmt.
+          files:
+            - internal/github/client_test.go
+            - internal/github/gitops_test.go
+            - internal/github/contents_test.go
+        - id: B
+          task: |
+            ## What to Implement
+
+            Two deliverables:
+
+            ### 1. GitHubClient interface (internal/app/interfaces.go)
+
+            Extract a `GitHubClient` interface from the concrete `*github.Client` type.
+            This enables app/ command functions to be tested without real HTTP calls.
+            The variable `gh` in root.go is currently `*ghclient.Client`; after this
+            change it becomes `GitHubClient` (the interface).
+
+            **IMPORTANT:** Do NOT modify root.go, open.go, shelve.go, sync.go, browse.go,
+            or verify.go. Only create the interface file and the two test files. The
+            existing `gh` variable will satisfy the interface automatically because
+            `*github.Client` already implements all listed methods. The interface is
+            used only in tests via a fakeGitHubClient struct.
+
+            ### 2. Tests for open and browse (internal/app/open_test.go, browse_test.go)
+
+            Write table-driven tests for the pure/extractable logic in open.go and browse.go
+            that does NOT require TUI or live HTTP. Focus on:
+            - `openFile()` logic (the command assembly, not the exec.Start call)
+            - `isPDF()` helper
+            - `handleBrowserAction` with ActionShowDetails (pure print path, no GitHub calls)
+            - `checkDuplicates()` (from shelve.go, package-level function)
+            - `handleAssetCollision()` logic via fakeGitHubClient
+
+            ## Interfaces to Implement
+
+            Create `internal/app/interfaces.go`:
+
+            ```go
+            package app
+
+            import (
+                "io"
+                github "github.com/blackwell-systems/shelfctl/internal/github"
+            )
+
+            // GitHubClient abstracts GitHub API operations for testability.
+            type GitHubClient interface {
+                GetReleaseByTag(owner, repo, tag string) (*github.Release, error)
+                EnsureRelease(owner, repo, tag string) (*github.Release, error)
+                FindAsset(owner, repo string, releaseID int64, name string) (*github.Asset, error)
+                ListReleaseAssets(owner, repo string, releaseID int64) ([]github.Asset, error)
+                DownloadAsset(owner, repo string, assetID int64) (io.ReadCloser, error)
+                UploadAsset(owner, repo string, releaseID int64, name string, r io.Reader, size int64, contentType string) (*github.Asset, error)
+                DeleteAsset(owner, repo string, assetID int64) error
+                GetFileContent(owner, repo, path, ref string) ([]byte, string, error)
+                CommitFile(owner, repo, filePath string, content []byte, message string) error
+            }
+
+            // Compile-time check that *github.Client satisfies GitHubClient.
+            var _ GitHubClient = (*github.Client)(nil)
+            ```
+
+            ## Interfaces to Call
+
+            Define a `fakeGitHubClient` in each _test.go file (not exported):
+
+            ```go
+            type fakeGitHubClient struct {
+                // per-method stubs, return values configurable per test
+                findAssetFn func(owner, repo string, releaseID int64, name string) (*ghpkg.Asset, error)
+                getFileContentFn func(owner, repo, path, ref string) ([]byte, string, error)
+                // ... other methods return zero values by default
+            }
+            ```
+
+            Implement all GitHubClient methods on fakeGitHubClient (most return nil, nil).
+
+            ## Tests to Write
+
+            ### internal/app/open_test.go
+            - TestIsPDF — .pdf (case-insensitive), .epub, no extension
+            - TestOpenFile_CommandAssembly — on runtime.GOOS, verify the correct
+              command name is selected (darwin→"open", linux→"xdg-open"). Do not
+              call exec.Start; use a dry-run approach or just test the command
+              selection logic by extracting it.
+
+            NOTE: openFile() calls exec.Command(...).Start() — test only the pure
+            helpers isPDF() and the command-name selection by refactoring if needed,
+            or skip exec.Start entirely and test the wrapping logic.
+
+            ### internal/app/browse_test.go
+            - TestCheckDuplicates_NoDuplicates — no existing books, no error
+            - TestCheckDuplicates_DuplicateFound — matching SHA256 returns error
+            - TestCheckDuplicates_Force — force=true skips duplicate check
+            - TestHandleAssetCollision_NoExistingAsset — FindAsset returns nil, no error
+            - TestHandleAssetCollision_ExistingNoForce — returns "asset name collision" error
+            - TestHandleAssetCollision_ExistingWithForce — calls DeleteAsset, returns nil
+
+            For HandleAssetCollision tests: set the package-level `gh` variable to a
+            fakeGitHubClient instance (save/restore in t.Cleanup).
+
+            ## Verification Gate
+
+            ```bash
+            go build ./internal/app/...
+            go vet ./internal/app/...
+            go test ./internal/app/... -run "TestIsPDF|TestCheckDuplicates|TestHandleAsset" -v
+            ```
+
+            ## Constraints
+
+            - Do NOT change root.go or any existing .go source files other than
+              creating the two new files and interfaces.go.
+            - The `gh` package variable is `*ghclient.Client` — the compile-time
+              assertion `var _ GitHubClient = (*github.Client)(nil)` verifies compatibility
+              without requiring root.go changes.
+            - Tests in package `app` (not `app_test`) so they can set package-level `gh`.
+            - fakeGitHubClient must implement ALL methods of GitHubClient even if most
+              return `nil, nil` or `nil`.
+          files:
+            - internal/app/interfaces.go
+            - internal/app/open_test.go
+            - internal/app/browse_test.go
+        - id: C
+          task: |
+            ## What to Implement
+
+            Verify and extend test coverage for cross-shelf browse and the collectMetadata
+            defaults logic. The feature is already implemented — this agent adds tests
+            to lock in correctness and catch future regressions.
+
+            ### Cross-shelf browse verification
+            The existing browse.go already aggregates all shelves concurrently when no
+            --shelf flag is given (lines 193-265). The `browserTitle()` helper in
+            tui/book_item.go correctly returns "All Shelves" for multi-shelf input and
+            "Shelf: <name>" for single-shelf input.
+
+            Add tests for `browserTitle()` in `internal/app/add_test.go` — wait, that
+            file is in package `app`. The `browserTitle()` function is in package `tui`.
+
+            **Correct file:** add tests to `internal/app/add_test.go` for the
+            `collectMetadata` default-population logic (the pure subset that doesn't need TUI).
+            Specifically test `checkDuplicates` and `slugify` edge cases not yet covered.
+
+            Also add a new test for `humanBytes` (the size formatter in app package)
+            since it's called in many places but untested.
+
+            ## Tests to Write
+
+            In `internal/app/add_test.go` (package app, ADD to existing file — do not
+            replace existing tests):
+
+            - TestHumanBytes — verify formatting for B, KiB, MiB, GiB boundary values
+            - TestSlugify_SpecialUnicode — additional edge cases: all-numeric, mixed
+              unicode letters that aren't ASCII alphanumeric
+            - TestCheckDuplicates_EmptyBooks — empty catalog, no duplicate found
+
+            NOTE: checkDuplicates is defined in shelve.go but is package-private in
+            package app, so it is accessible from add_test.go (same package).
+
+            ## Verification Gate
+
+            ```bash
+            go build ./internal/app/...
+            go vet ./internal/app/...
+            go test ./internal/app/... -run "TestHumanBytes|TestSlugify|TestCheckDup" -v
+            ```
+
+            ## Constraints
+
+            - Only APPEND to `internal/app/add_test.go`. Do not remove existing tests.
+            - `humanBytes` is defined in `internal/app/cache.go` — check that file
+              to confirm the function name and signature before writing tests.
+            - Keep tests pure (no filesystem, no HTTP, no TUI).
+            - Package declaration: `package app`.
+          files:
+            - internal/app/add_test.go
+        - id: D
+          task: |
+            ## What to Implement
+
+            Two deliverables for the shelve form PDF metadata improvements:
+
+            ### 1. Add Year field to ShelveFormDefaults and populate it from PDF metadata
+
+            Currently `ShelveFormDefaults` has no `Year` field. The `collectMetadata`
+            function in shelve.go extracts Title and Author from `pdfMetadata` but not
+            Year. The shelve form also has no Year input field.
+
+            Add:
+            - `Year int` to `ShelveFormDefaults` struct (internal/tui/shelve_form.go)
+            - A Year text input field to `shelveFormModel` (between Author and Tags)
+            - `Year int` to `ShelveFormData` struct
+            - Pre-population of `Year` from `pdfMetadata.Subject` is NOT needed
+              (PDFMetadata has no Year field) — but expose the field so shelve.go
+              can pass `params.year` as the form default for the `--year` flag value.
+            - Update `collectMetadata` in `internal/app/shelve.go`... WAIT: shelve.go
+              is NOT in your file ownership. Check carefully: you own only
+              `internal/tui/shelve_form.go` and `internal/tui/shelve_form_test.go`.
+
+            **Correct scope:** Add `Year int` to `ShelveFormDefaults` and `ShelveFormData`
+            in shelve_form.go, add the Year text input field to the form UI, update
+            the `getValue` fallback for Year, and add a note comment that shelve.go
+            should pass `params.year` as `Year` in the defaults struct. Do NOT modify
+            shelve.go (not in your ownership).
+
+            ### 2. Test coverage for shelve form (internal/tui/shelve_form_test.go)
+
+            The shelve form is currently completely untested. Write tests for the
+            pure model logic (no tea.Program required — test Update() directly).
+
+            ## Interfaces to Implement
+
+            Updated structs in shelve_form.go:
+
+            ```go
+            type ShelveFormDefaults struct {
+                Filename string
+                Title    string
+                Author   string
+                Year     int    // NEW: pre-fill from --year flag or leave 0
+                ID       string
+            }
+
+            type ShelveFormData struct {
+                Title  string
+                Author string
+                Year   int    // NEW: parsed from the Year text input
+                Tags   string
+                ID     string
+                Cache  bool
+            }
+            ```
+
+            Add a Year text input (fieldYear constant, inserted between fieldAuthor and
+            fieldTags). Update field index constants accordingly.
+
+            ## Tests to Write
+
+            ### internal/tui/shelve_form_test.go (package tui)
+            - TestNewShelveForm_Defaults — newShelveForm() populates placeholders from defaults
+            - TestShelveForm_YearFieldRendered — Year field exists in inputs slice
+            - TestShelveForm_TabNavigation — tab advances focused field in order
+            - TestShelveForm_CancelOnEsc — esc sets canceled=true
+            - TestShelveForm_SubmitWithEmptyInputs — enter with empty inputs uses defaults
+            - TestShelveForm_YearDefault — Year default shows as placeholder when non-zero
+
+            Use the model Update() method directly; no tea.Program needed:
+
+            ```go
+            m := newShelveForm(ShelveFormDefaults{Title: "Test", Author: "Auth", Year: 2023, ID: "test"})
+            m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+            fm := m2.(shelveFormModel)
+            // assert fm.result != nil
+            ```
+
+            ## Verification Gate
+
+            ```bash
+            go build ./internal/tui/...
+            go vet ./internal/tui/...
+            go test ./internal/tui/... -v
+            ```
+
+            ## Constraints
+
+            - Year is a text input (string in the form, parsed to int by the caller in shelve.go).
+              Store as string internally in the form, expose as int in ShelveFormData by
+              parsing with strconv.Atoi (0 on parse error).
+            - Do NOT modify shelve.go or any file outside internal/tui/.
+            - The field index constants (fieldTitle, fieldAuthor, fieldTags, fieldID, fieldCache)
+              must be updated to insert fieldYear between fieldAuthor and fieldTags.
+              New order: fieldTitle=0, fieldAuthor=1, fieldYear=2, fieldTags=3, fieldID=4,
+              fieldCache=5. The inputs slice grows from 4 to 5 elements.
+            - shelve_form_test.go package declaration: `package tui`.
+          files:
+            - internal/tui/shelve_form.go
+            - internal/tui/shelve_form_test.go
+        - id: E
+          task: |
+            ## What to Implement
+
+            Add multi-select move-to-shelf action to the TUI browser. Currently, the
+            browser supports space-to-select for batch download and batch uncache, but
+            there is no way to move selected books to a different shelf from within the
+            browser.
+
+            ### Changes to internal/tui/list_browser.go
+
+            1. Add `ActionMove BrowserAction = "move"` constant.
+            2. Add `MoveTargetShelf string` field to `BrowserResult` struct.
+            3. Add move key binding handler in `Update()`: when the user presses `m`,
+               collect all selected BookItems (or the cursor item if none selected),
+               set `m.action = ActionMove`, populate `m.selectedBooks` with the items
+               to move, set `m.quitting = true`, and return (exit TUI so the caller
+               can show a shelf picker and execute the move).
+            4. Update the `GetSelectedBooks()` method comment to mention ActionMove.
+
+            ### Changes to internal/tui/keys.go
+
+            Add a `move` key binding to the `keyMap` struct and `keys` var:
+
+            ```go
+            move key.Binding  // in keyMap struct
+            ```
+
+            ```go
+            move: key.NewBinding(
+                key.WithKeys("m"),
+                key.WithHelp("m", "move to shelf"),
+            ),
+            ```
+
+            Add `keys.move` to the match in Update() for the new handler.
+
+            ## Interfaces to Implement
+
+            Updated BrowserResult (add MoveTargetShelf field):
+
+            ```go
+            type BrowserResult struct {
+                Action          BrowserAction
+                BookItem        *BookItem   // Single book (open, edit, details)
+                BookItems       []BookItem  // Multiple books (download, move)
+                MoveTargetShelf string      // Target shelf name for ActionMove (populated by caller after TUI exits)
+            }
+            ```
+
+            New constant:
+            ```go
+            const ActionMove BrowserAction = "move"
+            ```
+
+            ## Interfaces to Call
+
+            No new external dependencies. The move action exits the TUI; the actual
+            shelf selection and API calls happen in `handleBrowserAction` (owned by
+            Agent F in Wave 2).
+
+            ## Tests to Write
+
+            No separate test file needed — the TUI model is not directly unit-testable
+            without a tea.Program. However, add a brief doc comment to the `ActionMove`
+            constant explaining the two-phase flow:
+            1. Browser exits with ActionMove + BookItems populated
+            2. Caller (handleBrowserAction) shows shelf picker and executes the move
+
+            ## Verification Gate
+
+            ```bash
+            go build ./internal/tui/...
+            go vet ./internal/tui/...
+            go test ./internal/tui/...
+            ```
+
+            ## Constraints
+
+            - The `m` key handler must NOT break the existing 'm' character in the
+              list filter input (filtering mode check: `if m.list.FilterState() == list.Filtering { break }`
+              is already at the top of the key handler — your new case goes inside the
+              `switch` block after that guard).
+            - Do NOT add `keys.move` to `ShortHelp()` in keys.go — the footer is
+              already crowded. Only add to `keyMap` struct and `keys` var.
+            - MoveTargetShelf is intentionally left empty when the browser exits;
+              it is filled in by the caller (handleBrowserAction in Wave 2) after
+              showing a shelf picker. This keeps TUI code free of business logic.
+            - The `move` field on keyMap and the `keys.move` binding are the ONLY
+              changes to keys.go. Do not modify any existing bindings.
+          files:
+            - internal/tui/list_browser.go
+            - internal/tui/keys.go
+    - number: 2
+      agents:
+        - id: F
+          task: |
+            ## What to Implement
+
+            Two deliverables that depend on Wave 1 outputs:
+
+            ### 1. Wire ActionMove into handleBrowserAction (internal/app/browse.go)
+
+            After Wave 1 Agent E adds `ActionMove` to the TUI, wire it into
+            `handleBrowserAction` in browse.go. When result.Action == ActionMove:
+
+            1. Collect `result.BookItems` (the books to move).
+            2. If no books selected, return fmt.Errorf("no books selected").
+            3. Show a shelf picker (tui.RunShelfPicker) to let the user choose the
+               destination shelf. Build the options from `cfg.Shelves`.
+            4. For each book, call the existing `runMove` logic (move.go) — but
+               `runMove` is a cobra command function. Instead, use the underlying
+               catalog operations directly:
+               - Load source catalog (gh.GetFileContent → catalog.Parse)
+               - Remove book from source (catalog.Remove)
+               - Commit source catalog (gh.CommitFile)
+               - Load dest catalog (gh.GetFileContent → catalog.Parse)
+               - Append book to dest (catalog.Append) with updated Source fields
+               - Commit dest catalog (gh.CommitFile)
+            5. Print a summary of moved books with ok().
+
+            This is a new `case tui.ActionMove:` block in the `handleBrowserAction`
+            switch statement.
+
+            ### 2. End-to-end test for verify --fix (internal/app/verify_e2e_test.go)
+
+            The existing verify_test.go tests only the in-memory slice logic (two-pass
+            orphan removal). This test covers the full `verifySingleShelf` function
+            path using a fake GitHub client.
+
+            Since `verifySingleShelf` uses the package-level `gh` and `cacheMgr`
+            variables, the test sets them to fakes (save/restore in t.Cleanup).
+
+            Use the `GitHubClient` interface defined by Wave 1 Agent B
+            (internal/app/interfaces.go) and a `fakeGitHubClient` struct.
+
+            ## Interfaces to Call
+
+            - `tui.ActionMove` — defined by Wave 1 Agent E in list_browser.go
+            - `tui.RunShelfPicker(options []tui.ShelfOption) (string, error)` — existing
+            - `GitHubClient` interface — defined by Wave 1 Agent B in interfaces.go
+            - `catalog.Remove`, `catalog.Append`, `catalog.Parse`, `catalog.Marshal` — existing
+            - `gh.GetFileContent`, `gh.CommitFile` — via GitHubClient interface in fakes
+
+            ## Tests to Write
+
+            ### internal/app/verify_e2e_test.go (package app)
+
+            Use a fakeGitHubClient (same pattern as Agent B's browse_test.go) that
+            returns:
+            - getFileContentFn: returns a catalog YAML with one book whose asset is NOT
+              in the fake release assets list
+            - getReleaseByTagFn: returns a fake Release
+            - listReleaseAssetsFn: returns an empty asset list (so the catalog entry is orphaned)
+            - commitFileFn: records calls so the test can assert the catalog was committed
+            - deleteAssetFn: records calls
+
+            Tests:
+            - TestVerifySingleShelf_OrphanedCatalogEntry_NoFix — detect mode:
+              issues slice has one entry of type "orphaned_catalog", catalog NOT committed
+            - TestVerifySingleShelf_OrphanedCatalogEntry_WithFix — fix mode:
+              issues slice has one entry, commitFile WAS called with updated catalog,
+              orphaned book is absent from committed data
+            - TestVerifySingleShelf_OrphanedAsset_WithFix — release has an asset not in
+              catalog; fix=true calls deleteAsset
+            - TestVerifySingleShelf_Clean — catalog and assets match; zero issues returned
+
+            For each test: set `gh = &fakeGitHubClient{...}` and `cacheMgr = cache.New(t.TempDir())`
+            at test start, restore originals in t.Cleanup.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./internal/app/...
+            go vet ./internal/app/...
+            go test ./internal/app/... -run "TestVerify" -v
+            go test ./internal/app/... -v
+            ```
+
+            ## Constraints
+
+            - ActionMove handler in browse.go must handle the case where the user cancels
+              the shelf picker (tui.RunShelfPicker returns error "canceled by user") —
+              return nil (not an error) so the TUI session ends cleanly.
+            - For verify_e2e_test.go: the fakeGitHubClient must implement ALL methods
+              of GitHubClient; unused methods return zero values.
+            - Do NOT import the `tui` package in verify_e2e_test.go — the verify path
+              does not use TUI.
+            - The ActionMove handler is a new `case` block ONLY. Do not modify existing
+              case blocks for ActionOpen, ActionEdit, ActionShowDetails.
+            - verifySingleShelf() also calls cacheMgr.Exists() and cacheMgr.Remove().
+              Use `cache.New(t.TempDir())` for cacheMgr in tests — these calls will be
+              no-ops since the temp dir is empty (Exists returns false).
+          files:
+            - internal/app/browse.go
+            - internal/app/verify_e2e_test.go
+          dependencies:
+            - B
+            - E
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: go build ./...
+          required: true
+        - type: lint
+          command: go vet ./...
+          required: true
+        - type: test
+          command: go test ./...
+          required: true
+completion_reports:
+    A:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave1-agent-A
+        branch: wave1-agent-A
+        commit: d4bec4e8851dbe26fa0daa1ae35062f5695dd0b3
+        notes: no changes produced (API agent)
+    B:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave1-agent-B
+        branch: wave1-agent-B
+        commit: f02a0f03da7507cdcadfad0f117aeb26824e15a1
+        notes: no changes produced (API agent)
+    C:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave1-agent-C
+        branch: wave1-agent-C
+        commit: bdb5ccc6b7098fb85facb97015e29904e1180391
+        notes: no changes produced (API agent)
+    D:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave1-agent-D
+        branch: wave1-agent-D
+        commit: 2c58c64ae37582e90b18ed9b16b49d0f04cb0ea4
+        notes: no changes produced (API agent)
+    E:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave1-agent-E
+        branch: wave1-agent-E
+        commit: 03f909311727be22bec8255bebae0e075f50c440
+        notes: no changes produced (API agent)
+    F:
+        status: complete
+        worktree: /Users/dayna.blackwell/code/shelfctl/.claude/worktrees/wave2-agent-F
+        branch: wave2-agent-F
+        commit: b7d35432a73b94759dab8a1c38e5213a61ce24bd
+        notes: no changes produced (API agent)
+integration_reports:
+    wave1:
+        wave: 1
+        gaps: []
+        valid: true
+        summary: 'Wave 1: all exports are integrated (no gaps detected)'
+    wave2:
+        wave: 2
+        gaps: []
+        valid: true
+        summary: 'Wave 2: all exports are integrated (no gaps detected)'
+pre_mortem:
+    overall_risk: medium
+    rows:
+        - scenario: Agent D's Year field addition changes field index constants (fieldYear=2 shifts fieldTags and fieldID up). If Agent D makes an off-by-one error in the constants or inputs slice size, the form will panic with an index-out-of-range at runtime.
+          likelihood: medium
+          impact: high
+          mitigation: The test TestShelveForm_TabNavigation exercises tab through all fields including fieldCache; a panic would be caught immediately. The constraint explicitly lists the new constant values.
+        - scenario: Agent F's ActionMove handler in browse.go requires tui.ActionMove defined by Agent E (Wave 1). If Agent E's constant name differs from what Agent F expects, the code won't compile.
+          likelihood: low
+          impact: high
+          mitigation: Interface contract explicitly specifies `const ActionMove BrowserAction = "move"`. Agent F's task references this exact string. The compile-time check catches mismatches.
+        - scenario: Agent B defines GitHubClient interface but the existing *github.Client may not implement all methods (e.g. a method signature mismatch). The compile-time assertion `var _ GitHubClient = (*github.Client)(nil)` will catch this but only if Agent B gets the signatures exactly right.
+          likelihood: low
+          impact: medium
+          mitigation: Interface contract provides exact signatures copied from the source files. Agent B must verify against the actual method signatures in assets.go, releases.go, contents.go, and gitops.go before writing the interface.
+        - scenario: Agent A's CommitFile test points a *Client at a fake httptest.Server, but CommitFile calls real git commands (os/exec). The git clone will fail fast with 'repository not found' — this is the intended behavior for the error-path test, but if the test environment lacks git, it will fail differently.
+          likelihood: low
+          impact: low
+          mitigation: Agent A's task explicitly limits CommitFile testing to the clone-failure error path. The test asserts the error wraps 'git clone' — any git-not-found failure also returns an error, so the test is robust.
+        - scenario: Agent C appends to add_test.go which is owned by Agent C but also references `humanBytes` from cache.go. If humanBytes is actually defined in a different file than cache.go (e.g. helpers.go), Agent C will be confused.
+          likelihood: low
+          impact: low
+          mitigation: Agent C's task instructs it to check the actual file containing humanBytes before writing tests. The constraint is explicit.
+known_issues:
+    - title: processMigrationBatch uses cobra subcommand re-execution
+      description: |
+        In internal/app/migrate.go, processMigrationQueue() spawns a new
+        newMigrateOneCmd() cobra command for each batch item. The TODO comment in
+        the source (line 343) notes this bypasses PersistentPreRunE so cfg/gh are
+        not re-initialized per migration. This is a pre-existing design issue,
+        not introduced by this feature work.
+      status: Pre-existing, unrelated to this work
+      workaround: Use 'migrate one' for individual files; 'migrate batch' works correctly when cfg/gh are initialized before the batch command runs.
+    - title: internal/tui package has no test files at all
+      description: |
+        The entire tui package (list_browser.go, shelve_form.go, hub.go, etc.)
+        is completely untested. Agents D and F add the first tests for shelve_form.go.
+        The rest of the TUI remains untested after this wave.
+      status: Pre-existing gap; partially addressed by this IMPL (shelve_form_test.go)
+      workaround: Manual testing required for TUI components not covered in this wave.
+state: "COMPLETE"

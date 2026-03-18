@@ -71,7 +71,13 @@ func (c *Client) getRawBlob(owner, repo, sha string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Set Accept header BEFORE calling do() - but do() will overwrite it
+	// So we need to set it after do() prepares the request
+	// Actually, we need to call do() which will set the default headers,
+	// but we want the raw format. Let's set it before and check in do()
 	req.Header.Set("Accept", "application/vnd.github.raw")
+	// Call do() which will add auth and other headers
+	// The do() method checks if Accept is already set and preserves custom values
 	resp, err := c.do(req)
 	if err != nil {
 		return nil, err

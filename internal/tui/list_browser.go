@@ -25,6 +25,7 @@ type keyMap struct {
 	togglePanel  key.Binding
 	toggleSelect key.Binding
 	clearSelect  key.Binding
+	move         key.Binding
 }
 
 var keys = keyMap{
@@ -72,6 +73,10 @@ var keys = keyMap{
 		key.WithKeys("c"),
 		key.WithHelp("c", "clear selection"),
 	),
+	move: key.NewBinding(
+		key.WithKeys("m"),
+		key.WithHelp("m", "move to shelf"),
+	),
 }
 
 // BrowserAction represents an action requested from the browser
@@ -85,13 +90,18 @@ const (
 	ActionOpen        BrowserAction = "open"
 	ActionDownload    BrowserAction = "download"
 	ActionEdit        BrowserAction = "edit"
+	// ActionMove represents a move-to-shelf action. The TUI collects selected books
+	// and exits; the caller (handleBrowserAction) then shows a shelf picker and
+	// executes the move.
+	ActionMove BrowserAction = "move"
 )
 
 // BrowserResult holds the result of a browser session
 type BrowserResult struct {
-	Action    BrowserAction
-	BookItem  *BookItem  // Single book (for open, edit, details)
-	BookItems []BookItem // Multiple books (for download)
+	Action          BrowserAction
+	BookItem        *BookItem  // Single book (for open, edit, details)
+	BookItems       []BookItem // Multiple books (for download, move)
+	MoveTargetShelf string     // Target shelf name for ActionMove (populated by caller after TUI exits)
 }
 
 // downloadMsg contains download progress updates
@@ -460,6 +470,39 @@ func (m BrowserModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, highlightCmd
 
+		case key.Matches(msg, keys.move):
+			// Move book(s) to another shelf
+			highlightCmd := m.setActiveCmd("m")
+
+			// Collect selected books or current item if none selected
+			items := m.list.Items()
+			var booksToMove []BookItem
+
+			for _, item := range items {
+				if bookItem, ok := item.(BookItem); ok && bookItem.selected {
+					booksToMove = append(booksToMove, bookItem)
+				}
+			}
+
+			// If no books selected, move current book
+			if len(booksToMove) == 0 {
+				if item, ok := m.list.SelectedItem().(BookItem); ok {
+					booksToMove = append(booksToMove, item)
+				}
+			}
+
+			// Exit TUI with ActionMove and selected books
+			if len(booksToMove) > 0 {
+				m.action = ActionMove
+				m.selectedBooks = booksToMove
+				m.quitting = true
+				if m.unifiedMode {
+					return m, nil
+				}
+				return m, tea.Quit
+			}
+			return m, highlightCmd
+
 		}
 
 	case tea.WindowSizeMsg:
@@ -696,7 +739,7 @@ func (m BrowserModel) GetSelected() *BookItem {
 	return m.selected
 }
 
-// GetSelectedBooks returns the list of selected books (for multi-select)
+// GetSelectedBooks returns the list of selected books (for multi-select actions like download and move)
 func (m BrowserModel) GetSelectedBooks() []BookItem {
 	return m.selectedBooks
 }

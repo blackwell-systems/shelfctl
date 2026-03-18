@@ -154,7 +154,7 @@ func TestDoJSON_DecodeResponse(t *testing.T) {
 	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"message":"hello"}`)
+		_, _ = fmt.Fprintf(w, `{"message":"hello"}`)
 	})
 	_, c := newFakeServer(t, mux)
 
@@ -194,7 +194,7 @@ func TestDoJSON_ErrorOnBadJSON(t *testing.T) {
 	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{invalid json}`)
+		_, _ = fmt.Fprintf(w, `{invalid json}`)
 	})
 	_, c := newFakeServer(t, mux)
 
@@ -206,8 +206,8 @@ func TestDoJSON_ErrorOnBadJSON(t *testing.T) {
 		t.Fatal("expected error on invalid JSON, got nil")
 	}
 	// Just verify we got a JSON decode error
-	if !strings.Contains(err.Error(), "invalid") && 
-	   !strings.Contains(err.Error(), "character") {
+	if !strings.Contains(err.Error(), "invalid") &&
+		!strings.Contains(err.Error(), "character") {
 		// json.Decoder returns errors containing these strings for invalid JSON
 		t.Errorf("expected JSON decode error, got: %v", err)
 	}

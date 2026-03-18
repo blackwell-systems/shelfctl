@@ -295,7 +295,7 @@ func (m shelveFormModel) getYearValue() int {
 	}
 	// Parse the input, return 0 on error
 	year := 0
-	fmt.Sscanf(val, "%d", &year)
+	_, _ = fmt.Sscanf(val, "%d", &year)
 	return year
 }
 

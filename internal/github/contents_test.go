@@ -15,7 +15,7 @@ func TestGetFileContent_SmallFile(t *testing.T) {
 		encoded := base64.StdEncoding.EncodeToString([]byte(content))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{
+		_, _ = fmt.Fprintf(w, `{
 			"name": "file.txt",
 			"path": "path/to/file.txt",
 			"sha": "abc123",
@@ -66,7 +66,7 @@ func TestGetFileContent_LargeFileFallback(t *testing.T) {
 			t.Errorf("expected Accept=application/vnd.github.raw, got %q", accept)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(blobContent))
+		_, _ = w.Write([]byte(blobContent))
 	})
 
 	_, c := newFakeServer(t, mux)

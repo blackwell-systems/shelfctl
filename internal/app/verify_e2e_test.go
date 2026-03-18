@@ -14,13 +14,13 @@ import (
 
 // fakeGitHubClientForVerify is a more complete fake for verify tests
 type fakeGitHubClientForVerify struct {
-	getFileContentFn     func(owner, repo, path, ref string) ([]byte, string, error)
-	getReleaseByTagFn    func(owner, repo, tag string) (*ghpkg.Release, error)
-	listReleaseAssetsFn  func(owner, repo string, releaseID int64) ([]ghpkg.Asset, error)
-	commitFileFn         func(owner, repo, filePath string, content []byte, message string) error
-	deleteAssetFn        func(owner, repo string, assetID int64) error
-	commitFileCalls      []commitFileCall
-	deleteAssetCalls     []deleteAssetCall
+	getFileContentFn    func(owner, repo, path, ref string) ([]byte, string, error)
+	getReleaseByTagFn   func(owner, repo, tag string) (*ghpkg.Release, error)
+	listReleaseAssetsFn func(owner, repo string, releaseID int64) ([]ghpkg.Asset, error)
+	commitFileFn        func(owner, repo, filePath string, content []byte, message string) error
+	deleteAssetFn       func(owner, repo string, assetID int64) error
+	commitFileCalls     []commitFileCall
+	deleteAssetCalls    []deleteAssetCall
 }
 
 type commitFileCall struct {
@@ -526,4 +526,3 @@ func TestVerifySingleShelf_Clean(t *testing.T) {
 		t.Errorf("should not delete assets when clean, got %d calls", len(fake.deleteAssetCalls))
 	}
 }
-

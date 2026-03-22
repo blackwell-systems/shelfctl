@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Multi-select move action in browse TUI: press `m` on selected books to move them
+  to a different shelf. The TUI shows a shelf picker, then executes the catalog
+  operations (remove from source, append to dest, commit both) automatically
+  (`tui/list_browser.go`, `tui/keys.go`, `app/browse.go`).
+- `Year` field added to shelve form. The form now has Title, Author, Year, Tags,
+  ID, and Cache checkbox. Year is pre-populated from the `--year` flag if provided
+  (`tui/shelve_form.go`).
+
 ### Changed
 - `catalog.Manager.gh` field narrowed to a new `GitHubClient` interface, enabling
   mock injection in tests without affecting production call sites (`catalog/manager.go`).
+- `app/` commands now use a `GitHubClient` interface (defined in `app/interfaces.go`)
+  instead of the concrete `*github.Client` type. This enables testability without
+  changing production code - `*github.Client` satisfies the interface automatically.
 - `generateHTML`, `renderBookCard`, and `renderUncachedCard` in the HTML index
   generator are now methods on `*cache.Manager`, eliminating the need to thread
   `baseDir` as a parameter through the call chain (`cache/html_index.go`).
@@ -37,6 +49,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unified/model.go`).
 
 ### Tests
+- `internal/github/` package now has comprehensive test coverage (was previously
+  untested). Added `client_test.go` (HTTP client, auth headers, status code handling),
+  `contents_test.go` (GetFileContent, large-file blob fallback), and `gitops_test.go`
+  (CommitFile error paths, git command helpers) using httptest fake servers.
+- `app/` commands now testable via `GitHubClient` interface injection. Added
+  `open_test.go` (isPDF), `browse_test.go` (checkDuplicates, handleAssetCollision),
+  and `verify_e2e_test.go` (verifySingleShelf end-to-end with fake GitHub client).
+- `tui/shelve_form.go` now has first test coverage via `shelve_form_test.go`
+  (defaults, Year field, tab navigation, submit/cancel).
 - `catalog.Manager` now has full test coverage via mock `GitHubClient` injection:
   `Load`, `Save`, `Update`, `FindByID`, `Remove`, and `Append` (happy path, load
   error, save error, fn error, not-found cases) (`catalog/manager_test.go`).

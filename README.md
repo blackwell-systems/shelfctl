@@ -54,6 +54,26 @@ Your library stays portable, backed by normal git repos. Free by default (only p
 
 ---
 
+## 30-Second Quickstart
+
+```bash
+# 1. Set up authentication (create token at github.com/settings/tokens)
+export GITHUB_TOKEN=ghp_your_token_here
+
+# 2. Create your first shelf
+shelfctl init --repo shelf-books --name books --create-repo --owner YOUR_USERNAME
+
+# 3. Add a book
+shelfctl shelve ~/Downloads/book.pdf --shelf books
+
+# 4. Browse your library
+shelfctl browse
+```
+
+That's it! Your book is now stored as a GitHub Release asset with searchable metadata.
+
+---
+
 ## Why not commit PDFs?
 
 **The tradeoff:**
@@ -125,6 +145,20 @@ shelfctl uses five production-ready [Bubble Tea](https://github.com/charmbracele
 
 ---
 
+## Core Concepts
+
+**Architecture**: Shelf → Repo → Release → catalog.yml + Assets
+
+- **Shelf**: A GitHub repository (e.g. `shelf-programming`)
+- **Release**: A storage container tag (default: "library", NOT a version release)
+- **Assets**: Your PDF/EPUB files attached to the release
+- **catalog.yml**: Searchable metadata file (tracked in Git) mapping book IDs to assets
+
+Your books live as GitHub Release assets (outside Git history). Only metadata is versioned.
+This keeps repos lightweight and enables per-file on-demand downloads.
+
+---
+
 ## Prerequisites
 
 - GitHub account with a personal access token
@@ -178,7 +212,9 @@ shelfctl authenticates using a GitHub personal access token (PAT). Set `GITHUB_T
 - `public_repo` - for public-only shelves
 
 **Fine-grained PAT permissions:**
-Grant **Contents** (Read/Write) and **Releases** (Read/Write) on the shelf repos you manage.
+Grant **BOTH** permissions on the shelf repos you manage:
+- **Contents** (Read/Write) — for catalog.yml and README.md
+- **Releases** (Read/Write) — for uploading/downloading book files
 
 **Note**: GitHub CLI (`gh`) is not required - shelfctl uses the GitHub REST API directly.
 
@@ -254,6 +290,8 @@ shelfctl
   <img src="assets/tui_screenshot.png" alt="shelfctl interactive TUI hub menu" width="600">
 </p>
 
+> **TUI Quick Reference**: ↑/↓ navigate, enter select, q quit, / search, ? help
+
 See [docs/guides/hub.md](docs/guides/hub.md) for full details.
 
 ### Command-line mode
@@ -265,25 +303,6 @@ shelfctl --help
 <p align="center">
   <img src="assets/cli_screenshot.png" alt="shelfctl CLI help output" width="600">
 </p>
-
-**Already have PDFs in GitHub repos?** Organize them:
-
-```bash
-# (Ensure GITHUB_TOKEN is set - see Authentication section above)
-
-# Scan your existing repos for files
-shelfctl migrate scan --source you/old-books-repo > queue.txt
-
-# Create organized shelves (private by default)
-shelfctl init --repo shelf-programming --name programming --create-repo --create-release
-shelfctl init --repo shelf-research --name research --create-repo --create-release
-
-# Or make a shelf public
-shelfctl init --repo shelf-public --name public --create-repo --create-release --private=false
-
-# Edit queue.txt to map files to shelves, then migrate
-shelfctl migrate batch queue.txt --n 10 --continue
-```
 
 **Starting fresh?** Add books directly:
 
@@ -303,6 +322,25 @@ shelfctl open sicp
 # Add annotations/highlights, then sync back to GitHub
 open sicp  # Annotate in your PDF reader
 shelfctl sync sicp  # Upload annotated version (replaces original, no versioning)
+```
+
+**Already have PDFs committed in a repo?** Reorganize them:
+
+```bash
+# (Ensure GITHUB_TOKEN is set - see Authentication section above)
+
+# Scan your existing repos for files
+shelfctl migrate scan --source you/old-books-repo > queue.txt
+
+# Create organized shelves (private by default)
+shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+shelfctl init --repo shelf-research --name research --create-repo --create-release
+
+# Or make a shelf public
+shelfctl init --repo shelf-public --name public --create-repo --create-release --private=false
+
+# Edit queue.txt to map files to shelves, then migrate
+shelfctl migrate batch queue.txt --n 10 --continue
 ```
 
 ### HTML Library Index

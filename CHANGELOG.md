@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Year` field added to shelve form. The form now has Title, Author, Year, Tags,
   ID, and Cache checkbox. Year is pre-populated from the `--year` flag if provided
   (`tui/shelve_form.go`).
+- **Cache orphan detection:** `shelfctl cache clear --orphans` finds and removes
+  cached files for books no longer in any shelf catalog. Cross-references cache
+  against all shelves, shows orphaned files by repo/filename with sizes, prompts
+  for confirmation before deletion. Addresses cache growth from removed books
+  (`cache/orphan.go`, `app/cache.go`).
 
 ### Changed
 - `catalog.Manager.gh` field narrowed to a new `GitHubClient` interface, enabling

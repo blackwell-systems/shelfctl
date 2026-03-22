@@ -26,6 +26,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generator are now methods on `*cache.Manager`, eliminating the need to thread
   `baseDir` as a parameter through the call chain (`cache/html_index.go`).
 
+### Improved
+
+**New User Discoverability** - Extensive help text and documentation improvements
+addressing 16 friction items from `docs/NEW-USER-FRICTION.md`. This wave focused
+on documentation and help text only; functional improvements (interactive config
+wizard, empty TUI state help, specific validation errors) are tracked separately.
+
+- **Command help improvements:**
+  - Root command (`shelfctl --help`) now includes a "Getting Started" section with
+    the 4 critical first commands (set token, init, shelve, browse).
+  - `init` command documents key concepts (shelf, release, asset, catalog.yml) and
+    clarifies which flags are required vs optional.
+  - `shelve` command explains interactive vs non-interactive workflows and documents
+    the `--shelf` flag requirement.
+  - `browse` command documents all TUI key bindings (↑/↓, enter, space, /, m, d, i, e, q, ?)
+    and explains empty shelf behavior.
+  - `open` command explains cache behavior (location, auto-download, sync workflow).
+
+- **Error message improvements:**
+  - Config loading errors now include the file path and hint to check permissions or
+    recreate with `shelfctl init`.
+  - Missing config error now suggests running `shelfctl init --help` to get started.
+
+- **README restructuring:**
+  - Added 30-second quickstart at the top (token setup → init → shelve → browse).
+  - Added "Core Concepts" section early in README explaining shelf→repo→release→catalog.yml→assets.
+  - Reordered Quick Start to show "Starting fresh" basics before migration examples.
+  - Added TUI Quick Reference callout with navigation keys.
+  - Clarified that fine-grained GitHub tokens need BOTH Contents and Releases permissions.
+
 ### Removed
 - In-TUI cover image rendering removed entirely. Bubble Tea's frame renderer
   erases screen lines before writing them, overwriting Kitty/iTerm2 image cells

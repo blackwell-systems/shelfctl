@@ -1,6 +1,8 @@
 package mockserver
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/blackwell-systems/shelfctl/test/fixtures"
+	"gopkg.in/yaml.v3"
 )
 
 // Server defines the mock server interface.
@@ -201,14 +204,24 @@ func (ms *MockServer) handleGetFileContent(w http.ResponseWriter, r *http.Reques
 	// Find matching fixture
 	for _, shelf := range ms.fixtures.Shelves {
 		if shelf.Owner == owner && shelf.Repo == repo {
-			// Return catalog content as base64-encoded JSON (GitHub API format)
+			// Marshal books to YAML
+			var buf bytes.Buffer
+			enc := yaml.NewEncoder(&buf)
+			enc.SetIndent(2)
+			if err := enc.Encode(shelf.Books); err != nil {
+				http.Error(w, "failed to encode catalog", http.StatusInternalServerError)
+				return
+			}
+
+			// Base64 encode the YAML content (GitHub API format)
+			encodedContent := base64.StdEncoding.EncodeToString(buf.Bytes())
+
 			content := map[string]interface{}{
-				"name": "catalog.yml",
-				"path": contentPath,
-				"type": "file",
-				// In a real implementation, we'd encode the YAML as base64
-				// For testing, we just return a minimal structure
-				"content": "encoded-catalog-content",
+				"name":    "catalog.yml",
+				"path":    contentPath,
+				"type":    "file",
+				"content": encodedContent,
+				"sha":     "mock-sha256-hash", // GitHub API includes git blob SHA
 			}
 
 			w.Header().Set("Content-Type", "application/json")

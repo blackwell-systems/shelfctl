@@ -211,7 +211,7 @@ func createFictionShelf() ShelfFixture {
 
 	return ShelfFixture{
 		Name:   "fiction",
-		Owner:  "fiction-archive",
+		Owner:  "tech-library",
 		Repo:   "scifi-classics",
 		Books:  books,
 		Assets: assets,
@@ -323,7 +323,7 @@ func createReferenceShelf() ShelfFixture {
 
 	return ShelfFixture{
 		Name:   "reference",
-		Owner:  "cs-reference",
+		Owner:  "tech-library",
 		Repo:   "classic-texts",
 		Books:  books,
 		Assets: assets,

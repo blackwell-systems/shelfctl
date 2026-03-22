@@ -181,7 +181,26 @@ func newBrowseCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "browse",
 		Aliases: []string{"ls"},
-		Short:   "Browse your library (interactive TUI or text output)",
+		Short:   "Browse your library (interactive TUI with ? for help, or text output)",
+		Long: `Browse your library in interactive TUI mode or as text output.
+
+Interactive TUI Key Bindings:
+  • ↑/↓ or j/k: Navigate list
+  • enter: Open selected book
+  • space: Select for batch operations
+  • /: Search by title, author, or tags
+  • m: Move selected books to another shelf
+  • d: Download selected books to cache
+  • i: Show book details
+  • e: Edit book metadata
+  • q: Quit
+  • ?: Show help in TUI
+
+Empty Shelf Behavior:
+  If your shelf has no books yet, the TUI shows an empty list.
+  Press 'q' to return to the menu and select "Add Book" to upload your first PDF.
+
+For non-interactive (text) output, use --no-interactive flag.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var shelves []config.ShelfConfig
 			if shelfName != "" {

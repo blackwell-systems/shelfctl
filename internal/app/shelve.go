@@ -57,6 +57,11 @@ func newShelveCmd() *cobra.Command {
 
 If no file is provided, launches an interactive file picker (when in terminal).
 
+Workflows:
+  • Interactive: shelfctl shelve (picker → form → upload)
+  • Interactive with file: shelfctl shelve ~/book.pdf (form for metadata)
+  • Non-interactive: Provide --shelf, --title, and all metadata flags
+
 Examples:
   shelfctl shelve                                 # Interactive: picker → form → upload
   shelfctl shelve ~/Downloads/sicp.pdf            # Interactive form for metadata
@@ -69,15 +74,15 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&params.shelfName, "shelf", "", "Target shelf name (interactive prompt if not provided)")
+	cmd.Flags().StringVar(&params.shelfName, "shelf", "", "Target shelf name (required in non-interactive mode)")
 	cmd.Flags().StringVar(&params.releaseTag, "release", "", "Target release tag (default: shelf's default_release)")
 	cmd.Flags().StringVar(&params.bookID, "id", "", "Book ID (default: prompt / slugified title)")
 	cmd.Flags().BoolVar(&params.useSHA12, "id-sha12", false, "Use first 12 chars of sha256 as ID")
-	cmd.Flags().StringVar(&params.title, "title", "", "Book title")
-	cmd.Flags().StringVar(&params.author, "author", "", "Author")
-	cmd.Flags().IntVar(&params.year, "year", 0, "Publication year")
-	cmd.Flags().StringVar(&params.tagsCSV, "tags", "", "Comma-separated tags")
-	cmd.Flags().StringVar(&params.assetName, "asset-name", "", "Override asset filename")
+	cmd.Flags().StringVar(&params.title, "title", "", "Book title (prompt if not provided)")
+	cmd.Flags().StringVar(&params.author, "author", "", "Author (optional)")
+	cmd.Flags().IntVar(&params.year, "year", 0, "Publication year (optional)")
+	cmd.Flags().StringVar(&params.tagsCSV, "tags", "", "Comma-separated tags (optional)")
+	cmd.Flags().StringVar(&params.assetName, "asset-name", "", "Override asset filename (default: <id>.<format>)")
 	cmd.Flags().BoolVar(&params.noPush, "no-push", false, "Update catalog locally only (do not push)")
 	cmd.Flags().BoolVar(&params.force, "force", false, "Skip duplicate checks and overwrite existing assets")
 	cmd.Flags().BoolVar(&params.cache, "cache", false, "Cache book locally after upload")

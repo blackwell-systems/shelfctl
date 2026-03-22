@@ -84,9 +84,9 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Created temp directory: %s\n", tempDir)
 
-	// Initialize fixtures (not directly used in config, but available for mock server)
-	fixtures := fixtures.DefaultFixtures()
-	fmt.Printf("Loaded %d fixture shelves\n", len(fixtures.Shelves))
+	// Initialize fixtures
+	fixtureSet := fixtures.DefaultFixtures()
+	fmt.Printf("Loaded %d fixture shelves\n", len(fixtureSet.Shelves))
 
 	// Create and start mock server
 	server, err = mockserver.NewServer()
@@ -101,20 +101,25 @@ func runStart(cmd *cobra.Command, args []string) error {
 	serverURL := server.URL()
 	fmt.Printf("Mock server started at: %s\n", serverURL)
 
-	// Generate config.yml
+	// Generate config.yml from fixture data
 	config := Config{}
-	config.GitHub.Owner = "testuser"
+	// Use first shelf's owner as GitHub owner (config limitation: single owner)
+	if len(fixtureSet.Shelves) > 0 {
+		config.GitHub.Owner = fixtureSet.Shelves[0].Owner
+	}
 	config.GitHub.TokenEnv = "GITHUB_TOKEN"
 	config.GitHub.APIBase = serverURL
 	config.Defaults.Release = "library"
 	config.Defaults.CacheDir = filepath.Join(tempDir, "cache")
 
-	config.Shelves = []Shelf{
-		{
-			Name:        "tech",
-			Repo:        "shelf-tech",
+	// Create shelf entries for all fixtures
+	config.Shelves = make([]Shelf, len(fixtureSet.Shelves))
+	for i, fixture := range fixtureSet.Shelves {
+		config.Shelves[i] = Shelf{
+			Name:        fixture.Name,
+			Repo:        fixture.Repo,
 			CatalogPath: "catalog.yml",
-		},
+		}
 	}
 
 	configPath = filepath.Join(tempDir, "config.yml")

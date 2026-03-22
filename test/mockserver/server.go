@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/blackwell-systems/shelfctl/internal/catalog"
+	"github.com/blackwell-systems/shelfctl/test/fixtures"
 )
 
 // Server defines the mock server interface.
@@ -18,24 +18,10 @@ type Server interface {
 	URL() string
 }
 
-// FixtureSet contains test data (temporary stub until Agent B's package is available)
-type FixtureSet struct {
-	Shelves []ShelfFixture
-}
-
-// ShelfFixture represents a shelf with books and assets
-type ShelfFixture struct {
-	Name    string
-	Owner   string
-	Repo    string
-	Books   []catalog.Book
-	Assets  map[string][]byte // bookID -> PDF content
-}
-
 // MockServer implements a mock GitHub API server for testing.
 type MockServer struct {
 	server   *httptest.Server
-	fixtures *FixtureSet
+	fixtures *fixtures.FixtureSet
 	mu       sync.RWMutex
 	started  bool
 }
@@ -43,7 +29,7 @@ type MockServer struct {
 // NewServer creates a new mock GitHub API server.
 func NewServer() (*MockServer, error) {
 	ms := &MockServer{
-		fixtures: defaultFixtures(),
+		fixtures: fixtures.DefaultFixtures(),
 	}
 
 	mux := http.NewServeMux()
@@ -254,26 +240,3 @@ func (ms *MockServer) handleDownloadAsset(w http.ResponseWriter, r *http.Request
 	http.NotFound(w, r)
 }
 
-// defaultFixtures returns a minimal fixture set for testing.
-// TODO: Replace with fixtures.DefaultFixtures() once Agent B's package is merged.
-func defaultFixtures() *FixtureSet {
-	return &FixtureSet{
-		Shelves: []ShelfFixture{
-			{
-				Name:  "test-shelf",
-				Owner: "test-owner",
-				Repo:  "test-repo",
-				Books: []catalog.Book{
-					{
-						ID:     "book1",
-						Title:  "Test Book 1",
-						Format: "pdf",
-					},
-				},
-				Assets: map[string][]byte{
-					"book1": []byte("mock-pdf-content"),
-				},
-			},
-		},
-	}
-}

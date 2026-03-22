@@ -23,8 +23,26 @@ func newOpenCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "open <id>",
-		Short: "Open a book (downloads to cache first if needed)",
-		Args:  cobra.ExactArgs(1),
+		Short: "Open a book (auto-downloads to local cache if needed)",
+		Long: `Open a book from your library. Downloads to local cache automatically if not cached.
+
+Cache Behavior:
+  • Books are cached at: ~/.local/share/shelfctl/cache/
+  • Only the specific file you open is downloaded (not the entire shelf)
+  • Cache persists across sessions (no re-downloads)
+  • See 'shelfctl cache info' for disk usage
+  • See 'shelfctl cache clear' to free space
+
+Annotations and Highlights:
+  If you annotate or highlight a PDF in your reader, those changes are saved
+  to your local cache. Use 'shelfctl sync <id>' to upload the modified version
+  back to GitHub (replaces original, no versioning).
+
+Examples:
+  shelfctl open sicp                    # Download (if needed) and open
+  shelfctl open sicp --app Preview      # Open with specific app
+  shelfctl open sicp --shelf programming # Disambiguate if ID exists in multiple shelves`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 			b, shelf, err := findBook(id, shelfName)

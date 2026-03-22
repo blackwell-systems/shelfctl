@@ -19,6 +19,11 @@ func DefaultPath() string {
 
 // Load reads the config from disk (or env). Returns an empty config if no
 // file exists yet — init command will populate it.
+//
+// Error conditions:
+//   - Config file exists but is malformed YAML → returns parsing error
+//   - Config file is readable but cannot be unmarshaled → returns unmarshal error
+//   - Missing config file is NOT an error (returns empty Config)
 func Load() (*Config, error) {
 	v := viper.New()
 
@@ -43,14 +48,14 @@ func Load() (*Config, error) {
 		// Not finding the config file is fine — the init command creates it.
 		if !os.IsNotExist(err) {
 			if _, isCfgNotFound := err.(viper.ConfigFileNotFoundError); !isCfgNotFound {
-				return nil, fmt.Errorf("reading config: %w", err)
+				return nil, fmt.Errorf("reading config at %s: %w\n\nHint: Check file permissions", DefaultPath(), err)
 			}
 		}
 	}
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("parsing config: %w", err)
+		return nil, fmt.Errorf("parsing config at %s: %w\n\nHint: Check YAML syntax, or delete the file and run 'shelfctl init' to recreate", DefaultPath(), err)
 	}
 
 	// Resolve token from env (never stored in file).

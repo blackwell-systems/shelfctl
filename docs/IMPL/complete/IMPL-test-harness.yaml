@@ -1,0 +1,548 @@
+completion_date: "2026-03-22"
+title: Integration Test Harness for Manual CLI Testing
+feature_slug: test-harness
+verdict: SUITABLE
+suitability_assessment: |
+    All five suitability criteria pass:
+
+    1. File decomposition: YES - Work decomposes into 5 agents with disjoint file ownership:
+       - Agent A: Mock GitHub API server (test/mockserver/)
+       - Agent B: Test fixtures and data (test/fixtures/)
+       - Agent C: Harness coordinator (cmd/test-harness/)
+       - Agent D: Integration test scenarios (test/scenarios/)
+       - Agent E: Documentation (test/README.md)
+
+    2. Investigation-first items: NO - Requirements are fully specified, no unknowns.
+
+    3. Interface discoverability: YES - All cross-agent interfaces can be defined before implementation:
+       - mockserver.Server interface with Start/Stop methods
+       - fixtures.FixtureSet struct with shelf data
+       - Standard Go package boundaries
+
+    4. Pre-implementation status: TODO - No test harness exists. This is net-new functionality.
+
+    5. Parallelization value: HIGH - All agents are independent (single wave). Pure Go implementation
+       ensures proper coordination. Estimated 15-20 min parallel vs 40-50 min sequential (60% faster).
+
+    Estimated times:
+    - Scout phase: ~8 min (dependency mapping, interface contracts, IMPL doc)
+    - Agent execution: ~18 min (5 agents × 4 min avg, full parallelism)
+    - Merge & verification: ~3 min
+    Total SAW time: ~29 min
+
+    Sequential baseline: ~48 min (5 agents × 9 min avg sequential time + overhead)
+    Time savings: ~19 min (66% faster)
+
+    Recommendation: Clear speedup. Proceed with SAW.
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: test/mockserver/server.go
+      agent: A
+      wave: 1
+      action: new
+    - file: test/mockserver/server_test.go
+      agent: A
+      wave: 1
+      action: new
+    - file: test/fixtures/fixtures.go
+      agent: B
+      wave: 1
+      action: new
+    - file: test/fixtures/fixtures_test.go
+      agent: B
+      wave: 1
+      action: new
+    - file: cmd/test-harness/main.go
+      agent: C
+      wave: 1
+      action: new
+    - file: test/scenarios/browse_test.go
+      agent: D
+      wave: 1
+      action: new
+    - file: test/scenarios/shelve_test.go
+      agent: D
+      wave: 1
+      action: new
+    - file: test/scenarios/cache_test.go
+      agent: D
+      wave: 1
+      action: new
+    - file: test/README.md
+      agent: E
+      wave: 1
+      action: new
+interface_contracts:
+    - name: mockserver.Server
+      description: Mock GitHub API server interface
+      definition: |
+        type Server interface {
+            Start() error
+            Stop() error
+            URL() string
+        }
+
+        func NewServer() (*MockServer, error)
+      location: test/mockserver/server.go
+    - name: fixtures.FixtureSet
+      description: Test data structure containing pre-configured shelves
+      definition: |
+        type FixtureSet struct {
+            Shelves []ShelfFixture
+        }
+
+        type ShelfFixture struct {
+            Name    string
+            Owner   string
+            Repo    string
+            Books   []catalog.Book
+            Assets  map[string][]byte  // bookID -> PDF content
+        }
+
+        func DefaultFixtures() *FixtureSet
+      location: test/fixtures/fixtures.go
+    - name: harness.Config
+      description: Test environment configuration
+      definition: |
+        type Config struct {
+            ServerURL   string
+            ConfigPath  string
+            TempDir     string
+        }
+
+        func Setup() (*Config, error)
+        func (c *Config) Teardown() error
+      location: cmd/test-harness/main.go
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |
+            Create mock GitHub API server in test/mockserver/ package.
+
+            ## What to Implement
+
+            1. **test/mockserver/server.go**:
+               - NewServer() function returning *MockServer
+               - MockServer struct with Start/Stop methods
+               - Implements GitHub API endpoints:
+                 - GET /repos/{owner}/{repo}/releases/tags/{tag}
+                 - GET /repos/{owner}/{repo}/releases/{id}/assets
+                 - GET /repos/{owner}/{repo}/contents/{path}
+                 - GET /repos/{owner}/{repo}/releases/assets/{id}
+               - Uses httptest.Server internally
+               - Thread-safe for concurrent requests
+               - Returns fixture data from test/fixtures package
+
+            2. **test/mockserver/server_test.go**:
+               - TestNewServer - server creation
+               - TestStartStop - lifecycle
+               - TestGetRelease - endpoint behavior
+               - TestGetFileContent - catalog.yml endpoint
+               - TestDownloadAsset - asset download endpoint
+
+            ## Interface Contracts
+
+            Must implement:
+            ```go
+            type Server interface {
+                Start() error
+                Stop() error
+                URL() string
+            }
+            ```
+
+            Must consume fixtures.DefaultFixtures() from Agent B's package.
+
+            ## Test Coverage
+
+            - Server lifecycle (start/stop)
+            - All GitHub API endpoints return valid responses
+            - Concurrent request handling
+            - Error cases (404, invalid paths)
+
+            ## Verification Gate
+
+            ```bash
+            go build ./test/mockserver/...
+            go vet ./test/mockserver/...
+            go test -v ./test/mockserver/...
+            ```
+
+            ## Constraints
+
+            - Use net/http and httptest from stdlib
+            - No external HTTP libraries
+            - Must be startable/stoppable programmatically
+            - Import fixtures package for test data
+          files:
+            - test/mockserver/server.go
+            - test/mockserver/server_test.go
+        - id: B
+          task: |
+            Create test fixtures package in test/fixtures/.
+
+            ## What to Implement
+
+            1. **test/fixtures/fixtures.go**:
+               - FixtureSet struct with 3 shelves (tech, fiction, reference)
+               - ShelfFixture struct containing catalog data
+               - DefaultFixtures() function returning pre-configured data
+               - Each shelf has 5-10 realistic books with:
+                 - ID, title, author, year, tags
+                 - Format (pdf, epub)
+                 - SHA256 checksums
+                 - Source (github_release)
+               - Minimal 1KB placeholder PDF content for asset downloads
+
+            2. **test/fixtures/fixtures_test.go**:
+               - TestDefaultFixtures - structure validation
+               - TestShelfCount - 3 shelves present
+               - TestBookMetadata - realistic data
+               - TestAssetContent - PDFs are valid
+
+            ## Interface Contracts
+
+            Must export:
+            ```go
+            type FixtureSet struct {
+                Shelves []ShelfFixture
+            }
+
+            type ShelfFixture struct {
+                Name    string
+                Owner   string
+                Repo    string
+                Books   []catalog.Book
+                Assets  map[string][]byte
+            }
+
+            func DefaultFixtures() *FixtureSet
+            ```
+
+            Must use catalog.Book from internal/catalog package.
+
+            ## Test Coverage
+
+            - Fixture structure validation
+            - Book metadata completeness
+            - Asset content validity
+            - Checksum consistency
+
+            ## Verification Gate
+
+            ```bash
+            go build ./test/fixtures/...
+            go vet ./test/fixtures/...
+            go test -v ./test/fixtures/...
+            ```
+
+            ## Constraints
+
+            - Use internal/catalog.Book for book data
+            - Generate realistic but minimal test data
+            - PDFs can be 1KB placeholder ("%%PDF-1.4..." header + minimal content)
+            - All books must have valid checksums matching their asset content
+          files:
+            - test/fixtures/fixtures.go
+            - test/fixtures/fixtures_test.go
+        - id: C
+          task: |
+            Create test harness coordinator in cmd/test-harness/.
+
+            ## What to Implement
+
+            1. **cmd/test-harness/main.go**:
+               - CLI with subcommands: start, stop, status
+               - start: launches mock server, generates config.yml, prints instructions
+               - stop: cleanup temp files, shutdown server
+               - status: check if harness is running
+               - Uses mockserver.NewServer() from Agent A
+               - Uses fixtures.DefaultFixtures() from Agent B
+               - Generates test config.yml in temp directory
+               - Signal handling (SIGINT, SIGTERM) for clean shutdown
+               - Prints usage instructions with example commands
+
+            ## Interface Contracts
+
+            Must import and use:
+            - mockserver.NewServer() from test/mockserver
+            - fixtures.DefaultFixtures() from test/fixtures
+
+            Must generate config.yml pointing to mock server URL with structure:
+            ```yaml
+            github:
+              owner: testuser
+              token_env: GITHUB_TOKEN
+              api_base: http://localhost:8080
+            defaults:
+              release: library
+              cache_dir: /tmp/shelfctl-test/cache
+            shelves:
+              - name: tech
+                repo: shelf-tech
+                catalog_path: catalog.yml
+            ```
+
+            ## Test Coverage
+
+            Manual testing only (CLI tool). No unit tests required for main.go.
+
+            ## Verification Gate
+
+            ```bash
+            go build ./cmd/test-harness/...
+            go vet ./cmd/test-harness/...
+            ./cmd/test-harness/test-harness start
+            # Verify output shows server URL and config path
+            ```
+
+            ## Constraints
+
+            - Pure Go implementation
+            - Use cobra for CLI if needed, or stdlib flag package
+            - Must be startable with `go run cmd/test-harness/main.go start`
+            - Config.yml must use mock server URL as api_base
+            - Print clear instructions for manual testing
+          files:
+            - cmd/test-harness/main.go
+        - id: D
+          task: |
+            Create integration test scenarios in test/scenarios/.
+
+            ## What to Implement
+
+            1. **test/scenarios/browse_test.go**:
+               - TestBrowseList - non-interactive browse command
+               - Uses mockserver and fixtures
+               - Verifies catalog listing
+
+            2. **test/scenarios/shelve_test.go**:
+               - TestShelveBook - add book operation
+               - Verifies book appears in catalog
+
+            3. **test/scenarios/cache_test.go**:
+               - TestCacheDownload - download to cache
+               - TestCacheExists - cache hit/miss
+               - Verifies asset caching
+
+            All tests are programmatic (no TUI, API-level testing).
+
+            ## Interface Contracts
+
+            Must import and use:
+            - mockserver.NewServer() from test/mockserver
+            - fixtures.DefaultFixtures() from test/fixtures
+            - internal/app functions for CLI operations
+
+            ## Test Coverage
+
+            - Browse catalog listing
+            - Add book to shelf
+            - Download and cache assets
+            - Cache hit/miss scenarios
+
+            ## Verification Gate
+
+            ```bash
+            go build ./test/scenarios/...
+            go vet ./test/scenarios/...
+            go test -v ./test/scenarios/...
+            ```
+
+            ## Constraints
+
+            - Non-interactive testing only (no TUI)
+            - Use testing.T for assertions
+            - Start/stop mock server per test
+            - Clean up temp files in teardown
+            - Tests must be runnable with `go test ./test/scenarios/...`
+          files:
+            - test/scenarios/browse_test.go
+            - test/scenarios/shelve_test.go
+            - test/scenarios/cache_test.go
+        - id: E
+          task: |
+            Create documentation in test/README.md.
+
+            ## What to Implement
+
+            1. **test/README.md**:
+               - Architecture overview of test harness
+               - Usage instructions for manual testing
+               - Example commands
+               - Troubleshooting section
+               - Component descriptions (mockserver, fixtures, harness, scenarios)
+
+            Structure:
+            ```markdown
+            # Test Harness
+
+            ## Architecture
+            [Describe pure Go implementation, components]
+
+            ## Usage
+
+            ### Starting the harness
+            [go run cmd/test-harness/main.go start]
+
+            ### Manual testing
+            [Example shelfctl commands with SHELFCTL_CONFIG]
+
+            ### Running scenarios
+            [go test ./test/scenarios/...]
+
+            ### Stopping
+            [go run cmd/test-harness/main.go stop]
+
+            ## Components
+            - test/mockserver: Mock GitHub API
+            - test/fixtures: Test data
+            - cmd/test-harness: Coordinator
+            - test/scenarios: Programmatic tests
+
+            ## Troubleshooting
+            [Common issues and solutions]
+            ```
+
+            ## Interface Contracts
+
+            No code interfaces. Documents the interfaces from other agents.
+
+            ## Test Coverage
+
+            N/A (documentation only)
+
+            ## Verification Gate
+
+            ```bash
+            # Verify markdown syntax
+            test -f test/README.md
+            grep -q "# Test Harness" test/README.md
+            ```
+
+            ## Constraints
+
+            - Clear, concise documentation
+            - Include copy-paste examples
+            - Explain architecture decisions (pure Go)
+            - Troubleshooting for common issues
+          files:
+            - test/README.md
+      base_commit: 140c4241a48af9dccd9909e26cf4e7604a298d20
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: go build ./...
+          required: true
+        - type: test
+          command: go test ./...
+          required: true
+        - type: lint
+          command: go vet ./...
+          required: true
+        - type: format
+          command: gofmt -l .
+          required: true
+completion_reports:
+    A:
+        status: complete
+        branch: saw/test-harness/wave1-agent-A
+        commit: a716ba9
+        files_changed:
+            - test/mockserver/server.go
+            - test/mockserver/server_test.go
+        files_created:
+            - test/mockserver/server.go
+            - test/mockserver/server_test.go
+        tests_added:
+            - TestNewServer
+            - TestStartStop
+            - TestGetRelease
+            - TestGetFileContent
+            - TestDownloadAsset
+            - TestConcurrentRequests
+            - TestNotFoundEndpoints
+            - TestGetReleaseAssets
+        verification: PASS - All 8 tests passing, build and vet clean
+    B:
+        status: complete
+        branch: saw/test-harness/wave1-agent-B
+        commit: f307940
+        files_created:
+            - test/fixtures/fixtures.go
+            - test/fixtures/fixtures_test.go
+        tests_added:
+            - TestDefaultFixtures
+            - TestShelfCount
+            - TestBookMetadata
+            - TestAssetContent
+            - TestChecksumConsistency
+            - TestShelfBookCounts
+            - TestAssetMapCompleteness
+        verification: PASS
+    C:
+        status: complete
+        branch: saw/test-harness/wave1-agent-C
+        commit: "4795172"
+        files_changed:
+            - cmd/test-harness/main.go
+        files_created:
+            - cmd/test-harness/main.go
+        verification: PASS
+    D:
+        status: complete
+        branch: saw/test-harness/wave1-agent-D
+        commit: 5cd43b6
+        files_created:
+            - test/scenarios/browse_test.go
+            - test/scenarios/shelve_test.go
+            - test/scenarios/cache_test.go
+        tests_added:
+            - TestBrowseList
+            - TestBrowseWithCache
+            - TestBrowseFilter
+            - TestShelveBook
+            - TestShelveBookDuplicate
+            - TestShelveMultipleFormats
+            - TestShelveBookMetadata
+            - TestCacheDownload
+            - TestCacheExists
+            - TestCacheRemove
+            - TestCacheModificationDetection
+            - TestCacheChecksumValidation
+            - TestCacheMultipleRepos
+        verification: 'DEFERRED: Tests depend on Agent A (mockserver) and Agent B (fixtures) packages. Will compile and pass after wave integration.'
+    E:
+        status: complete
+        branch: saw/test-harness/wave1-agent-E
+        commit: ab99646
+        files_created:
+            - test/README.md
+        verification: PASS
+pre_mortem:
+    overall_risk: low
+    rows:
+        - scenario: Mock server endpoints don't match real GitHub API
+          likelihood: medium
+          impact: medium
+          mitigation: Agent A references existing internal/github/client_test.go patterns and real API structure
+        - scenario: Fixtures generate invalid catalog.yml structure
+          likelihood: low
+          impact: medium
+          mitigation: Agent B uses internal/catalog.Book types ensuring compatibility
+        - scenario: Harness coordinator fails to generate valid config.yml
+          likelihood: low
+          impact: low
+          mitigation: Agent C uses internal/config.Config schema as reference
+        - scenario: Integration tests cannot import internal packages
+          likelihood: low
+          impact: high
+          mitigation: Tests use standard Go module imports, all packages are within same module
+        - scenario: Agents have dependency conflicts (Agent C needs A+B complete)
+          likelihood: low
+          impact: high
+          mitigation: Wave 1 agents are fully independent - C imports A+B as packages, Go build handles compilation order
+state: "COMPLETE"

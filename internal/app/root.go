@@ -40,6 +40,12 @@ var rootCmd = &cobra.Command{
 Shelf repos hold metadata (catalog.yml). Release assets hold the files.
 No self-hosted infrastructure required.
 
+Getting Started:
+  1. Set up authentication: export GITHUB_TOKEN=your_token
+  2. Create your first shelf: shelfctl init --repo shelf-books --name books --create-repo --owner YOUR_USERNAME
+  3. Add a book: shelfctl shelve ~/book.pdf --shelf books
+  4. Browse your library: shelfctl browse
+
 Run 'shelfctl' with no arguments to launch the interactive menu.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -93,7 +99,7 @@ func init() {
 		var err error
 		cfg, err = config.Load()
 		if err != nil {
-			return fmt.Errorf("loading config: %w", err)
+			return fmt.Errorf("config file not found. Run 'shelfctl init --help' to get started, or create %s manually", config.DefaultPath())
 		}
 
 		if cfg.GitHub.Token == "" {

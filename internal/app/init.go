@@ -29,6 +29,12 @@ shelfctl organizes your books into "shelves" - GitHub repos where:
   • Book files live in GitHub Release assets (not tracked in Git)
   • You can have multiple shelves for different topics
 
+Key Concepts:
+  • Shelf: A GitHub repo (e.g. shelf-programming)
+  • Release: A storage container tag (default: "library", not a version)
+  • Asset: Your actual PDF/EPUB files attached to the release
+  • catalog.yml: Searchable metadata linking book IDs to assets
+
 This command creates or registers a shelf repo in your config.
 
 Quick start:
@@ -70,11 +76,11 @@ For more details, see: shelfctl --help or docs/guides/tutorial.md`,
 		},
 	}
 
-	cmd.Flags().StringVar(&owner, "owner", "", "GitHub owner (defaults to github.owner in config)")
-	cmd.Flags().StringVar(&repoName, "repo", "", "GitHub repo name (e.g. shelf-programming)")
+	cmd.Flags().StringVar(&owner, "owner", "", "GitHub owner (required unless set in config)")
+	cmd.Flags().StringVar(&repoName, "repo", "", "GitHub repo name (required, e.g. shelf-programming)")
 	cmd.Flags().StringVar(&shelfName, "name", "", "Local shelf name (default: repo without 'shelf-' prefix)")
-	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "Create the GitHub repo via API")
-	cmd.Flags().BoolVar(&private, "private", true, "Make the repo private (with --create-repo)")
+	cmd.Flags().BoolVar(&createRepo, "create-repo", false, "Create the GitHub repo via API (recommended for first-time setup)")
+	cmd.Flags().BoolVar(&private, "private", true, "Make repo private (default: true, use --private=false for public)")
 
 	return cmd
 }

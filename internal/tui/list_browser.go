@@ -703,6 +703,16 @@ func NewBrowserModel(books []BookItem, downloader Downloader, unifiedMode bool) 
 	d := delegate.New(renderBookItem)
 	l := list.New(items, d, 0, 0)
 	title := browserTitle(books)
+
+	// Set empty state message if no books
+	if len(books) == 0 {
+		title = title + "\n\nNo books in this library yet.\n\n" +
+			"Add your first book by running:\n  shelfctl shelve <file.pdf>\n\n" +
+			"Press 'q' to quit."
+		l.SetShowFilter(false)
+		l.SetShowPagination(false)
+	}
+
 	l.Title = title
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)

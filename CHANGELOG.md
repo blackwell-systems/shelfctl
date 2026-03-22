@@ -82,6 +82,10 @@ wizard, empty TUI state help, specific validation errors) are tracked separately
   open in browser) instead of shelling out and dropping back to the terminal.
   `shelfctl index [--open]` CLI command is unchanged (`unified/index.go`,
   `unified/model.go`).
+- **Empty shelf guidance:** Browsing a shelf with zero books now displays helpful
+  text explaining how to add books (`shelfctl shelve <file.pdf>`) and how to exit.
+  Disables filter/pagination UI when empty to reduce clutter. Addresses CRITICAL
+  friction item from NEW-USER-FRICTION.md (`tui/list_browser.go`).
 
 ### Tests
 - `internal/github/` package now has comprehensive test coverage (was previously

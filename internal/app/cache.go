@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/fatih/color"
@@ -32,6 +33,7 @@ func newCacheClearCmd() *cobra.Command {
 	var (
 		shelfName string
 		all       bool
+		orphans   bool
 		force     bool
 	)
 
@@ -49,11 +51,16 @@ Examples:
   shelfctl cache clear book-id-1 book-id-2    Remove specific books
   shelfctl cache clear --shelf books          Remove all books from a shelf
   shelfctl cache clear --all                  Remove entire cache
+  shelfctl cache clear --orphans              Remove only orphaned cache entries
   shelfctl cache clear --force                Remove including modified files
   shelfctl cache clear                        Interactive picker`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if all {
 				return clearAllCache(force)
+			}
+
+			if orphans {
+				return clearOrphans()
 			}
 
 			if shelfName != "" {
@@ -71,6 +78,7 @@ Examples:
 
 	cmd.Flags().StringVar(&shelfName, "shelf", "", "Clear cache for all books on this shelf")
 	cmd.Flags().BoolVar(&all, "all", false, "Clear entire cache")
+	cmd.Flags().BoolVar(&orphans, "orphans", false, "Clear only orphaned cache entries (books removed from shelves)")
 	cmd.Flags().BoolVar(&force, "force", false, "Delete modified files (annotations/highlights)")
 
 	return cmd
@@ -553,6 +561,72 @@ func calculateDirSize(path string) (int64, int) {
 	})
 
 	return size, count
+}
+
+// clearOrphans removes cached files for books no longer in any shelf
+func clearOrphans() error {
+	// Build ShelfCatalog list from all configured shelves
+	var shelves []cache.ShelfCatalog
+	for i := range cfg.Shelves {
+		shelf := &cfg.Shelves[i]
+		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+		catalogPath := shelf.EffectiveCatalogPath()
+
+		data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+		if err != nil {
+			warn("Could not load catalog for shelf %q: %v", shelf.Name, err)
+			continue // Skip this shelf, continue with others
+		}
+
+		books, err := catalog.Parse(data)
+		if err != nil {
+			warn("Could not parse catalog for shelf %q: %v", shelf.Name, err)
+			continue
+		}
+
+		shelves = append(shelves, cache.ShelfCatalog{
+			Owner: owner,
+			Repo:  shelf.Repo,
+			Books: books,
+		})
+	}
+
+	// Detect orphans
+	report, err := cacheMgr.DetectOrphans(shelves)
+	if err != nil {
+		return fmt.Errorf("detecting orphans: %w", err)
+	}
+
+	if report.TotalCount == 0 {
+		ok("No orphaned cache entries found")
+		return nil
+	}
+
+	// Display orphans
+	fmt.Printf("Found %d orphaned cache entries (%s):\n\n", report.TotalCount, humanBytes(report.TotalSize))
+	for _, entry := range report.Entries {
+		fmt.Printf("  %s/%s (%s)\n", entry.Repo, entry.Filename, humanBytes(entry.Size))
+	}
+	fmt.Printf("\nThese files are no longer referenced in any shelf catalog.\n")
+
+	// Confirm deletion
+	fmt.Printf("\nType 'CLEAR ORPHANS' to confirm: ")
+	reader := bufio.NewReader(os.Stdin)
+	confirmation, _ := reader.ReadString('\n')
+	confirmation = strings.TrimSpace(confirmation)
+
+	if confirmation != "CLEAR ORPHANS" {
+		return fmt.Errorf("cancelled")
+	}
+
+	// Delete orphans
+	deleted, err := cacheMgr.ClearOrphans(report)
+	if err != nil {
+		warn("Some files failed to delete: %v", err)
+	}
+
+	ok("Cleared %d orphaned files (%s)", deleted, humanBytes(report.TotalSize))
+	return nil
 }
 
 // loadAllBooksAcrossShelves loads all books from all configured shelves

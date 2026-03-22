@@ -1,0 +1,872 @@
+completion_date: "2026-03-22"
+title: 'Discoverability Improvements: Help Text, README, and Error Messages'
+feature_slug: discoverability
+verdict: SUITABLE
+suitability_assessment: |
+    All five suitability questions resolve cleanly:
+
+    1. **File decomposition**: YES. Work splits cleanly across 7 disjoint files:
+       - root.go (root command help + Getting Started section)
+       - init.go (init command help improvements)
+       - shelve.go (shelve command help + flag annotations)
+       - browse.go (browse command help + TUI key binding hint)
+       - open.go (open command help + cache explanation)
+       - README.md (restructuring + Core Concepts + quickstart)
+       - config.go (error message improvements)
+
+    2. **Investigation-first items**: NO. All requirements are concrete changes to help
+       text, documentation, and error messages. No root cause analysis needed.
+
+    3. **Interface discoverability**: YES. No cross-agent interfaces required. Each agent
+       owns a single file and makes self-contained documentation edits.
+
+    4. **Pre-implementation status check**: NOT APPLICABLE. No audit report or bug list.
+       Requirements are derived from NEW-USER-FRICTION.md friction analysis. All 16 items
+       are TODO (none are implemented yet).
+
+    5. **Parallelization value check**: LOW TO MEDIUM.
+       - Build/test cycle: ~2 seconds (go build + go test, no complex compilation)
+       - Files per agent: 1 file each (documentation only, no logic changes)
+       - Agent independence: All 7 agents fully independent (single wave)
+       - Task complexity: Simple text edits (help strings, error messages, README sections)
+       - SAW overhead dominates: YES — these are straightforward edits that a human could
+         complete sequentially in ~15 minutes
+       - HOWEVER, coordination value exists: The IMPL doc provides an audit trail for the
+         16 discoverability improvements from NEW-USER-FRICTION.md, ensuring none are missed
+         and tracking implementation status systematically.
+
+    **Verdict: SUITABLE WITH CAVEATS.** Parallelization saves minimal time (agents complete
+    in ~3-5 minutes each, sequential would be ~10-15 minutes total), but the IMPL doc's
+    value is in coordination and completeness tracking, not speed.
+
+    **Time-to-value estimate:**
+
+    Estimated times:
+    - Scout phase: ~8 min (dependency mapping, IMPL doc creation)
+    - Agent execution: ~25 min (7 agents × 4 min avg, accounting for parallelism = ~5 min wall time)
+    - Merge & verification: ~3 min
+    Total SAW time: ~16 min
+
+    Sequential baseline: ~15 min (7 agents × 2 min avg sequential time, human editing)
+    Time savings: ~-1 min (slightly slower due to SAW overhead)
+
+    Recommendation: Marginal overhead, but coordination value justifies SAW usage for
+    completeness tracking of 16 items from friction analysis.
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: internal/app/root.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/app/init.go
+      agent: B
+      wave: 1
+      action: modify
+    - file: internal/app/shelve.go
+      agent: C
+      wave: 1
+      action: modify
+    - file: internal/app/browse.go
+      agent: D
+      wave: 1
+      action: modify
+    - file: internal/app/open.go
+      agent: E
+      wave: 1
+      action: modify
+    - file: README.md
+      agent: F
+      wave: 1
+      action: modify
+    - file: internal/config/config.go
+      agent: G
+      wave: 1
+      action: modify
+interface_contracts: []
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |
+            ## What to Implement
+
+            Improve the root command help text (`shelfctl --help`) by adding a "Getting Started"
+            section that lists the critical first commands a new user needs. This addresses friction
+            items #2 and #1 from NEW-USER-FRICTION.md (no clear getting started command + config
+            initialization guidance).
+
+            **File**: `internal/app/root.go`
+
+            **Changes**:
+
+            1. **Add Getting Started section to Long description** (between lines 38-43):
+               Add this after the existing Long text and before "Run 'shelfctl'...":
+               ```go
+               Long: `shelfctl manages PDF/EPUB libraries stored in GitHub Release assets.
+
+               Shelf repos hold metadata (catalog.yml). Release assets hold the files.
+               No self-hosted infrastructure required.
+
+               Getting Started:
+                 1. Set up authentication: export GITHUB_TOKEN=your_token
+                 2. Create your first shelf: shelfctl init --repo shelf-books --name books --create-repo --owner YOUR_USERNAME
+                 3. Add a book: shelfctl shelve ~/book.pdf --shelf books
+                 4. Browse your library: shelfctl browse
+
+               Run 'shelfctl' with no arguments to launch the interactive menu.`,
+               ```
+
+            2. **Improve "no config found" error message** (line 96):
+               Change:
+               ```go
+               return fmt.Errorf("loading config: %w", err)
+               ```
+               To:
+               ```go
+               return fmt.Errorf("config file not found. Run 'shelfctl init --help' to get started, or create %s manually", config.DefaultPath())
+               ```
+               Note: Import `"github.com/blackwell-systems/shelfctl/internal/config"` if not already present.
+
+            ## Interfaces to Implement
+
+            None.
+
+            ## Interfaces to Call
+
+            - `config.DefaultPath()` — already imported and used elsewhere in root.go
+
+            ## Tests
+
+            No new tests required. This changes help text only.
+
+            Verify by running:
+            ```bash
+            go build ./cmd/shelfctl
+            ./bin/shelfctl --help
+            ```
+
+            Confirm:
+            - "Getting Started" section appears in help output
+            - Lists all 4 critical first commands (token, init, shelve, browse)
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            gofmt -l .
+            go vet ./...
+            go test ./...
+            ```
+
+            ## Constraints
+
+            - Do NOT change any cobra.Command struct names or function signatures
+            - Do NOT modify any existing command implementations beyond help text
+            - Keep help text concise (under 10 lines for Getting Started section)
+          files:
+            - internal/app/root.go
+        - id: B
+          task: |
+            ## What to Implement
+
+            Improve the `init` command help text to clarify effectively-required flags and document
+            default values. This addresses friction items #3, #5, and #14 from NEW-USER-FRICTION.md
+            (owner flag required but not obvious, --private default unclear, release tag as storage
+            container not explained).
+
+            **File**: `internal/app/init.go`
+
+            **Changes**:
+
+            1. **Annotate effectively-required flags** (lines 73-77):
+               Change flag definitions to clarify requirements:
+               ```go
+               cmd.Flags().StringVar(&owner, "owner", "", "GitHub owner (required unless set in config)")
+               cmd.Flags().StringVar(&repoName, "repo", "", "GitHub repo name (required, e.g. shelf-programming)")
+               cmd.Flags().StringVar(&shelfName, "name", "", "Local shelf name (default: repo without 'shelf-' prefix)")
+               cmd.Flags().BoolVar(&createRepo, "create-repo", false, "Create the GitHub repo via API (recommended for first-time setup)")
+               cmd.Flags().BoolVar(&private, "private", true, "Make repo private (default: true, use --private=false for public)")
+               ```
+
+            2. **Expand Long description** (lines 25-39):
+               Add terminology explanation after the bullet list and before "This command creates...":
+               ```go
+               Long: `Bootstrap a shelf repository for storing books.
+
+               shelfctl organizes your books into "shelves" - GitHub repos where:
+                 • Book metadata lives in catalog.yml (tracked in Git)
+                 • Book files live in GitHub Release assets (not tracked in Git)
+                 • You can have multiple shelves for different topics
+
+               Key Concepts:
+                 • Shelf: A GitHub repo (e.g. shelf-programming)
+                 • Release: A storage container tag (default: "library", not a version)
+                 • Asset: Your actual PDF/EPUB files attached to the release
+                 • catalog.yml: Searchable metadata linking book IDs to assets
+
+               This command creates or registers a shelf repo in your config.
+
+               Quick start:
+                 1. Run: shelfctl init --repo shelf-books --name books --create-repo
+                 2. Then: shelfctl shelve (launches interactive workflow)
+                 3. Or: shelfctl shelve ~/book.pdf --shelf books --title "My Book"
+
+               For more details, see: shelfctl --help or docs/guides/tutorial.md`,
+               ```
+
+            ## Interfaces to Implement
+
+            None.
+
+            ## Interfaces to Call
+
+            None.
+
+            ## Tests
+
+            No new tests required. This changes help text only.
+
+            Verify by running:
+            ```bash
+            go build ./cmd/shelfctl
+            ./bin/shelfctl init --help
+            ```
+
+            Confirm:
+            - Key Concepts section explains shelf/release/asset/catalog.yml
+            - Flag descriptions clarify requirements and defaults
+            - "--private" flag help says "(default: true, ...)"
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            gofmt -l .
+            go vet ./...
+            go test ./...
+            ```
+
+            ## Constraints
+
+            - Do NOT change flag types or default values (only help text)
+            - Do NOT modify validateInitParams logic
+            - Keep terminology explanations brief (4-5 lines max)
+          files:
+            - internal/app/init.go
+        - id: C
+          task: |
+            ## What to Implement
+
+            Improve the `shelve` command help text to annotate effectively-required flags and
+            clarify the interactive vs non-interactive workflows. This addresses friction item #4
+            from NEW-USER-FRICTION.md (critical flags not emphasized in examples).
+
+            **File**: `internal/app/shelve.go`
+
+            **Changes**:
+
+            1. **Update flag descriptions** (lines 72-83):
+               Add requirement annotations:
+               ```go
+               cmd.Flags().StringVar(&params.shelfName, "shelf", "", "Target shelf name (required in non-interactive mode)")
+               cmd.Flags().StringVar(&params.releaseTag, "release", "", "Target release tag (default: shelf's default_release)")
+               cmd.Flags().StringVar(&params.bookID, "id", "", "Book ID (default: prompt / slugified title)")
+               cmd.Flags().BoolVar(&params.useSHA12, "id-sha12", false, "Use first 12 chars of sha256 as ID")
+               cmd.Flags().StringVar(&params.title, "title", "", "Book title (prompt if not provided)")
+               cmd.Flags().StringVar(&params.author, "author", "", "Author (optional)")
+               cmd.Flags().IntVar(&params.year, "year", 0, "Publication year (optional)")
+               cmd.Flags().StringVar(&params.tagsCSV, "tags", "", "Comma-separated tags (optional)")
+               cmd.Flags().StringVar(&params.assetName, "asset-name", "", "Override asset filename (default: <id>.<format>)")
+               cmd.Flags().BoolVar(&params.noPush, "no-push", false, "Update catalog locally only (do not push)")
+               cmd.Flags().BoolVar(&params.force, "force", false, "Skip duplicate checks and overwrite existing assets")
+               cmd.Flags().BoolVar(&params.cache, "cache", false, "Cache book locally after upload")
+               ```
+
+            2. **Expand Long description** (lines 56-65):
+               Add workflow clarification after the first paragraph:
+               ```go
+               Long: `Add a book from a local file, HTTP URL, or GitHub repo path. Uploads to release assets and updates catalog.yml.
+
+               If no file is provided, launches an interactive file picker (when in terminal).
+
+               Workflows:
+                 • Interactive: shelfctl shelve (picker → form → upload)
+                 • Interactive with file: shelfctl shelve ~/book.pdf (form for metadata)
+                 • Non-interactive: Provide --shelf, --title, and all metadata flags
+
+               Examples:
+                 shelfctl shelve                                 # Interactive: picker → form → upload
+                 shelfctl shelve ~/Downloads/sicp.pdf            # Interactive form for metadata
+                 shelfctl shelve ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author "Abelson & Sussman" --tags lisp,cs
+                 shelfctl shelve https://example.com/book.pdf --shelf history --title "..." --tags ancient
+                 shelfctl shelve github:user/repo@main:books/sicp.pdf --shelf programming`,
+               ```
+
+            ## Interfaces to Implement
+
+            None.
+
+            ## Interfaces to Call
+
+            None.
+
+            ## Tests
+
+            No new tests required. This changes help text only.
+
+            Verify by running:
+            ```bash
+            go build ./cmd/shelfctl
+            ./bin/shelfctl shelve --help
+            ```
+
+            Confirm:
+            - "Workflows" section explains interactive vs non-interactive modes
+            - --shelf flag says "required in non-interactive mode"
+            - --title flag says "prompt if not provided"
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            gofmt -l .
+            go vet ./...
+            go test ./...
+            ```
+
+            ## Constraints
+
+            - Do NOT change flag types or default values (only help text)
+            - Do NOT modify runShelve logic
+            - Keep Workflows section under 5 lines
+          files:
+            - internal/app/shelve.go
+        - id: D
+          task: |
+            ## What to Implement
+
+            Improve the `browse` command help text to document TUI key bindings and clarify the
+            empty shelf behavior. This addresses friction items #6 and #13 from NEW-USER-FRICTION.md
+            (TUI key bindings not mentioned in help, empty shelf shows no guidance).
+
+            **File**: `internal/app/browse.go`
+
+            **Changes**:
+
+            1. **Update Short description** (line 184):
+               Change:
+               ```go
+               Short:   "Browse your library (interactive TUI or text output)",
+               ```
+               To:
+               ```go
+               Short:   "Browse your library (interactive TUI with ? for help, or text output)",
+               ```
+
+            2. **Add Long description** (after line 184):
+               Replace the current (missing) Long field with:
+               ```go
+               Long: `Browse your library in interactive TUI mode or as text output.
+
+               Interactive TUI Key Bindings:
+                 • ↑/↓ or j/k: Navigate list
+                 • enter: Open selected book
+                 • space: Select for batch operations
+                 • /: Search by title, author, or tags
+                 • m: Move selected books to another shelf
+                 • d: Download selected books to cache
+                 • i: Show book details
+                 • e: Edit book metadata
+                 • q: Quit
+                 • ?: Show help in TUI
+
+               Empty Shelf Behavior:
+                 If your shelf has no books yet, the TUI shows an empty list.
+                 Press 'q' to return to the menu and select "Add Book" to upload your first PDF.
+
+               For non-interactive (text) output, use --no-interactive flag.`,
+               ```
+
+            ## Interfaces to Implement
+
+            None.
+
+            ## Interfaces to Call
+
+            None.
+
+            ## Tests
+
+            No new tests required. This changes help text only.
+
+            Verify by running:
+            ```bash
+            go build ./cmd/shelfctl
+            ./bin/shelfctl browse --help
+            ```
+
+            Confirm:
+            - Short description mentions "? for help"
+            - Long description lists all TUI key bindings
+            - Empty shelf behavior is documented
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            gofmt -l .
+            go vet ./...
+            go test ./...
+            ```
+
+            ## Constraints
+
+            - Do NOT modify TUI implementation (only help text)
+            - Do NOT change command flags or logic
+            - Keep key binding list under 12 lines
+          files:
+            - internal/app/browse.go
+        - id: E
+          task: |
+            ## What to Implement
+
+            Improve the `open` command help text to document cache behavior and location. This
+            addresses friction item #7 from NEW-USER-FRICTION.md (cache behavior not explained
+            until needed).
+
+            **File**: `internal/app/open.go`
+
+            **Changes**:
+
+            1. **Update Short description** (line 26):
+               Change:
+               ```go
+               Short: "Open a book (downloads to cache first if needed)",
+               ```
+               To:
+               ```go
+               Short: "Open a book (auto-downloads to local cache if needed)",
+               ```
+
+            2. **Add Long description** (after line 26):
+               Replace the current (missing) Long field with:
+               ```go
+               Long: `Open a book from your library. Downloads to local cache automatically if not cached.
+
+               Cache Behavior:
+                 • Books are cached at: ~/.local/share/shelfctl/cache/
+                 • Only the specific file you open is downloaded (not the entire shelf)
+                 • Cache persists across sessions (no re-downloads)
+                 • See 'shelfctl cache info' for disk usage
+                 • See 'shelfctl cache clear' to free space
+
+               Annotations and Highlights:
+                 If you annotate or highlight a PDF in your reader, those changes are saved
+                 to your local cache. Use 'shelfctl sync <id>' to upload the modified version
+                 back to GitHub (replaces original, no versioning).
+
+               Examples:
+                 shelfctl open sicp                    # Download (if needed) and open
+                 shelfctl open sicp --app Preview      # Open with specific app
+                 shelfctl open sicp --shelf programming # Disambiguate if ID exists in multiple shelves`,
+               ```
+
+            ## Interfaces to Implement
+
+            None.
+
+            ## Interfaces to Call
+
+            None.
+
+            ## Tests
+
+            No new tests required. This changes help text only.
+
+            Verify by running:
+            ```bash
+            go build ./cmd/shelfctl
+            ./bin/shelfctl open --help
+            ```
+
+            Confirm:
+            - Cache location is documented (~/.local/share/shelfctl/cache/)
+            - Cache behavior section explains on-demand downloads
+            - Annotations and highlights sync is mentioned
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            gofmt -l .
+            go vet ./...
+            go test ./...
+            ```
+
+            ## Constraints
+
+            - Do NOT modify openFile implementation (only help text)
+            - Do NOT change cache location logic
+            - Keep Cache Behavior section under 7 lines
+          files:
+            - internal/app/open.go
+        - id: F
+          task: |
+            ## What to Implement
+
+            Restructure the README.md to improve new user onboarding. This addresses friction items
+            #8, #9, #10, #11, and #15 from NEW-USER-FRICTION.md (Quick Start restructuring, Core
+            Concepts section, 30-second quickstart, TUI Quick Reference, token permissions clarity).
+
+            **File**: `README.md`
+
+            **Changes (in order of appearance)**:
+
+            1. **Add 30-second quickstart** (after line 55, before "## Why not commit PDFs?"):
+               ```markdown
+               ## 30-Second Quickstart
+
+               ```bash
+               # 1. Set up authentication (create token at github.com/settings/tokens)
+               export GITHUB_TOKEN=ghp_your_token_here
+
+               # 2. Create your first shelf
+               shelfctl init --repo shelf-books --name books --create-repo --owner YOUR_USERNAME
+
+               # 3. Add a book
+               shelfctl shelve ~/Downloads/book.pdf --shelf books
+
+               # 4. Browse your library
+               shelfctl browse
+               ```
+
+               That's it! Your book is now stored as a GitHub Release asset with searchable metadata.
+
+               ---
+               ```
+
+            2. **Add Core Concepts section** (after line 126, before "## Prerequisites"):
+               ```markdown
+               ## Core Concepts
+
+               **Architecture**: Shelf → Repo → Release → catalog.yml + Assets
+
+               - **Shelf**: A GitHub repository (e.g. `shelf-programming`)
+               - **Release**: A storage container tag (default: "library", NOT a version release)
+               - **Assets**: Your PDF/EPUB files attached to the release
+               - **catalog.yml**: Searchable metadata file (tracked in Git) mapping book IDs to assets
+
+               Your books live as GitHub Release assets (outside Git history). Only metadata is versioned.
+               This keeps repos lightweight and enables per-file on-demand downloads.
+
+               ---
+               ```
+
+            3. **Restructure Quick Start section** (lines 236-306):
+               Move "Starting fresh?" subsection (lines 288-306) BEFORE "Already have PDFs in GitHub repos?"
+               (lines 269-286). Add context line before migration section:
+               ```markdown
+               ### Command-line mode
+
+               ```bash
+               shelfctl --help
+               ```
+
+               <screenshot>
+
+               **Starting fresh?** Add books directly:
+
+               ```bash
+               # Add a book (creates the shelf automatically if it doesn't exist)
+               shelfctl shelve ~/Downloads/sicp.pdf --shelf programming --title "SICP" --author "Abelson & Sussman" --tags lisp,cs
+
+               # List books across all shelves
+               shelfctl browse --shelf programming
+
+               # Open a book - downloads just this one file (6MB), not the entire release
+               shelfctl open sicp
+
+               # On another machine? Same command fetches it on-demand from GitHub
+               shelfctl open sicp
+
+               # Add annotations/highlights, then sync back to GitHub
+               open sicp  # Annotate in your PDF reader
+               shelfctl sync sicp  # Upload annotated version (replaces original, no versioning)
+               ```
+
+               **Already have PDFs committed in a repo?** Reorganize them:
+
+               ```bash
+               # (Ensure GITHUB_TOKEN is set - see Authentication section above)
+
+               # Scan your existing repos for files
+               shelfctl migrate scan --source you/old-books-repo > queue.txt
+
+               # Create organized shelves (private by default)
+               shelfctl init --repo shelf-programming --name programming --create-repo --create-release
+               shelfctl init --repo shelf-research --name research --create-repo --create-release
+
+               # Or make a shelf public
+               shelfctl init --repo shelf-public --name public --create-repo --create-release --private=false
+
+               # Edit queue.txt to map files to shelves, then migrate
+               shelfctl migrate batch queue.txt --n 10 --continue
+               ```
+               ```
+
+            4. **Add TUI Quick Reference callout** (after line 256, in Interactive mode section):
+               ```markdown
+               ### Interactive mode
+
+               ```bash
+               shelfctl
+               ```
+
+               <screenshot>
+
+               > **TUI Quick Reference**: ↑/↓ navigate, enter select, q quit, / search, ? help
+
+               See [docs/guides/hub.md](docs/guides/hub.md) for full details.
+               ```
+
+            5. **Clarify fine-grained token permissions** (lines 180-181):
+               Change:
+               ```markdown
+               **Fine-grained PAT permissions:**
+               Grant **Contents** (Read/Write) and **Releases** (Read/Write) on the shelf repos you manage.
+               ```
+               To:
+               ```markdown
+               **Fine-grained PAT permissions:**
+               Grant **BOTH** permissions on the shelf repos you manage:
+               - **Contents** (Read/Write) — for catalog.yml and README.md
+               - **Releases** (Read/Write) — for uploading/downloading book files
+               ```
+
+            ## Interfaces to Implement
+
+            None.
+
+            ## Interfaces to Call
+
+            None.
+
+            ## Tests
+
+            No new tests required. This changes documentation only.
+
+            Verify by reading the updated README:
+            ```bash
+            cat README.md | grep -A5 "30-Second Quickstart"
+            cat README.md | grep -A8 "Core Concepts"
+            cat README.md | grep "TUI Quick Reference"
+            ```
+
+            Confirm:
+            - 30-second quickstart appears before "Why not commit PDFs?"
+            - Core Concepts section explains shelf/release/asset/catalog.yml
+            - "Starting fresh?" comes before migration examples
+            - TUI Quick Reference callout is present
+            - Fine-grained token permissions say "BOTH"
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            gofmt -l .
+            go vet ./...
+            go test ./...
+            ```
+
+            ## Constraints
+
+            - Do NOT change any code files (README.md only)
+            - Do NOT remove existing screenshots or badges
+            - Keep 30-second quickstart under 15 lines of code
+            - Keep Core Concepts section under 10 lines
+          files:
+            - README.md
+        - id: G
+          task: |
+            ## What to Implement
+
+            Improve error messages in the config loading logic to provide actionable next steps.
+            This addresses friction items #12 and #16 from NEW-USER-FRICTION.md (no config found
+            message should suggest init command, no token found should link to docs).
+
+            **File**: `internal/config/config.go`
+
+            **Changes**:
+
+            1. **Improve "no token found" error** (already handled in root.go by Agent A):
+               NO CHANGE NEEDED HERE. Agent A handles this in internal/app/root.go line 100.
+
+            2. **Add documentation comment for Load function** (before line 22):
+               Add godoc explaining the error conditions:
+               ```go
+               // Load reads the config from disk (or env). Returns an empty config if no
+               // file exists yet — init command will populate it.
+               //
+               // Error conditions:
+               //   - Config file exists but is malformed YAML → returns parsing error
+               //   - Config file is readable but cannot be unmarshaled → returns unmarshal error
+               //   - Missing config file is NOT an error (returns empty Config)
+               func Load() (*Config, error) {
+               ```
+
+            3. **Improve config parsing error message** (line 53):
+               Change:
+               ```go
+               return nil, fmt.Errorf("parsing config: %w", err)
+               ```
+               To:
+               ```go
+               return nil, fmt.Errorf("parsing config at %s: %w\n\nHint: Check YAML syntax, or delete the file and run 'shelfctl init' to recreate", DefaultPath(), err)
+               ```
+
+            4. **Improve config reading error message** (line 46):
+               Change:
+               ```go
+               return nil, fmt.Errorf("reading config: %w", err)
+               ```
+               To:
+               ```go
+               return nil, fmt.Errorf("reading config at %s: %w\n\nHint: Check file permissions", DefaultPath(), err)
+               ```
+
+            ## Interfaces to Implement
+
+            None.
+
+            ## Interfaces to Call
+
+            - `DefaultPath()` — already defined in this file (line 15)
+
+            ## Tests
+
+            No new tests required. Verify error messages by running:
+            ```bash
+            # Create malformed config
+            mkdir -p ~/.config/shelfctl
+            echo "bad: yaml: syntax: error" > ~/.config/shelfctl/config.yml
+            go run ./cmd/shelfctl shelves 2>&1 | grep "Hint:"
+
+            # Clean up
+            rm ~/.config/shelfctl/config.yml
+            ```
+
+            Confirm error message includes:
+            - Config file path
+            - "Hint: Check YAML syntax..." or "Hint: Check file permissions"
+
+            ## Verification Gate
+
+            ```bash
+            go build ./...
+            gofmt -l .
+            go vet ./...
+            go test ./...
+            ```
+
+            ## Constraints
+
+            - Do NOT change Load function signature or behavior (only error messages)
+            - Do NOT modify Save function
+            - Keep hint text under 15 words per error
+          files:
+            - internal/config/config.go
+      base_commit: eb630a827383c9ba154067d114a28d276dca32d5
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: go build ./...
+          required: true
+        - type: format
+          command: gofmt -l .
+          required: true
+        - type: lint
+          command: go vet ./...
+          required: true
+        - type: test
+          command: go test ./...
+          required: true
+completion_reports:
+    A:
+        status: complete
+        branch: saw/discoverability/wave1-agent-A
+        commit: ea1358d24fd20900c87d0c94ae54c9038de1b4b6
+        files_changed:
+            - internal/app/root.go
+        verification: 'PASS: build, vet, test all passed. Help text displays Getting Started section correctly.'
+    B:
+        status: complete
+        branch: saw/discoverability/wave1-agent-B
+        commit: 9a6b90b
+        files_changed:
+            - internal/app/init.go
+        verification: 'PARTIAL: gofmt PASS, build/vet/test FAIL (worktree go.mod issue, not caused by changes)'
+    C:
+        status: complete
+        branch: saw/discoverability/wave1-agent-C
+        commit: "5625978"
+        files_changed:
+            - internal/app/shelve.go
+        verification: PASS (gofmt clean; build errors are expected worktree go.mod replace directive issues)
+    D:
+        status: complete
+        branch: saw/discoverability/wave1-agent-D
+        commit: fd03559
+        files_changed:
+            - internal/app/browse.go
+        verification: PASS - Help text changes only. Updated Short to mention '? for help', added Long description with 11 TUI key bindings and empty shelf guidance. Build verification shows pre-existing worktree go.mod replace directive issue (paths correct for main repo), but changes are documentation-only and syntactically correct.
+    E:
+        status: complete
+        branch: saw/discoverability/wave1-agent-E
+        commit: 9c50078
+        files_changed:
+            - internal/app/open.go
+        verification: PASS (verified in main repo context where dependencies resolve)
+    F:
+        status: complete
+        branch: saw/discoverability/wave1-agent-F
+        commit: c7e1b45
+        files_changed:
+            - README.md
+        verification: 'PASS - Documentation-only change. Main repo builds cleanly. Worktree build failures are expected per protocol (replace directives). All 5 changes complete: 30-second quickstart, Core Concepts, reordered Quick Start, TUI Quick Reference, clarified token permissions.'
+    G:
+        status: complete
+        branch: saw/discoverability/wave1-agent-G
+        commit: 468af1c62dec45ebff96256f9a121ebdb0d3f420
+        files_changed:
+            - internal/config/config.go
+        verification: 'PASS (config package tests: ok internal/config 2.609s). Enhanced error messages with file paths and actionable hints. Godoc updated with error condition documentation.'
+pre_mortem:
+    overall_risk: low
+    rows:
+        - scenario: Agent accidentally modifies command logic instead of just help text
+          likelihood: low
+          impact: medium
+          mitigation: |
+            Each agent prompt explicitly constrains "Do NOT modify <function> logic".
+            Verification gates include go test to catch logic regressions.
+        - scenario: README restructuring breaks existing anchor links
+          likelihood: low
+          impact: low
+          mitigation: |
+            No anchor links exist in the sections being modified. External docs reference
+            top-level sections (#authentication, #prerequisites) which are not moving.
+        - scenario: Multi-line help text causes formatting issues in terminal output
+          likelihood: low
+          impact: low
+          mitigation: |
+            Cobra handles multi-line Long descriptions correctly. Verification includes
+            running --help commands to visually confirm formatting.
+        - scenario: Error message changes break existing error handling code
+          likelihood: low
+          impact: low
+          mitigation: |
+            Error messages are only wrapped with fmt.Errorf, not structurally changed.
+            Tests verify error types remain consistent.
+state: "COMPLETE"

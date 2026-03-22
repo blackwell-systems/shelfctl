@@ -8,7 +8,6 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
-	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/test/fixtures"
 	"github.com/blackwell-systems/shelfctl/test/mockserver"
@@ -47,7 +46,7 @@ func TestBrowseList(t *testing.T) {
 	shelf := fixtures.Shelves[0]
 
 	// Create GitHub client pointing to mock server
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Create catalog manager
 	catalogPath := "catalog.yml"
@@ -137,10 +136,10 @@ func TestBrowseWithCache(t *testing.T) {
 	}
 
 	// Create cache manager
-	cacheMgr := cache.NewManager(cacheDir)
+	cacheMgr := cache.New(cacheDir)
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Download and cache first book
 	book := shelf.Books[0]
@@ -207,7 +206,7 @@ func TestBrowseFilter(t *testing.T) {
 	shelf := fixtures.Shelves[0]
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Load catalog
 	mgr := catalog.NewManager(ghClient, shelf.Owner, shelf.Repo, "catalog.yml")

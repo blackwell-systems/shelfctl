@@ -3,7 +3,6 @@ package scenarios
 import (
 	"bytes"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
@@ -44,7 +43,7 @@ func TestShelveBook(t *testing.T) {
 	shelf := fixtures.Shelves[0]
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Ensure release exists
 	releaseTag := "library"
@@ -172,7 +171,7 @@ func TestShelveBookDuplicate(t *testing.T) {
 	}
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Load catalog
 	mgr := catalog.NewManager(ghClient, shelf.Owner, shelf.Repo, "catalog.yml")
@@ -234,7 +233,7 @@ func TestShelveMultipleFormats(t *testing.T) {
 	shelf := fixtures.Shelves[0]
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Load catalog
 	mgr := catalog.NewManager(ghClient, shelf.Owner, shelf.Repo, "catalog.yml")

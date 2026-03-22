@@ -53,7 +53,7 @@ func TestCacheDownload(t *testing.T) {
 	book := shelf.Books[0]
 
 	// Create cache manager
-	cacheMgr := cache.NewManager(cacheDir)
+	cacheMgr := cache.New(cacheDir)
 
 	// Verify book not cached initially
 	if cacheMgr.Exists(shelf.Owner, shelf.Repo, book.ID, book.Source.Asset) {
@@ -61,7 +61,7 @@ func TestCacheDownload(t *testing.T) {
 	}
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Get release
 	rel, err := ghClient.GetReleaseByTag(shelf.Owner, shelf.Repo, book.Source.Release)
@@ -150,10 +150,10 @@ func TestCacheExists(t *testing.T) {
 	uncachedBook := shelf.Books[1]
 
 	// Create cache manager
-	cacheMgr := cache.NewManager(cacheDir)
+	cacheMgr := cache.New(cacheDir)
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Download and cache first book
 	rel, err := ghClient.GetReleaseByTag(shelf.Owner, shelf.Repo, cachedBook.Source.Release)
@@ -234,10 +234,10 @@ func TestCacheRemove(t *testing.T) {
 	book := shelf.Books[0]
 
 	// Create cache manager
-	cacheMgr := cache.NewManager(cacheDir)
+	cacheMgr := cache.New(cacheDir)
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Download and cache book
 	rel, err := ghClient.GetReleaseByTag(shelf.Owner, shelf.Repo, book.Source.Release)
@@ -325,10 +325,10 @@ func TestCacheModificationDetection(t *testing.T) {
 	book := shelf.Books[0]
 
 	// Create cache manager
-	cacheMgr := cache.NewManager(cacheDir)
+	cacheMgr := cache.New(cacheDir)
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Download and cache book
 	rel, err := ghClient.GetReleaseByTag(shelf.Owner, shelf.Repo, book.Source.Release)
@@ -389,7 +389,7 @@ func TestCacheChecksumValidation(t *testing.T) {
 	cacheDir := filepath.Join(tmpDir, "cache")
 
 	// Create cache manager
-	cacheMgr := cache.NewManager(cacheDir)
+	cacheMgr := cache.New(cacheDir)
 
 	// Create test content
 	testContent := []byte("test content for checksum validation")
@@ -453,10 +453,10 @@ func TestCacheMultipleRepos(t *testing.T) {
 	shelf2 := fixtures.Shelves[1]
 
 	// Create cache manager
-	cacheMgr := cache.NewManager(cacheDir)
+	cacheMgr := cache.New(cacheDir)
 
 	// Create GitHub client
-	ghClient := github.NewClient(srv.URL(), "mock-token")
+	ghClient := github.New("mock-token", srv.URL())
 
 	// Cache book from shelf1
 	if len(shelf1.Books) > 0 {

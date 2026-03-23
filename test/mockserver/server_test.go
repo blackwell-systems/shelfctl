@@ -1,6 +1,7 @@
 package mockserver
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/blackwell-systems/shelfctl/test/fixtures"
 )
 
 func TestNewServer(t *testing.T) {
@@ -374,5 +377,376 @@ func TestGetReleaseAssets(t *testing.T) {
 				t.Errorf("Asset URL has wrong format: %s", url)
 			}
 		}
+	}
+}
+
+// TestAssetEndpointSchema verifies that Asset JSON has int64 ID field
+func TestAssetEndpointSchema(t *testing.T) {
+	server, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+
+	err = server.Start()
+	if err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer func() {
+		if err := server.Stop(); err != nil {
+			t.Errorf("failed to stop mock server: %v", err)
+		}
+	}()
+
+	if len(server.fixtures.Shelves) == 0 {
+		t.Skip("No fixtures available to test with")
+	}
+
+	shelf := server.fixtures.Shelves[0]
+	url := server.URL() + "/repos/" + shelf.Owner + "/" + shelf.Repo + "/releases/12345/assets"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("GET request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	var assets []map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&assets)
+	if err != nil {
+		t.Fatalf("Failed to decode JSON response: %v", err)
+	}
+
+	if len(assets) == 0 {
+		t.Skip("No assets returned to verify schema")
+	}
+
+	// Verify each asset has int64 ID (represented as float64 in JSON unmarshaling)
+	for i, asset := range assets {
+		id, ok := asset["id"]
+		if !ok {
+			t.Errorf("Asset %d missing id field", i)
+			continue
+		}
+
+		// JSON numbers unmarshal to float64, but we need to verify it's an integer
+		idFloat, ok := id.(float64)
+		if !ok {
+			t.Errorf("Asset %d id field is not numeric: type=%T", i, id)
+			continue
+		}
+
+		// Verify it's a whole number (int64 compatible)
+		if idFloat != float64(int64(idFloat)) {
+			t.Errorf("Asset %d id is not an integer: %v", i, idFloat)
+		}
+
+		// Verify other required fields
+		requiredFields := []string{"name", "size", "url", "browser_download_url", "content_type"}
+		for _, field := range requiredFields {
+			if _, ok := asset[field]; !ok {
+				t.Errorf("Asset %d missing required field: %s", i, field)
+			}
+		}
+	}
+}
+
+// TestReleaseEndpointSchema verifies that Release JSON returns a single object
+func TestReleaseEndpointSchema(t *testing.T) {
+	server, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+
+	err = server.Start()
+	if err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer func() {
+		if err := server.Stop(); err != nil {
+			t.Errorf("failed to stop mock server: %v", err)
+		}
+	}()
+
+	if len(server.fixtures.Shelves) == 0 {
+		t.Skip("No fixtures available to test with")
+	}
+
+	shelf := server.fixtures.Shelves[0]
+	url := server.URL() + "/repos/" + shelf.Owner + "/" + shelf.Repo + "/releases/tags/v1.0.0"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("GET request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Attempt to decode as array first (should fail)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	var asArray []interface{}
+	if err := json.Unmarshal(body, &asArray); err == nil {
+		t.Error("Release endpoint returned array instead of single object")
+	}
+
+	// Now decode as object (should succeed)
+	var release map[string]interface{}
+	if err := json.Unmarshal(body, &release); err != nil {
+		t.Fatalf("Failed to decode release as object: %v", err)
+	}
+
+	// Verify required fields
+	requiredFields := []string{"id", "tag_name", "name", "assets"}
+	for _, field := range requiredFields {
+		if _, ok := release[field]; !ok {
+			t.Errorf("Release missing required field: %s", field)
+		}
+	}
+
+	// Verify assets is an array
+	if assets, ok := release["assets"]; ok {
+		if _, ok := assets.([]interface{}); !ok {
+			t.Errorf("Release assets field is not an array: type=%T", assets)
+		}
+	}
+}
+
+// TestAssetDownload tests the asset download endpoint with real fixtures
+func TestAssetDownload(t *testing.T) {
+	server, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+
+	err = server.Start()
+	if err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer func() {
+		if err := server.Stop(); err != nil {
+			t.Errorf("failed to stop mock server: %v", err)
+		}
+	}()
+
+	if len(server.fixtures.Shelves) == 0 {
+		t.Skip("No fixtures available to test with")
+	}
+
+	shelf := server.fixtures.Shelves[0]
+	if len(shelf.Assets) == 0 {
+		t.Skip("No assets available to test with")
+	}
+
+	// Test download for each asset
+	for bookID, expectedData := range shelf.Assets {
+		t.Run(bookID, func(t *testing.T) {
+			hashedID := hashString(bookID)
+			url := server.URL() + "/repos/" + shelf.Owner + "/" + shelf.Repo + "/releases/assets/" + fmt.Sprintf("%d", hashedID)
+
+			resp, err := http.Get(url)
+			if err != nil {
+				t.Fatalf("GET request failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				t.Errorf("Expected status 200, got %d", resp.StatusCode)
+			}
+
+			// Verify content type
+			contentType := resp.Header.Get("Content-Type")
+			if contentType != "application/pdf" {
+				t.Errorf("Expected Content-Type application/pdf, got %s", contentType)
+			}
+
+			// Verify content disposition header
+			contentDisposition := resp.Header.Get("Content-Disposition")
+			expectedDisposition := fmt.Sprintf("attachment; filename=%s.pdf", bookID)
+			if contentDisposition != expectedDisposition {
+				t.Errorf("Expected Content-Disposition %s, got %s", expectedDisposition, contentDisposition)
+			}
+
+			// Verify body matches expected data
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("Failed to read response body: %v", err)
+			}
+
+			if !bytes.Equal(body, expectedData) {
+				t.Errorf("Response body doesn't match expected asset data for %s", bookID)
+			}
+		})
+	}
+}
+
+// TestAssetNotFound tests 404 handling for missing assets
+func TestAssetNotFound(t *testing.T) {
+	server, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+
+	err = server.Start()
+	if err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer func() {
+		if err := server.Stop(); err != nil {
+			t.Errorf("failed to stop mock server: %v", err)
+		}
+	}()
+
+	if len(server.fixtures.Shelves) == 0 {
+		t.Skip("No fixtures available to test with")
+	}
+
+	shelf := server.fixtures.Shelves[0]
+
+	tests := []struct {
+		name    string
+		assetID string
+	}{
+		{"nonexistent numeric ID", "999999999"},
+		{"zero ID", "0"},
+		{"negative ID", "-1"},
+		{"very large ID", "9223372036854775807"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := server.URL() + "/repos/" + shelf.Owner + "/" + shelf.Repo + "/releases/assets/" + tt.assetID
+
+			resp, err := http.Get(url)
+			if err != nil {
+				t.Fatalf("GET request failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusNotFound {
+				t.Errorf("Expected status 404 for missing asset, got %d", resp.StatusCode)
+			}
+		})
+	}
+}
+
+// TestMultipleAssets tests releases with multiple assets
+func TestMultipleAssets(t *testing.T) {
+	server, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+
+	err = server.Start()
+	if err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer func() {
+		if err := server.Stop(); err != nil {
+			t.Errorf("failed to stop mock server: %v", err)
+		}
+	}()
+
+	if len(server.fixtures.Shelves) == 0 {
+		t.Skip("No fixtures available to test with")
+	}
+
+	// Find a shelf with multiple assets
+	var multiAssetShelf *fixtures.ShelfFixture
+
+	for i := range server.fixtures.Shelves {
+		if len(server.fixtures.Shelves[i].Assets) > 1 {
+			shelf := server.fixtures.Shelves[i]
+			multiAssetShelf = &shelf
+			break
+		}
+	}
+
+	if multiAssetShelf == nil {
+		t.Skip("No shelves with multiple assets found")
+	}
+
+	url := server.URL() + "/repos/" + multiAssetShelf.Owner + "/" + multiAssetShelf.Repo + "/releases/12345/assets"
+
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("GET request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	var assets []map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&assets)
+	if err != nil {
+		t.Fatalf("Failed to decode JSON response: %v", err)
+	}
+
+	// Verify we got multiple assets
+	if len(assets) != len(multiAssetShelf.Assets) {
+		t.Errorf("Expected %d assets, got %d", len(multiAssetShelf.Assets), len(assets))
+	}
+
+	if len(assets) <= 1 {
+		t.Error("Expected multiple assets, got <= 1")
+	}
+
+	// Verify each asset has unique ID
+	seenIDs := make(map[float64]bool)
+	seenNames := make(map[string]bool)
+
+	for i, asset := range assets {
+		// Verify unique ID
+		id, ok := asset["id"].(float64)
+		if !ok {
+			t.Errorf("Asset %d has non-numeric id", i)
+			continue
+		}
+
+		if seenIDs[id] {
+			t.Errorf("Duplicate asset ID found: %v", id)
+		}
+		seenIDs[id] = true
+
+		// Verify unique name
+		name, ok := asset["name"].(string)
+		if !ok {
+			t.Errorf("Asset %d has non-string name", i)
+			continue
+		}
+
+		if seenNames[name] {
+			t.Errorf("Duplicate asset name found: %s", name)
+		}
+		seenNames[name] = true
+
+		// Verify all required fields are present
+		requiredFields := []string{"id", "name", "size", "url", "browser_download_url", "content_type"}
+		for _, field := range requiredFields {
+			if _, ok := asset[field]; !ok {
+				t.Errorf("Asset %d (%s) missing required field: %s", i, name, field)
+			}
+		}
+	}
+
+	// Verify all IDs are unique (no collisions in hash function)
+	if len(seenIDs) != len(assets) {
+		t.Errorf("Expected %d unique IDs, got %d", len(assets), len(seenIDs))
+	}
+
+	// Verify all names are unique
+	if len(seenNames) != len(assets) {
+		t.Errorf("Expected %d unique names, got %d", len(assets), len(seenNames))
 	}
 }

@@ -167,6 +167,16 @@ func TestBrowseWithCache(t *testing.T) {
 		t.Fatalf("failed to store in cache: %v", err)
 	}
 
+	// Verify asset ID is int64 type (critical contract requirement)
+	if asset.ID == 0 {
+		t.Error("asset ID should be non-zero int64")
+	}
+	// Verify ID can be used as int64 (would fail if it were a string)
+	var id int64 = asset.ID
+	if id == 0 {
+		t.Error("asset ID should be non-zero int64 value")
+	}
+
 	// Verify book is now cached
 	if !cacheMgr.Exists(shelf.Owner, shelf.Repo, book.ID, book.Source.Asset) {
 		t.Error("book should be cached after download")
@@ -178,7 +188,7 @@ func TestBrowseWithCache(t *testing.T) {
 		t.Errorf("cached file should exist at %s: %v", cachedPath, err)
 	}
 
-	t.Logf("Successfully verified cache status for book %s", book.ID)
+	t.Logf("Successfully verified cache status for book %s (asset ID: %d)", book.ID, asset.ID)
 }
 
 // TestBrowseFilter verifies catalog filtering by tag and format

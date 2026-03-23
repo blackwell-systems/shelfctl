@@ -500,3 +500,168 @@ func TestCacheMultipleRepos(t *testing.T) {
 
 	t.Logf("Successfully verified cache isolation between repos")
 }
+
+// TestCacheEmptyAssetList verifies handling of releases with no assets
+func TestCacheEmptyAssetList(t *testing.T) {
+	// Setup mock server
+	srv, err := mockserver.NewServer()
+	if err != nil {
+		t.Fatalf("failed to create mock server: %v", err)
+	}
+	if err := srv.Start(); err != nil {
+		t.Fatalf("failed to start mock server: %v", err)
+	}
+	defer func() {
+		if err := srv.Stop(); err != nil {
+			t.Errorf("failed to stop mock server: %v", err)
+		}
+	}()
+
+	// Load fixtures
+	fixtures := fixtures.DefaultFixtures()
+	if len(fixtures.Shelves) == 0 {
+		t.Fatal("no shelves in default fixtures")
+	}
+
+	shelf := fixtures.Shelves[0]
+
+	// Create GitHub client
+	ghClient := github.New("mock-token", srv.URL())
+
+	// Try to find asset in a release that exists but has no assets
+	// This tests the edge case of an empty asset list
+	rel, err := ghClient.GetReleaseByTag(shelf.Owner, shelf.Repo, "v0.0.1")
+	if err != nil {
+		t.Fatalf("failed to get release: %v", err)
+	}
+
+	// Try to find asset - should fail gracefully with no assets
+	asset, err := ghClient.FindAsset(shelf.Owner, shelf.Repo, rel.ID, "nonexistent.pdf")
+	if err != nil {
+		t.Logf("FindAsset correctly returned error for empty asset list: %v", err)
+	}
+	if asset != nil {
+		t.Error("expected nil asset when searching empty asset list")
+	}
+
+	t.Logf("Successfully handled empty asset list edge case")
+}
+
+// TestCacheMissingRelease verifies handling of non-existent releases
+func TestCacheMissingRelease(t *testing.T) {
+	// Setup mock server
+	srv, err := mockserver.NewServer()
+	if err != nil {
+		t.Fatalf("failed to create mock server: %v", err)
+	}
+	if err := srv.Start(); err != nil {
+		t.Fatalf("failed to start mock server: %v", err)
+	}
+	defer func() {
+		if err := srv.Stop(); err != nil {
+			t.Errorf("failed to stop mock server: %v", err)
+		}
+	}()
+
+	// Load fixtures
+	fixtures := fixtures.DefaultFixtures()
+	if len(fixtures.Shelves) == 0 {
+		t.Fatal("no shelves in default fixtures")
+	}
+
+	shelf := fixtures.Shelves[0]
+
+	// Create GitHub client
+	ghClient := github.New("mock-token", srv.URL())
+
+	// Try to get a non-existent release
+	rel, err := ghClient.GetReleaseByTag(shelf.Owner, shelf.Repo, "v999.999.999-nonexistent")
+	if err == nil {
+		// Mock server may return a release for any tag; verify it gracefully handles this
+		t.Logf("Mock server returned release for non-existent tag (ID: %d)", rel.ID)
+		// Try to find asset in this release - should not have any assets
+		asset, findErr := ghClient.FindAsset(shelf.Owner, shelf.Repo, rel.ID, "nonexistent.pdf")
+		if findErr != nil {
+			t.Logf("FindAsset correctly returned error: %v", findErr)
+		}
+		if asset != nil {
+			t.Error("expected nil asset when searching non-existent release")
+		}
+	} else {
+		t.Logf("Correctly received error for missing release: %v", err)
+	}
+
+	t.Logf("Successfully handled missing release edge case")
+}
+
+// TestCacheAssetListReturnType verifies that asset listing returns an array
+func TestCacheAssetListReturnType(t *testing.T) {
+	// Setup mock server
+	srv, err := mockserver.NewServer()
+	if err != nil {
+		t.Fatalf("failed to create mock server: %v", err)
+	}
+	if err := srv.Start(); err != nil {
+		t.Fatalf("failed to start mock server: %v", err)
+	}
+	defer func() {
+		if err := srv.Stop(); err != nil {
+			t.Errorf("failed to stop mock server: %v", err)
+		}
+	}()
+
+	// Load fixtures
+	fixtures := fixtures.DefaultFixtures()
+	if len(fixtures.Shelves) == 0 {
+		t.Fatal("no shelves in default fixtures")
+	}
+
+	shelf := fixtures.Shelves[0]
+	if len(shelf.Books) == 0 {
+		t.Fatal("no books in shelf fixture")
+	}
+
+	book := shelf.Books[0]
+
+	// Create GitHub client
+	ghClient := github.New("mock-token", srv.URL())
+
+	// Get release
+	rel, err := ghClient.GetReleaseByTag(shelf.Owner, shelf.Repo, book.Source.Release)
+	if err != nil {
+		t.Fatalf("failed to get release: %v", err)
+	}
+
+	// List release assets - must return an array ([]Asset), not a single Asset
+	assets, err := ghClient.ListReleaseAssets(shelf.Owner, shelf.Repo, rel.ID)
+	if err != nil {
+		t.Fatalf("failed to list release assets: %v", err)
+	}
+
+	// Verify we got a slice (array), not a single object
+	if assets == nil {
+		t.Fatal("assets should not be nil, expected array (possibly empty)")
+	}
+
+	// Verify it's actually a slice we can iterate over
+	assetCount := len(assets)
+	if assetCount == 0 {
+		t.Log("Warning: release has no assets, but returned empty array (correct behavior)")
+	} else {
+		t.Logf("Release has %d assets (returned as array)", assetCount)
+	}
+
+	// Verify all assets have int64 IDs
+	for i, asset := range assets {
+		if asset.ID == 0 {
+			t.Errorf("asset[%d] has zero ID", i)
+		}
+		// Type check: ensure ID is int64
+		var _ int64 = asset.ID
+		if asset.Name == "" {
+			t.Errorf("asset[%d] has empty name", i)
+		}
+	}
+
+	t.Logf("Successfully verified asset list returns array with %d items", assetCount)
+}

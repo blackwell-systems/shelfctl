@@ -100,7 +100,7 @@ func TestListBrowserFiltering(t *testing.T) {
 			}
 
 			for _, wantID := range tt.wantIDs {
-				if !contains(matchedIDs, wantID) {
+				if !containsString(matchedIDs, wantID) {
 					t.Errorf("expected ID %q in results, got %v", wantID, matchedIDs)
 				}
 			}
@@ -187,7 +187,7 @@ func TestListBrowserSelection(t *testing.T) {
 			}
 
 			for _, wantID := range tt.wantSelected {
-				if !contains(selected, wantID) {
+				if !containsString(selected, wantID) {
 					t.Errorf("expected ID %q in selected, got %v", wantID, selected)
 				}
 			}
@@ -515,7 +515,7 @@ func TestBrowserModelGetters(t *testing.T) {
 
 // Helper functions
 
-func contains(slice []string, item string) bool {
+func containsString(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
 			return true

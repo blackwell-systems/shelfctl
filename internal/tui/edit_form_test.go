@@ -91,7 +91,7 @@ func TestEditFormRequired(t *testing.T) {
 	})
 
 	// Submit with all empty fields
-	m2, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = m2.(editFormModel)
 
 	if !m.confirming {

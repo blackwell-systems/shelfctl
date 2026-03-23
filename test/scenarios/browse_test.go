@@ -172,7 +172,7 @@ func TestBrowseWithCache(t *testing.T) {
 		t.Error("asset ID should be non-zero int64")
 	}
 	// Verify ID can be used as int64 (would fail if it were a string)
-	var id int64 = asset.ID
+	id := asset.ID
 	if id == 0 {
 		t.Error("asset ID should be non-zero int64 value")
 	}

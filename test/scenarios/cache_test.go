@@ -657,7 +657,7 @@ func TestCacheAssetListReturnType(t *testing.T) {
 			t.Errorf("asset[%d] has zero ID", i)
 		}
 		// Type check: ensure ID is int64
-		var _ int64 = asset.ID
+		_ = asset.ID
 		if asset.Name == "" {
 			t.Errorf("asset[%d] has empty name", i)
 		}

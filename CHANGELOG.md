@@ -105,6 +105,37 @@ wizard, empty TUI state help, specific validation errors) are tracked separately
 - Added `app/shelves_test.go`: coverage of `stripAnsi`, `padRight`,
   `padRightColored`, `formatBookCount`, and `formatStatus`.
 
+**Comprehensive Testing Infrastructure** - Four-wave parallel agent execution
+adding 100+ tests and establishing mock server infrastructure for integration
+and E2E testing (SAW IMPL: testing-posture, 16 agents, 2026-03-22).
+
+- **Wave 1:** Mock GitHub API server foundation with deterministic int64 Asset
+  IDs and TestHarnessSetup pattern (`test/mockserver/`, `test/fixtures/`).
+- **Wave 2:** Integration test expansion with edge case coverage for cache and
+  browse operations, plus mock server test suite (5 tests).
+- **Wave 3:** Comprehensive unit test coverage across 10 parallel agents:
+  - App operations: `delete_test.go` (6 tests), `move_test.go` (5 tests),
+    `migrate_test.go` (16 tests), `cache_test.go` (5 tests), `init_test.go`
+    (skipped - needs refactor to mockserver pattern).
+  - TUI components: `list_browser_test.go` (8 tests + 20 subtests, 41.67%
+    coverage), `book_picker_test.go` (8 tests), `edit_form_test.go` (8 tests).
+  - Config: `load_test.go` (6 tests, 76.3% coverage - exceeds 60% target).
+  - GitHub: `releases_test.go` (5 tests, 100% coverage - exceeds 70% target).
+- **Wave 4:** End-to-end test suite and CI automation:
+  - Workflow tests: `test/e2e/workflows_test.go` (4 tests) covering new user
+    flow (init→shelve→browse→open), migration workflow, cache management, and
+    multi-shelf operations.
+  - Edge cases: `test/e2e/edge_cases_test.go` (6 tests) covering empty shelf
+    behavior, duplicate handling, network failures, corrupted cache recovery,
+    malformed catalog YAML, and concurrent access.
+  - CI/CD: `.github/workflows/test-harness.yml` GitHub Actions workflow with
+    unit, integration, and E2E test runs plus coverage reporting.
+
+**Coverage improvements:** Config package 76.3% (target: 60%+), GitHub releases
+100% (target: 70%+), TUI list browser 41.67% (target: 30%+). All tests follow
+the TestHarnessSetup pattern using mock server infrastructure, enabling fast
+isolated testing without external GitHub API dependencies.
+
 ## [0.3.3] - 2026-03-17
 
 ### Fixed

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-23
+
 ### Added
 - Multi-select move action in browse TUI: press `m` on selected books to move them
   to a different shelf. The TUI shows a shelf picker, then executes the catalog
@@ -209,6 +211,7 @@ GitHub API dependencies.
 - Fixed incorrect relative path computation for cover images in the HTML index
   generator (`cache/html_index.go`).
 
-[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.1...v0.3.2

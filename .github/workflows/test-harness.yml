@@ -20,7 +20,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25'
 
       - name: Download dependencies
         run: go mod download
@@ -35,10 +35,27 @@ jobs:
         run: go test -v ./test/e2e/...
 
       - name: Generate coverage report
-        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+        run: |
+          # Only test packages with test files to avoid "no such tool covdata" errors
+          go test -coverprofile=coverage.out -covermode=atomic \
+            ./internal/app \
+            ./internal/cache \
+            ./internal/catalog \
+            ./internal/config \
+            ./internal/github \
+            ./internal/ingest \
+            ./internal/migrate \
+            ./internal/operations \
+            ./internal/tui \
+            ./internal/util \
+            ./test/fixtures \
+            ./test/mockserver \
+            ./test/scenarios \
+            ./test/e2e
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: coverage-report
           path: coverage.out

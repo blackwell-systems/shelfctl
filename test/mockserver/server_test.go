@@ -2,6 +2,7 @@ package mockserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -184,14 +185,16 @@ func TestDownloadAsset(t *testing.T) {
 		t.Skip("No assets available to test with")
 	}
 
-	// Get first asset ID
-	var assetID string
+	// Get first asset ID (bookID is the string key, but URL needs numeric hash)
+	var bookID string
 	for id := range shelf.Assets {
-		assetID = id
+		bookID = id
 		break
 	}
 
-	url := server.URL() + "/repos/" + shelf.Owner + "/" + shelf.Repo + "/releases/assets/" + assetID
+	// Convert bookID to hashed numeric ID for URL (matching real GitHub API behavior)
+	hashedID := hashString(bookID)
+	url := server.URL() + "/repos/" + shelf.Owner + "/" + shelf.Repo + "/releases/assets/" + fmt.Sprintf("%d", hashedID)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -213,7 +216,7 @@ func TestDownloadAsset(t *testing.T) {
 		t.Fatalf("Failed to read response body: %v", err)
 	}
 
-	expectedData := shelf.Assets[assetID]
+	expectedData := shelf.Assets[bookID]
 	if string(body) != string(expectedData) {
 		t.Errorf("Response body doesn't match expected asset data")
 	}

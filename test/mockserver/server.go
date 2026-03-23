@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -111,9 +112,15 @@ func (ms *MockServer) handleReposRequest(w http.ResponseWriter, r *http.Request)
 	}
 
 	if len(parts) >= 5 && parts[2] == "releases" && parts[4] == "assets" {
-		// GET /repos/{owner}/{repo}/releases/{id}/assets
+		// /repos/{owner}/{repo}/releases/{id}/assets
 		releaseID := parts[3]
-		ms.handleGetReleaseAssets(w, r, owner, repo, releaseID)
+		if r.Method == http.MethodPost {
+			// POST - upload asset
+			ms.handleUploadAsset(w, r, owner, repo, releaseID)
+		} else {
+			// GET - list assets
+			ms.handleGetReleaseAssets(w, r, owner, repo, releaseID)
+		}
 		return
 	}
 
@@ -136,6 +143,13 @@ func (ms *MockServer) handleReposRequest(w http.ResponseWriter, r *http.Request)
 	}
 
 	http.NotFound(w, r)
+}
+
+// hashString converts a string to a deterministic int64 using FNV-1a hash.
+func hashString(s string) int64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(s))
+	return int64(h.Sum64())
 }
 
 // handleGetRelease handles GET /repos/{owner}/{repo}/releases/tags/{tag}
@@ -173,11 +187,14 @@ func (ms *MockServer) handleGetReleaseAssets(w http.ResponseWriter, r *http.Requ
 		if shelf.Owner == owner && shelf.Repo == repo {
 			// Build asset list from books
 			assets := []map[string]interface{}{}
-			for bookID := range shelf.Assets {
+			for bookID, assetData := range shelf.Assets {
 				assets = append(assets, map[string]interface{}{
-					"id":   bookID,
-					"name": fmt.Sprintf("%s.pdf", bookID),
-					"url":  fmt.Sprintf("%s/repos/%s/%s/releases/assets/%s", ms.URL(), owner, repo, bookID),
+					"id":                   hashString(bookID),
+					"name":                 fmt.Sprintf("%s.pdf", bookID),
+					"size":                 int64(len(assetData)),
+					"url":                  fmt.Sprintf("%s/repos/%s/%s/releases/assets/%s", ms.URL(), owner, repo, bookID),
+					"browser_download_url": fmt.Sprintf("%s/repos/%s/%s/releases/assets/%s", ms.URL(), owner, repo, bookID),
+					"content_type":         "application/pdf",
 				})
 			}
 
@@ -188,6 +205,31 @@ func (ms *MockServer) handleGetReleaseAssets(w http.ResponseWriter, r *http.Requ
 	}
 
 	http.NotFound(w, r)
+}
+
+// handleUploadAsset handles POST /repos/{owner}/{repo}/releases/{id}/assets
+func (ms *MockServer) handleUploadAsset(w http.ResponseWriter, r *http.Request, owner, repo, releaseID string) {
+	// Parse query parameters for asset name
+	assetName := r.URL.Query().Get("name")
+	if assetName == "" {
+		http.Error(w, "missing name parameter", http.StatusBadRequest)
+		return
+	}
+
+	// For mock purposes, return a fake asset with the uploaded name
+	// Use a deterministic ID based on the asset name
+	asset := map[string]interface{}{
+		"id":                   hashString(assetName),
+		"name":                 assetName,
+		"size":                 r.ContentLength,
+		"url":                  fmt.Sprintf("%s/repos/%s/%s/releases/assets/%d", ms.URL(), owner, repo, hashString(assetName)),
+		"browser_download_url": fmt.Sprintf("%s/repos/%s/%s/releases/assets/%d", ms.URL(), owner, repo, hashString(assetName)),
+		"content_type":         r.Header.Get("Content-Type"),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(asset)
 }
 
 // handleGetFileContent handles GET /repos/{owner}/{repo}/contents/{path}
@@ -239,17 +281,20 @@ func (ms *MockServer) handleDownloadAsset(w http.ResponseWriter, r *http.Request
 	defer ms.mu.RUnlock()
 
 	// Find matching fixture and asset
+	// assetID in URL is the int64 hash, need to find matching bookID
 	for _, shelf := range ms.fixtures.Shelves {
 		if shelf.Owner == owner && shelf.Repo == repo {
-			if assetData, ok := shelf.Assets[assetID]; ok {
-				w.Header().Set("Content-Type", "application/pdf")
-				w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.pdf", assetID))
-				_, _ = w.Write(assetData)
-				return
+			// Iterate through all assets and find the one with matching hash
+			for bookID, assetData := range shelf.Assets {
+				if fmt.Sprintf("%d", hashString(bookID)) == assetID {
+					w.Header().Set("Content-Type", "application/pdf")
+					w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.pdf", bookID))
+					_, _ = w.Write(assetData)
+					return
+				}
 			}
 		}
 	}
 
 	http.NotFound(w, r)
 }
-

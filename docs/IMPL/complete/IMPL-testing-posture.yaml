@@ -1,3 +1,4 @@
+completion_date: "2026-03-22"
 title: Testing Posture Improvement
 feature_slug: testing-posture
 verdict: SUITABLE
@@ -660,6 +661,7 @@ waves:
             - Coverage report as artifact
           files:
             - .github/workflows/test-harness.yml
+      base_commit: b57ae0669170111ec50cbaf7dac1c623846850f0
 quality_gates:
     level: standard
     gates:
@@ -865,6 +867,39 @@ completion_reports:
             - TestCreateReleaseConflict
             - TestGetReleaseNotFound
         verification: PASS - All 5 tests passing. 100% coverage for releases.go
+    "N":
+        status: complete
+        branch: saw/testing-posture/wave4-agent-N
+        commit: "406e158"
+        files_created:
+            - test/e2e/workflows_test.go
+        tests_added:
+            - TestNewUserWorkflow
+            - TestMigrationWorkflow
+            - TestCacheWorkflow
+            - TestMultiShelfWorkflow
+        verification: 'PASS - All 4 workflow tests pass. Note: gate pattern ''-run TestWorkflow'' does not match test names; use ''-run Test.*Workflow'' instead'
+    O:
+        status: complete
+        branch: saw/testing-posture/wave4-agent-O
+        commit: 136c31b
+        files_created:
+            - test/e2e/edge_cases_test.go
+        tests_added:
+            - TestEmptyShelfBehavior
+            - TestDuplicateHandling
+            - TestNetworkFailure
+            - TestCorruptedCache
+            - TestMalformedCatalog
+            - TestConcurrentAccess
+        verification: PASS
+    P:
+        status: complete
+        branch: saw/testing-posture/wave4-agent-P
+        commit: fb458ec
+        files_created:
+            - .github/workflows/test-harness.yml
+        verification: PASS (YAML syntax validated)
 pre_mortem:
     overall_risk: medium
     rows:
@@ -888,4 +923,4 @@ pre_mortem:
           likelihood: low
           impact: low
           mitigation: Agent P tests workflow locally with act before committing, or validates YAML syntax
-state: "WAVE_PENDING"
+state: "COMPLETE"

@@ -1,0 +1,933 @@
+title: Testing Posture Improvement
+feature_slug: testing-posture
+verdict: SUITABLE
+suitability_assessment: "Work is highly suitable for SAW parallelization with clear tier structure:\n\n**Suitability gate\
+  \ results:**\n1. \u2713 File decomposition: 18-20 distinct test files across 3 tiers, all disjoint\n2. \u2713 No investigation\
+  \ required: test harness complete, failure modes known\n3. \u2713 Interface discoverability: test harness APIs already defined\
+  \ and stable\n4. \u2713 Pre-implementation check: Test harness complete (IMPL-test-harness.yaml),\n   6/13 integration tests\
+  \ failing with known root causes (mock server schema\n   mismatches documented in test output)\n5. \u2713 Parallelization\
+  \ value: High build/test cycles (go test ./... ~15-20s),\n   3-5 files per agent avg, agents highly independent within tiers\n\
+  \n**Time-to-value estimate:**\n- Scout phase: ~8 min (dependency mapping, contracts, IMPL doc)\n- Agent execution: ~90 min\
+  \ (Tier 1: ~30 min, Tier 2: ~45 min, Tier 3: ~15 min)\n- Merge & verification: ~5 min per tier\nTotal SAW time: ~118 min\
+  \ across 3 waves\n\nSequential baseline: ~150 min (18 agents \xD7 8 min avg sequential time)\nTime savings: ~32 min (21%\
+  \ faster)\n\nRecommendation: Clear speedup from parallelization. Primary value is coordinated\ncoverage improvement with\
+  \ clear progress tracking across tiers.\n"
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+- file: test/mockserver/server.go
+  agent: A
+  wave: 1
+  action: modify
+- file: test/scenarios/browse_test.go
+  agent: B
+  wave: 2
+  action: modify
+- file: test/scenarios/cache_test.go
+  agent: B
+  wave: 2
+  action: modify
+- file: test/scenarios/shelve_test.go
+  agent: B
+  wave: 2
+  action: modify
+- file: test/mockserver/server_test.go
+  agent: C
+  wave: 2
+  action: modify
+- file: internal/app/init_test.go
+  agent: D
+  wave: 3
+  action: new
+- file: internal/app/delete_test.go
+  agent: E
+  wave: 3
+  action: new
+- file: internal/app/move_test.go
+  agent: F
+  wave: 3
+  action: new
+- file: internal/app/cache_test.go
+  agent: G
+  wave: 3
+  action: new
+- file: internal/app/migrate_test.go
+  agent: H
+  wave: 3
+  action: new
+- file: internal/tui/list_browser_test.go
+  agent: I
+  wave: 3
+  action: new
+- file: internal/tui/book_picker_test.go
+  agent: J
+  wave: 3
+  action: new
+- file: internal/tui/edit_form_test.go
+  agent: K
+  wave: 3
+  action: new
+- file: internal/config/load_test.go
+  agent: L
+  wave: 3
+  action: new
+- file: internal/github/releases_test.go
+  agent: M
+  wave: 3
+  action: new
+- file: test/e2e/workflows_test.go
+  agent: N
+  wave: 4
+  action: new
+- file: test/e2e/edge_cases_test.go
+  agent: O
+  wave: 4
+  action: new
+- file: .github/workflows/test-harness.yml
+  agent: P
+  wave: 4
+  action: new
+interface_contracts:
+- name: MockServerAssetEndpoint
+  description: GitHub API Asset JSON schema for mock server responses
+  definition: "// Asset struct must match GitHub API schema exactly\ntype Asset struct {\n    ID                 int64  `json:\"\
+    id\"`              // MUST be int64, not string\n    Name               string `json:\"name\"`\n    Size             \
+    \  int64  `json:\"size\"`\n    URL                string `json:\"url\"`\n    BrowserDownloadURL string `json:\"browser_download_url\"\
+    `\n    ContentType        string `json:\"content_type\"`\n}\n\n// ListReleaseAssets returns []Asset, not single Asset\n\
+    func (ms *MockServer) handleGetReleaseAssets(w http.ResponseWriter, r *http.Request, owner, repo, releaseID string) {\n\
+    \    assets := []Asset{...}  // Array, not single object\n    json.NewEncoder(w).Encode(assets)\n}\n"
+  location: test/mockserver/server.go
+- name: TestHarnessSetup
+  description: Standard test harness initialization pattern for all integration tests
+  definition: "// All integration tests must follow this setup pattern\nfunc TestXxx(t *testing.T) {\n    // Setup mock server\n\
+    \    srv, err := mockserver.NewServer()\n    if err != nil {\n        t.Fatalf(\"failed to create mock server: %v\", err)\n\
+    \    }\n    if err := srv.Start(); err != nil {\n        t.Fatalf(\"failed to start mock server: %v\", err)\n    }\n \
+    \   defer func() {\n        if err := srv.Stop(); err != nil {\n            t.Errorf(\"failed to stop mock server: %v\"\
+    , err)\n        }\n    }()\n\n    // Create temp directory\n    tmpDir, err := os.MkdirTemp(\"\", \"test-*\")\n    if\
+    \ err != nil {\n        t.Fatalf(\"failed to create temp dir: %v\", err)\n    }\n    defer func() { _ = os.RemoveAll(tmpDir)\
+    \ }()\n\n    // Load fixtures\n    fixtures := fixtures.DefaultFixtures()\n\n    // Create GitHub client pointing to mock\
+    \ server\n    ghClient := github.New(\"mock-token\", srv.URL())\n\n    // ... test implementation\n}\n"
+  location: test/scenarios/browse_test.go
+waves:
+- number: 1
+  agents:
+  - id: A
+    task: "## What to Implement\n\nFix mock server GitHub API contract mismatches to make integration tests pass.\n\n**Root\
+      \ cause:** Asset endpoint returns string IDs instead of int64, causing\nunmarshal errors in 6/13 integration tests.\n\
+      \n**Changes required:**\n1. Fix `handleGetReleaseAssets` (line 167) to return `[]Asset` with int64 IDs\n2. Currently\
+      \ line 178 has: `\"id\": bookID,` where bookID is a string map key\n3. Change to: `\"id\": int64(hashString(bookID)),`\
+      \ to generate numeric IDs\n4. Add helper function `hashString(s string) int64` for deterministic string\u2192int64 conversion\n\
+      5. Ensure all Asset JSON responses use int64 for ID field\n6. Verify Release endpoint returns single Release object\
+      \ (not array)\n\n**Implementation:**\n- Modify `handleGetReleaseAssets` asset construction loop (lines 176-182)\n- Add\
+      \ helper function to convert string book IDs to int64 (use simple hash or counter)\n- Test with: `go test ./test/scenarios/...`\
+      \ - all 13 tests must pass\n\n**Interfaces:** Implements MockServerAssetEndpoint contract\n\n**Tests:** Run full test\
+      \ suite after changes: `go test ./...`\n\n**Verification gate:**\n```bash\ngo build ./...\ngo vet ./...\ngofmt -l .\n\
+      go test ./test/scenarios/... -v\n```\n\n**Constraints:**\n- Do not change Asset struct in internal/github/assets.go\n\
+      - Only modify mock server code in test/mockserver/\n- Preserve existing fixture data structure\n"
+    files:
+    - test/mockserver/server.go
+- number: 2
+  agents:
+  - id: B
+    task: '## What to Implement
+
+
+      Update integration tests in test/scenarios/ to pass after mock server fixes.
+
+
+      **Scope:**
+
+      - `test/scenarios/browse_test.go` - TestBrowseWithCache
+
+      - `test/scenarios/cache_test.go` - 5 failing tests (Download, Exists, Remove, ModificationDetection, MultipleRepos)
+
+      - `test/scenarios/shelve_test.go` - TestShelveBook
+
+
+      **Changes required:**
+
+      1. Verify tests pass after Agent A''s mock server fixes
+
+      2. Add assertions for asset ID type (must be int64, not string)
+
+      3. Add edge case coverage: empty asset list, missing release
+
+      4. Add test for release endpoint returning single object (not array)
+
+
+      **Interfaces:** Uses MockServerAssetEndpoint and TestHarnessSetup contracts
+
+
+      **Tests:** All 13 integration tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./test/scenarios/... -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Depend on Wave 1 Agent A completing mock server fixes
+
+      - Do not modify mock server code
+
+      - Follow existing test patterns in scenarios/
+
+      '
+    files:
+    - test/scenarios/browse_test.go
+    - test/scenarios/cache_test.go
+    - test/scenarios/shelve_test.go
+    dependencies:
+    - A
+  - id: C
+    task: '## What to Implement
+
+
+      Expand mock server test coverage for asset download and release endpoints.
+
+
+      **New tests in test/mockserver/server_test.go:**
+
+      1. `TestAssetEndpointSchema` - Verify Asset JSON has int64 ID
+
+      2. `TestReleaseEndpointSchema` - Verify Release JSON structure (single object)
+
+      3. `TestAssetDownload` - Test download endpoint with real fixtures
+
+      4. `TestAssetNotFound` - Test 404 handling for missing assets
+
+      5. `TestMultipleAssets` - Test releases with multiple assets
+
+
+      **Interfaces:** Uses MockServerAssetEndpoint contract
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./test/mockserver/... -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Depend on Wave 1 Agent A completing mock server fixes
+
+      - Test only, do not modify server.go implementation
+
+      - Target >80% coverage for test/mockserver/server.go
+
+      '
+    files:
+    - test/mockserver/server_test.go
+    dependencies:
+    - A
+- number: 3
+  agents:
+  - id: D
+    task: '## What to Implement
+
+
+      Create comprehensive test suite for shelf initialization workflow in internal/app/init_test.go.
+
+
+      **Test cases:**
+
+      1. `TestInitWizard` - Full init flow (create shelf, generate catalog, commit)
+
+      2. `TestInitExistingShelf` - Error handling for duplicate shelf
+
+      3. `TestInitInvalidRepo` - Validation for malformed owner/repo
+
+      4. `TestInitWithCustomCatalogPath` - Non-default catalog path
+
+      5. `TestInitDryRun` - Preview mode without committing
+
+
+      **Interfaces:** Uses TestHarnessSetup contract
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/app -run TestInit -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Use test harness (mock server + fixtures)
+
+      - Target >60% coverage for internal/app/init.go
+
+      - Follow existing test patterns in internal/app/*_test.go
+
+      '
+    files:
+    - internal/app/init_test.go
+  - id: E
+    task: '## What to Implement
+
+
+      Create test suite for deletion operations in internal/app/delete_test.go.
+
+
+      **Test cases:**
+
+      1. `TestDeleteShelf` - Remove entire shelf
+
+      2. `TestDeleteBook` - Remove single book from catalog
+
+      3. `TestDeleteBookNotFound` - Error handling for missing book
+
+      4. `TestDeleteWithCache` - Verify cached files cleaned up
+
+      5. `TestDeleteLastBook` - Handle empty shelf after deletion
+
+
+      **Interfaces:** Uses TestHarnessSetup contract
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/app -run TestDelete -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Use test harness, verify catalog mutations and cache cleanup
+
+      - Target >60% coverage for internal/app/delete.go and delete_book.go
+
+      '
+    files:
+    - internal/app/delete_test.go
+  - id: F
+    task: '## What to Implement
+
+
+      Create test suite for cross-shelf book moves in internal/app/move_test.go.
+
+
+      **Test cases:**
+
+      1. `TestMoveBook` - Standard move from shelf A to shelf B
+
+      2. `TestMoveBookNotFound` - Error handling for missing book
+
+      3. `TestMoveToSameShelf` - Validation: can''t move to self
+
+      4. `TestMovePreserveMetadata` - Verify all fields preserved (tags, checksum, etc)
+
+      5. `TestMoveWithCache` - Cache path updated after move
+
+
+      **Interfaces:** Uses TestHarnessSetup contract
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/app -run TestMove -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Use test harness with multiple shelves
+
+      - Target >70% coverage for internal/app/move.go
+
+      '
+    files:
+    - internal/app/move_test.go
+  - id: G
+    task: '## What to Implement
+
+
+      Expand existing cache test coverage in internal/app/cache_test.go.
+
+
+      **New test cases to add:**
+
+      1. `TestCacheClear` - Clear entire cache for a shelf
+
+      2. `TestCacheOrphanDetection` - Find cached books not in catalog
+
+      3. `TestCacheOrphanCleanup` - Remove orphaned cache entries
+
+      4. `TestCacheStatus` - Report cache size and hit rate
+
+      5. `TestCacheInvalidChecksum` - Handle corrupted cached files
+
+
+      **Interfaces:** Uses TestHarnessSetup contract
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/app -run TestCache -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Preserve existing cache tests
+
+      - Target >70% coverage for internal/app/cache.go
+
+      '
+    files:
+    - internal/app/cache_test.go
+  - id: H
+    task: "## What to Implement\n\nCreate test suite for migration workflow in internal/app/migrate_test.go.\n\n**Test cases:**\n\
+      1. `TestMigrateWorkflow` - Full scan \u2192 migrate batch \u2192 verify flow\n2. `TestMigrateScanLegacyRepo` - Detect\
+      \ books in legacy format\n3. `TestMigrateBatchSize` - Handle migration in chunks\n4. `TestMigrateProgress` - Progress\
+      \ reporting during migration\n5. `TestMigrateRollback` - Error handling and rollback on failure\n\n**Interfaces:** Uses\
+      \ TestHarnessSetup contract\n\n**Tests:** New tests must pass\n\n**Verification gate:**\n```bash\ngo build ./...\ngo\
+      \ vet ./...\ngofmt -l .\ngo test ./internal/app -run TestMigrate -v\n```\n\n**Constraints:**\n- Use test harness with\
+      \ legacy fixture data\n- Target >60% coverage for internal/app/migrate.go\n"
+    files:
+    - internal/app/migrate_test.go
+  - id: I
+    task: '## What to Implement
+
+
+      Create test suite for TUI list browser logic in internal/tui/list_browser_test.go.
+
+
+      **Test non-interactive business logic only:**
+
+      1. `TestListBrowserFiltering` - Filter books by tag/format
+
+      2. `TestListBrowserSelection` - Selection state tracking
+
+      3. `TestListBrowserPagination` - Page navigation logic
+
+      4. `TestListBrowserSort` - Sort by title/author/year
+
+      5. `TestListBrowserEmpty` - Handle empty book list
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/tui -run TestListBrowser -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Test state transitions, not UI rendering (no bubbletea testing)
+
+      - Target >30% coverage for internal/tui/list_browser.go
+
+      '
+    files:
+    - internal/tui/list_browser_test.go
+  - id: J
+    task: '## What to Implement
+
+
+      Create test suite for TUI book/shelf picker logic in internal/tui/book_picker_test.go.
+
+
+      **Test non-interactive business logic:**
+
+      1. `TestBookPickerSelection` - Track selected book ID
+
+      2. `TestShelfPickerSelection` - Track selected shelf
+
+      3. `TestPickerMultiSelect` - Multiple selection support
+
+      4. `TestPickerFilter` - Filter items by search query
+
+      5. `TestPickerEmpty` - Handle empty picker list
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/tui -run TestPicker -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Test state management only, not bubbletea UI
+
+      - Target >25% coverage for internal/tui/book_picker.go and shelf_picker.go
+
+      '
+    files:
+    - internal/tui/book_picker_test.go
+  - id: K
+    task: '## What to Implement
+
+
+      Expand TUI edit form tests in internal/tui/edit_form_test.go.
+
+
+      **New test cases (expand shelve_form_test.go patterns):**
+
+      1. `TestEditFormValidation` - Field validation (title, author, year)
+
+      2. `TestEditFormRequired` - Required field enforcement
+
+      3. `TestEditFormDefaults` - Default value population
+
+      4. `TestEditFormSubmit` - Form submission data structure
+
+      5. `TestEditFormCancel` - Cancel without saving
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/tui -run TestEditForm -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Preserve existing shelve_form_test.go patterns
+
+      - Target >30% coverage for internal/tui/edit_form.go
+
+      '
+    files:
+    - internal/tui/edit_form_test.go
+  - id: L
+    task: '## What to Implement
+
+
+      Create test suite for config loading in internal/config/load_test.go.
+
+
+      **Test cases:**
+
+      1. `TestLoadConfig` - Load valid config file
+
+      2. `TestLoadConfigDefaults` - Default values when fields missing
+
+      3. `TestLoadConfigInvalid` - Error handling for malformed YAML
+
+      4. `TestLoadConfigNotFound` - Handle missing config file
+
+      5. `TestLoadConfigValidation` - Schema validation (required fields)
+
+      6. `TestLoadConfigEnvOverride` - Environment variable overrides
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/config -run TestLoad -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Create temp config files for testing
+
+      - Target >60% coverage for internal/config
+
+      '
+    files:
+    - internal/config/load_test.go
+  - id: M
+    task: '## What to Implement
+
+
+      Create test suite for GitHub release operations in internal/github/releases_test.go.
+
+
+      **Test cases:**
+
+      1. `TestCreateRelease` - Create new release via API
+
+      2. `TestGetReleaseByTag` - Fetch release by tag name
+
+      3. `TestEnsureRelease` - Get or create release (idempotent)
+
+      4. `TestCreateReleaseConflict` - Handle duplicate tag error
+
+      5. `TestGetReleaseNotFound` - 404 handling
+
+
+      **Interfaces:** Uses TestHarnessSetup contract (mock server)
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./internal/github -run TestRelease -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Use mock server from test harness
+
+      - Target >70% coverage for internal/github/releases.go
+
+      '
+    files:
+    - internal/github/releases_test.go
+- number: 4
+  agents:
+  - id: N
+    task: "## What to Implement\n\nCreate end-to-end workflow tests in test/e2e/workflows_test.go.\n\n**Happy path workflows:**\n\
+      1. `TestNewUserWorkflow` - init \u2192 shelve \u2192 browse \u2192 open (full flow)\n2. `TestMigrationWorkflow` - scan\
+      \ \u2192 migrate batch \u2192 verify\n3. `TestCacheWorkflow` - download \u2192 verify \u2192 clear orphans\n4. `TestMultiShelfWorkflow`\
+      \ - create shelf \u2192 move books \u2192 sync\n\n**Interfaces:** Uses TestHarnessSetup contract\n\n**Tests:** New tests\
+      \ must pass\n\n**Verification gate:**\n```bash\ngo build ./...\ngo vet ./...\ngofmt -l .\ngo test ./test/e2e -run TestWorkflow\
+      \ -v\n```\n\n**Constraints:**\n- Use test harness (mock server + fixtures)\n- Each workflow tests 5+ commands in sequence\n"
+    files:
+    - test/e2e/workflows_test.go
+  - id: O
+    task: '## What to Implement
+
+
+      Create edge case tests in test/e2e/edge_cases_test.go.
+
+
+      **Edge cases:**
+
+      1. `TestEmptyShelfBehavior` - Browse empty shelf shows guidance
+
+      2. `TestDuplicateHandling` - Shelve duplicate ID error handling
+
+      3. `TestNetworkFailure` - Timeout and retry scenarios
+
+      4. `TestCorruptedCache` - Checksum mismatch recovery
+
+      5. `TestMalformedCatalog` - Handle invalid catalog YAML
+
+      6. `TestConcurrentAccess` - Multiple operations on same shelf
+
+
+      **Interfaces:** Uses TestHarnessSetup contract
+
+
+      **Tests:** New tests must pass
+
+
+      **Verification gate:**
+
+      ```bash
+
+      go build ./...
+
+      go vet ./...
+
+      gofmt -l .
+
+      go test ./test/e2e -run TestEdge -v
+
+      ```
+
+
+      **Constraints:**
+
+      - Use test harness, inject failures
+
+      - All error paths tested with recovery verification
+
+      '
+    files:
+    - test/e2e/edge_cases_test.go
+  - id: P
+    task: '## What to Implement
+
+
+      Create CI workflow for automated test harness execution in .github/workflows/test-harness.yml.
+
+
+      **Workflow requirements:**
+
+      1. Trigger on PR and push to main
+
+      2. Run go test ./... with verbose output
+
+      3. Run integration tests: go test ./test/scenarios/...
+
+      4. Run e2e tests: go test ./test/e2e/...
+
+      5. Generate coverage report and upload artifact
+
+      6. Fail CI if any test fails
+
+
+      **Tests:** Workflow runs successfully
+
+
+      **Verification gate:**
+
+      ```bash
+
+      # Test locally with act if available
+
+      act -j test || echo "act not available, verify syntax only"
+
+      yamllint .github/workflows/test-harness.yml || echo "yamllint not available"
+
+      ```
+
+
+      **Constraints:**
+
+      - Standard GitHub Actions Go workflow
+
+      - Coverage report as artifact
+
+      '
+    files:
+    - .github/workflows/test-harness.yml
+quality_gates:
+  level: standard
+  gates:
+  - type: build
+    command: go build ./...
+    required: true
+  - type: lint
+    command: go vet ./...
+    required: true
+  - type: format
+    command: gofmt -l .
+    required: true
+  - type: test
+    command: go test ./...
+    required: true
+pre_mortem:
+  overall_risk: medium
+  rows:
+  - scenario: Mock server schema changes break existing tests outside test/scenarios
+    likelihood: medium
+    impact: medium
+    mitigation: Agent A runs full test suite (go test ./...) after mock server changes, not just integration tests
+  - scenario: TUI tests flake due to bubbletea state assumptions
+    likelihood: low
+    impact: low
+    mitigation: Agents I, J, K test only business logic, avoid bubbletea rendering. Use state inspection, not UI output.
+  - scenario: E2E tests have hidden dependencies on each other
+    likelihood: medium
+    impact: low
+    mitigation: Agents N and O use t.Cleanup() for all teardown, run tests with -shuffle flag during development
+  - scenario: Coverage targets unrealistic for non-testable code
+    likelihood: low
+    impact: low
+    mitigation: Coverage targets are guidelines, not hard requirements. Focus on critical paths first.
+  - scenario: CI workflow fails due to GitHub Actions config errors
+    likelihood: low
+    impact: low
+    mitigation: Agent P tests workflow locally with act before committing, or validates YAML syntax
+critic_report:
+  verdict: ISSUES
+  agent_reviews:
+    A:
+      agent_id: A
+      verdict: ISSUES
+      issues:
+      - check: symbol_accuracy
+        severity: error
+        description: Brief references line 178 to change from string ID to int64, but actual handleGetReleaseAssets at line
+          167-191 shows 'id' field at line 178 is set to bookID (a string from range iteration over shelf.Assets map). The
+          Asset struct in internal/github/assets.go expects int64 ID. This mismatch is the root cause, but the fix location
+          and pattern need verification.
+        file: test/mockserver/server.go
+        symbol: handleGetReleaseAssets
+    B:
+      agent_id: B
+      verdict: PASS
+    C:
+      agent_id: C
+      verdict: PASS
+    D:
+      agent_id: D
+      verdict: PASS
+    E:
+      agent_id: E
+      verdict: PASS
+    F:
+      agent_id: F
+      verdict: PASS
+    G:
+      agent_id: G
+      verdict: ISSUES
+      issues:
+      - check: file_existence
+        severity: error
+        description: 'File internal/app/cache_test.go does not exist but action is ''modify''. This is a conflict - the file
+          must exist for a modify action. Should be action: ''new'' instead.'
+        file: internal/app/cache_test.go
+    H:
+      agent_id: H
+      verdict: PASS
+    I:
+      agent_id: I
+      verdict: PASS
+    J:
+      agent_id: J
+      verdict: PASS
+    K:
+      agent_id: K
+      verdict: PASS
+    L:
+      agent_id: L
+      verdict: PASS
+    M:
+      agent_id: M
+      verdict: PASS
+    N:
+      agent_id: N
+      verdict: ISSUES
+      issues:
+      - check: side_effect_completeness
+        severity: warning
+        description: Agent N creates test/e2e/workflows_test.go but test/e2e/ directory does not exist. Agent should either
+          create the directory or this should be documented as a prerequisite.
+        file: test/e2e/workflows_test.go
+    O:
+      agent_id: O
+      verdict: ISSUES
+      issues:
+      - check: side_effect_completeness
+        severity: warning
+        description: Agent O creates test/e2e/edge_cases_test.go but test/e2e/ directory does not exist. Should coordinate
+          with Agent N or create directory.
+        file: test/e2e/edge_cases_test.go
+    P:
+      agent_id: P
+      verdict: PASS
+  summary: 'Review found 2 errors and 2 warnings across 16 agents. Critical issues: Agent A''s brief references incorrect
+    line number/pattern for mock server fix; Agent G has action ''modify'' for non-existent file (should be ''new''). Warnings:
+    Agents N and O need test/e2e/ directory creation.'
+  reviewed_at: '2026-03-23T00:01:49Z'
+  issue_count: 4
+state: SCOUT_PENDING

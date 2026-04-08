@@ -2,10 +2,12 @@
 
 BINARY  := bin/shelfctl
 MAIN    := ./cmd/shelfctl
+VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
+LDFLAGS := -X main.version=$(VERSION)
 
 build:
 	@mkdir -p bin
-	go build -o $(BINARY) $(MAIN)
+	GOWORK=off go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(MAIN)
 
 test:
 	go test -v ./...
@@ -15,7 +17,7 @@ test-coverage:
 	go tool cover -html=coverage.out -o coverage.html
 
 install:
-	go install $(MAIN)
+	GOWORK=off go install -ldflags "$(LDFLAGS)" $(MAIN)
 
 clean:
 	rm -rf bin/ coverage.out coverage.html

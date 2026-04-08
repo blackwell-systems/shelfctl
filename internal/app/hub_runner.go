@@ -435,5 +435,5 @@ func runHub() error {
 }
 
 func buildHubContext() tui.HubContext {
-	return unified.BuildContext(gh, cfg, cacheMgr)
+	return unified.BuildContextFast(cfg)
 }

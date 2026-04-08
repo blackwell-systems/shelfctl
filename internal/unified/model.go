@@ -111,13 +111,13 @@ func NewAtView(ctx tui.HubContext, gh *github.Client, cfg *config.Config, cacheM
 func (m Model) Init() tea.Cmd {
 	switch m.currentView {
 	case ViewHub:
-		return m.hub.Init()
+		return tea.Batch(m.hub.Init(), m.loadHubContextAsync())
 	case ViewBrowse:
 		return m.browse.Init()
 	case ViewCreateShelf:
 		return m.createShelf.Init()
 	default:
-		return m.hub.Init()
+		return tea.Batch(m.hub.Init(), m.loadHubContextAsync())
 	}
 }
 
@@ -134,6 +134,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case QuitAppMsg:
 		return m, tea.Quit
+
+	case hubContextLoadedMsg:
+		m.hubContext = msg.ctx
+		m.hub.UpdateContext(msg.ctx)
+		return m, nil
 
 	case ActionRequestMsg:
 		// Store action and exit TUI to perform it
@@ -461,14 +466,13 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		)
 
 	case "hub":
-		// Refresh hub context and return to hub
+		// Return to hub with fast local context; async load will refresh counts
 		m.currentView = ViewHub
-		// Rebuild context to reflect any cache/catalog changes from browse
-		m.hubContext = BuildContext(m.gh, m.cfg, m.cacheMgr)
+		m.hubContext = BuildContextFast(m.cfg)
 		m.hub = NewHubModel(m.hubContext)
-		// Batch init command with window size message
 		return m, tea.Batch(
 			m.hub.Init(),
+			m.loadHubContextAsync(),
 			func() tea.Msg {
 				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
 			},
@@ -793,6 +797,31 @@ func PerformPendingAction(action *ActionRequestMsg, gh *github.Client, cfg *conf
 		return m.handleEditBook(action.BookItem)
 	default:
 		return nil
+	}
+}
+
+// hubContextLoadedMsg carries the result of an async BuildContext call.
+type hubContextLoadedMsg struct {
+	ctx tui.HubContext
+}
+
+// BuildContextFast returns a minimal hub context derived from local config only —
+// no network calls. Use this to start the TUI immediately, then fire
+// loadHubContextAsync to populate network-dependent fields.
+func BuildContextFast(cfg *config.Config) tui.HubContext {
+	return tui.HubContext{
+		ShelfCount: len(cfg.Shelves),
+	}
+}
+
+// loadHubContextAsync returns a Tea command that fetches the full hub context
+// in the background and delivers it as a hubContextLoadedMsg.
+func (m Model) loadHubContextAsync() tea.Cmd {
+	gh := m.gh
+	cfg := m.cfg
+	cacheMgr := m.cacheMgr
+	return func() tea.Msg {
+		return hubContextLoadedMsg{ctx: BuildContext(gh, cfg, cacheMgr)}
 	}
 }
 

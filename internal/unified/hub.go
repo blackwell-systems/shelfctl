@@ -100,6 +100,11 @@ func NewHubModel(ctx tui.HubContext) HubModel {
 	}
 }
 
+// UpdateContext refreshes the hub's context data after an async network load.
+func (m *HubModel) UpdateContext(ctx tui.HubContext) {
+	m.context = ctx
+}
+
 func (m HubModel) Init() tea.Cmd {
 	return nil
 }

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **TUI startup hang:** `shelfctl` with no arguments would silently block on
+  startup while making synchronous GitHub API calls (repo check + catalog fetch
+  + release check per shelf) before the TUI started. With a 5-minute HTTP
+  timeout this was indistinguishable from a frozen binary. Fixed by introducing
+  `BuildContextFast` (local config only, no network) to start the TUI
+  immediately, then loading the full context asynchronously via a Tea command
+  (`unified/model.go`). The same fix applies when returning to the hub after
+  an action (`handleNavigation` "hub" case).
+
 ## [0.4.0] - 2026-03-23
 
 ### Added

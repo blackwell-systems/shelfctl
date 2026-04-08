@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-04-08
+
 ### Added
 - **Rename Shelf:** New hub menu item under Shelves — renames both the display
   name and the GitHub repository in one operation. Renames the GitHub repo via

@@ -487,7 +487,13 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		)
 
 	case "hub":
-		// Return to hub with fast local context; async load will refresh counts
+		// Return to hub with fast local context; async load will refresh counts.
+		// Reload config from disk to pick up any changes written by operations
+		// (e.g., create shelf, delete shelf) that modify the config file.
+		if newCfg, err := config.Load(); err == nil {
+			m.cfg = newCfg
+			m.catalogCache = make(map[string][]catalog.Book) // stale after config change
+		}
 		m.currentView = ViewHub
 		fast := BuildContextFast(m.cfg)
 		fast.Version = m.hubContext.Version // preserve — fast context doesn't set it

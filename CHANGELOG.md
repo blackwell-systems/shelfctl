@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-04-08
+
 ### Fixed
 - **TUI startup hang:** `shelfctl` with no arguments would silently block on
   startup while making synchronous GitHub API calls (repo check + catalog fetch

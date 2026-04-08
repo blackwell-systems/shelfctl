@@ -489,7 +489,9 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 	case "hub":
 		// Return to hub with fast local context; async load will refresh counts
 		m.currentView = ViewHub
-		m.hubContext = BuildContextFast(m.cfg)
+		fast := BuildContextFast(m.cfg)
+		fast.Version = m.hubContext.Version // preserve — fast context doesn't set it
+		m.hubContext = fast
 		m.hub = NewHubModel(m.hubContext)
 		return m, tea.Batch(
 			m.hub.Init(),
@@ -845,6 +847,7 @@ func (m Model) loadHubContextAsync() tea.Cmd {
 	gh := m.gh
 	cfg := m.cfg
 	cacheMgr := m.cacheMgr
+	version := m.hubContext.Version // capture: async closure has no access to appVersion
 	return func() tea.Msg {
 		ctx := tui.HubContext{
 			ShelfCount: len(cfg.Shelves),
@@ -914,6 +917,7 @@ func (m Model) loadHubContextAsync() tea.Cmd {
 			}
 		}
 
+		ctx.Version = version
 		return hubContextLoadedMsg{ctx: ctx, catalogs: catalogs}
 	}
 }

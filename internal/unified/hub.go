@@ -327,9 +327,7 @@ func (m HubModel) View() string {
 		Padding(2, 4)
 
 	// Two-tone wordmark header
-	wordmark := lipgloss.NewStyle().Bold(true).Foreground(tui.ColorOrange).Render("shelf") +
-		lipgloss.NewStyle().Bold(true).Foreground(tui.ColorTealLight).Render("ctl")
-	header := lipgloss.NewStyle().Padding(0, 1).Render(wordmark + "  " +
+	header := lipgloss.NewStyle().Padding(0, 1).Render(tui.Wordmark(m.context.Version) + "  " +
 		lipgloss.NewStyle().Foreground(tui.ColorGray).Render("Personal Library Manager"))
 
 	// Stat pills status bar

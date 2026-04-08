@@ -435,5 +435,7 @@ func runHub() error {
 }
 
 func buildHubContext() tui.HubContext {
-	return unified.BuildContextFast(cfg)
+	ctx := unified.BuildContextFast(cfg)
+	ctx.Version = appVersion
+	return ctx
 }

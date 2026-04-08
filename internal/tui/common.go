@@ -69,3 +69,17 @@ var (
 	// StyleProgress is for download progress labels
 	StyleProgress = lipgloss.NewStyle().Foreground(ColorYellow)
 )
+
+// Wordmark renders the two-tone "shelfctl" brand mark. If version is non-empty
+// it is appended in a dim, unbolded style — visually subordinate to the mark.
+func Wordmark(version string) string {
+	mark := lipgloss.NewStyle().Bold(true).Foreground(ColorOrange).Render("shelf") +
+		lipgloss.NewStyle().Bold(true).Foreground(ColorTealLight).Render("ctl")
+	if version != "" {
+		mark += " " + lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#AAAAAA", Dark: "#555555"}).
+			Faint(true).
+			Render(version)
+	}
+	return mark
+}

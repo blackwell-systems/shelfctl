@@ -65,6 +65,8 @@ type HubContext struct {
 	ModifiedBooks []ModifiedBook
 	CacheSize     int64
 	CacheDir      string
+	// App version, set once at startup from ldflags
+	Version string
 }
 
 // menuSection groups related menu items under a title

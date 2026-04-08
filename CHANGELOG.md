@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Hub menu missing browse after async load:** `UpdateContext` was updating the
   hub's context data but not rebuilding the menu items, so browse stayed hidden
   even after `BookCount` populated. Now calls `list.SetItems()` on update.
+- **New shelf not visible in browse after creation:** `m.cfg` in the unified
+  model was never reloaded after config-mutating operations (create shelf, delete
+  shelf). The config file was updated on disk but the in-memory copy was stale,
+  so browse only showed shelves that existed at startup. Now reloads config and
+  clears the catalog cache on every hub navigation.
 
 ### Performance
 - **Eliminated redundant catalog fetches:** The startup context builder now

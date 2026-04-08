@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-04-08
+
 ### Added
 - **Sync Modified Books (hub menu):** New hub menu item "Sync Modified" under Cache —
   appears only when one or more locally modified cached books are detected. Navigates to
@@ -275,7 +277,10 @@ GitHub API dependencies.
 - Fixed incorrect relative path computation for cover images in the HTML index
   generator (`cache/html_index.go`).
 
-[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/blackwell-systems/shelfctl/compare/v0.3.1...v0.3.2

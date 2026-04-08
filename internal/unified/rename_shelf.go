@@ -110,9 +110,9 @@ func (m RenameShelfModel) buildShelfList() list.Model {
 		isSelected := index == lm.Index()
 		label := fmt.Sprintf("%-20s  %s", so.Name, tui.StyleHelp.Render(so.Repo))
 		if isSelected {
-			fmt.Fprint(w, tui.StyleHighlight.Render("› "+label))
+			_, _ = fmt.Fprint(w, tui.StyleHighlight.Render("› "+label))
 		} else {
-			fmt.Fprint(w, "  "+tui.StyleNormal.Render(label))
+			_, _ = fmt.Fprint(w, "  "+tui.StyleNormal.Render(label))
 		}
 	})
 	l := list.New(items, d, 0, 0)

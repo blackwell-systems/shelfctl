@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Version in hub TUI:** The hub wordmark now shows the current version in a
+  dim, unbolded style (`shelfctl v0.4.x`). Extracted `Wordmark(version string)`
+  into `tui/common.go` for reuse. Version flows from ldflags via `HubContext`
+  and is preserved through the async context load.
+
+### Fixed
+- **Hub menu missing browse after async load:** `UpdateContext` was updating the
+  hub's context data but not rebuilding the menu items, so browse stayed hidden
+  even after `BookCount` populated. Now calls `list.SetItems()` on update.
+
+### Performance
+- **Eliminated redundant catalog fetches:** The startup context builder now
+  fetches each shelf's catalog once and reuses the data for both shelf details
+  and cache stats (was 2 fetches per shelf). Health checks (`RepoExists`,
+  `GetReleaseByTag`) removed from startup — deferred to `ShelvesModel` which
+  already loads them async on demand.
+- **In-session catalog cache:** `Model` now caches parsed catalogs in memory.
+  Navigating to browse or index after the initial async load makes zero
+  additional GitHub API calls. Cache is automatically reset on TUI restart
+  (after any write operation).
+- **Browse visible immediately:** Removed browse from the `BookCount == 0`
+  filter — it is already gated on `ShelfCount`, so it now appears as soon as
+  the TUI starts rather than waiting for the async load.
+
+### Build
+- `make build` and `make install` now inject the current git tag as the version
+  string via `-ldflags "-X main.version=$(VERSION)"`. Eliminates the `dev`
+  version shown in local builds.
+
 ## [0.4.1] - 2026-04-08
 
 ### Fixed

@@ -48,6 +48,21 @@ func (c *Client) RepoExists(owner, repo string) (bool, error) {
 	return err == nil, err
 }
 
+// RenameRepo renames a repository via the GitHub API.
+// GitHub automatically creates a redirect from the old name, but shelfctl
+// must update its config to use the new name.
+func (c *Client) RenameRepo(owner, oldRepo, newName string) (*Repo, error) {
+	url := c.url("repos", owner, oldRepo)
+	body := map[string]interface{}{
+		"name": newName,
+	}
+	var r Repo
+	if err := c.doJSON(http.MethodPatch, url, body, &r); err != nil {
+		return nil, fmt.Errorf("rename repo %s/%s → %s: %w", owner, oldRepo, newName, err)
+	}
+	return &r, nil
+}
+
 // DeleteRepo permanently deletes a repository.
 // This is a destructive operation that cannot be undone.
 func (c *Client) DeleteRepo(owner, repo string) error {

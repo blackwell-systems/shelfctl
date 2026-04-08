@@ -90,6 +90,7 @@ var menuSections = []menuSection{
 	{Title: "Shelves", Items: []MenuItem{
 		{Key: "shelves", Icon: "≡", Label: "View Shelves", Description: "Show all configured shelves and book counts", Available: true},
 		{Key: "create-shelf", Icon: "+", Label: "Create Shelf", Description: "Add a new shelf repository to your library", Available: true},
+		{Key: "rename-shelf", Icon: "~", Label: "Rename Shelf", Description: "Rename a shelf's display name and GitHub repo", Available: true},
 		{Key: "delete-shelf", Icon: "✕", Label: "Delete Shelf", Description: "Remove a shelf from configuration", Available: true},
 	}},
 	{Title: "Tools", Items: []MenuItem{

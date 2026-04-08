@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Rename Shelf:** New hub menu item under Shelves — renames both the display
+  name and the GitHub repository in one operation. Renames the GitHub repo via
+  API, updates both `name` and `repo` fields in config, and moves the local
+  cache directory from the old repo path to the new one. Pre-fills inputs with
+  the current name and repo suffix for easy editing.
 - **Version in hub TUI:** The hub wordmark now shows the current version in a
   dim, unbolded style (`shelfctl v0.4.x`). Extracted `Wordmark(version string)`
   into `tui/common.go` for reuse. Version flows from ldflags via `HubContext`

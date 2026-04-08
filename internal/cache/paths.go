@@ -15,6 +15,11 @@ func New(baseDir string) *Manager {
 	return &Manager{baseDir: baseDir}
 }
 
+// BaseDir returns the root cache directory.
+func (m *Manager) BaseDir() string {
+	return m.baseDir
+}
+
 // Path returns the full cache path for a given shelf repo and book.
 // Layout: <baseDir>/<repo>/<assetFilename>
 func (m *Manager) Path(owner, repo, bookID, assetFilename string) string {

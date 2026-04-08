@@ -103,6 +103,11 @@ func NewHubModel(ctx tui.HubContext) HubModel {
 // UpdateContext refreshes the hub's context data after an async network load.
 func (m *HubModel) UpdateContext(ctx tui.HubContext) {
 	m.context = ctx
+	// Rebuild menu items with the new context (e.g., BookCount now populated)
+	items := tui.BuildFilteredMenuItems(ctx)
+	m.list.SetItems(items)
+	// Rebuild palette with updated context
+	m.palette = buildHubPalette(ctx)
 }
 
 func (m HubModel) Init() tea.Cmd {

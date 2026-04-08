@@ -100,6 +100,7 @@ var menuSections = []menuSection{
 	}},
 	{Title: "Cache", Items: []MenuItem{
 		{Key: "cache-info", Icon: "i", Label: "Cache Info", Description: "View cache statistics and disk usage", Available: true},
+		{Key: "sync-modified", Icon: "↑", Label: "Sync Modified", Description: "Upload locally modified books to GitHub", Available: true},
 		{Key: "cache-clear", Icon: "⊗", Label: "Clear Cache", Description: "Remove books from local cache", Available: true},
 	}},
 }
@@ -134,6 +135,10 @@ func BuildFilteredMenuItems(ctx HubContext) []list.Item {
 				case "edit-book", "move", "delete-book":
 					continue
 				}
+			}
+			// Hide sync-modified when there are no locally modified books
+			if ctx.ModifiedCount == 0 && item.Key == "sync-modified" {
+				continue
 			}
 			sectionItems = append(sectionItems, item)
 		}
@@ -436,7 +441,7 @@ func (m hubModel) renderCacheDetails() string {
 		}
 
 		s.WriteString("\n")
-		s.WriteString(StyleHelp.Render("  Press 's' in browse or run 'sync --all'"))
+		s.WriteString(StyleHelp.Render("  Select \"Sync Modified\" from the menu"))
 		s.WriteString("\n")
 	}
 

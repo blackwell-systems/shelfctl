@@ -129,6 +129,13 @@ The hub provides access to all core operations and loops continuously until you 
 - Returns to hub menu after completion
 - Hidden when no shelves exist
 
+**Sync Modified** *(Cache section — only visible when modified books exist)*
+- Scans all shelves and lists books whose cached copy differs from the catalog checksum
+- Shows full list for confirmation before uploading
+- Processes books sequentially: delete old asset → upload modified file → commit catalog
+- Displays live ✓/✗ status per book during processing
+- Returns to hub with a summary on completion
+
 **Quit**
 - Exit shelfctl cleanly
 
@@ -268,6 +275,8 @@ It will display the standard CLI help instead.
 │    Edit Book                   Update metadata for a book           │
 │                                                                      │
 │    Cache Info                  View cache statistics and usage      │
+│                                                                      │
+│    Sync Modified               Upload locally modified books        │
 │                                                                      │
 │    Clear Cache                 Remove books from local cache        │
 │                                                                      │

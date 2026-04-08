@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Sync Modified Books (hub menu):** New hub menu item "Sync Modified" under Cache —
+  appears only when one or more locally modified cached books are detected. Navigates to
+  a dedicated TUI view (`SyncAllModel`) with phases: detecting (async catalog scan) →
+  confirming (list of modified books, enter to proceed) → processing (sequential per-book
+  upload with live ✓/✗ status) → done (summary). Replaces the old hint directing users to
+  the CLI (`unified/sync_all.go`, `tui/hub.go`, `unified/model.go`).
+  The hub cache details pane hint now reads "Select Sync Modified from the menu" instead
+  of "Press 's' in browse or run 'sync --all'".
+
 ## [0.4.2] - 2026-04-08
 
 ### Added

@@ -572,12 +572,16 @@ shelfctl sync [book-id...] [flags]
 
 ### TUI Mode
 
-Press `s` in the `browse` view to sync books directly from the TUI:
-- **Single book**: Navigate to a modified book and press `s` to sync it
-- **Batch sync**: Press `space` to select multiple modified books, then press `s` to sync all selected
-- Shows progress messages during sync operation
-- Displays "[N/M]" counter when syncing multiple books
-- Returns to browse view after completion
+**Hub menu (recommended):** When modified books are detected, a **Sync Modified** item
+appears in the Cache section of the hub menu. Selecting it opens a dedicated view that:
+1. Scans all shelves for modified books (comparing cached SHA256 against catalog)
+2. Shows the full list for confirmation before proceeding
+3. Uploads each book sequentially with live ✓/✗ status per book
+4. Returns to the hub with a summary on completion
+
+**Browse view:** Press `s` to sync directly from browse:
+- **Single book**: Navigate to a modified book and press `s`
+- **Batch sync**: Press `space` to select multiple books, then `s`
 
 ### Flags
 

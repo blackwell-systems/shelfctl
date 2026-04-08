@@ -36,6 +36,7 @@ const (
 	ViewShelves     View = "shelves"
 	ViewIndex       View = "index"
 	ViewRenameShelf View = "rename-shelf"
+	ViewSyncAll     View = "sync-modified"
 )
 
 // Model is the unified TUI orchestrator that manages view switching
@@ -53,6 +54,7 @@ type Model struct {
 	deleteBook  DeleteBookModel
 	deleteShelf DeleteShelfModel
 	renameShelf RenameShelfModel
+	syncAll     SyncAllModel
 	editBook    EditBookModel
 	shelve      ShelveModel
 	moveBook    MoveBookModel
@@ -207,6 +209,8 @@ func (m Model) View() string {
 		content = m.deleteShelf.View()
 	case ViewRenameShelf:
 		content = m.renameShelf.View()
+	case ViewSyncAll:
+		content = m.syncAll.View()
 	case ViewEdit:
 		content = m.editBook.View()
 	case ViewShelve:
@@ -278,6 +282,10 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var renameShelfModel RenameShelfModel
 		renameShelfModel, cmd = m.renameShelf.Update(msg)
 		m.renameShelf = renameShelfModel
+	case ViewSyncAll:
+		var syncAllModel SyncAllModel
+		syncAllModel, cmd = m.syncAll.Update(msg)
+		m.syncAll = syncAllModel
 	case ViewEdit:
 		var editBookModel EditBookModel
 		editBookModel, cmd = m.editBook.Update(msg)
@@ -600,6 +608,16 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		m.renameShelf = NewRenameShelfModel(m.gh, m.cfg, m.cacheMgr.BaseDir())
 		return m, tea.Batch(
 			m.renameShelf.Init(),
+			func() tea.Msg {
+				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
+			},
+		)
+
+	case "sync-modified":
+		m.currentView = ViewSyncAll
+		m.syncAll = NewSyncAllModel(m.gh, m.cfg, m.cacheMgr)
+		return m, tea.Batch(
+			m.syncAll.Init(),
 			func() tea.Msg {
 				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
 			},

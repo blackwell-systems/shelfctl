@@ -67,6 +67,12 @@ type Model struct {
 	cfg      *config.Config
 	cacheMgr *cache.Manager
 
+	// In-session catalog cache — avoids re-fetching unchanged catalogs across views.
+	// Keyed by "owner/repo". Populated by the async context load and getCatalog().
+	// Automatically reset on TUI restart (new Model), so stale data after writes is
+	// not a concern.
+	catalogCache map[string][]catalog.Book
+
 	// Pending action (used when TUI needs to exit to perform action)
 	pendingAction  *ActionRequestMsg
 	pendingCommand *CommandRequestMsg
@@ -82,11 +88,12 @@ func New(ctx tui.HubContext, gh *github.Client, cfg *config.Config, cacheMgr *ca
 // NewAtView creates a new unified model starting at a specific view
 func NewAtView(ctx tui.HubContext, gh *github.Client, cfg *config.Config, cacheMgr *cache.Manager, startView View) Model {
 	m := Model{
-		currentView: startView,
-		hubContext:  ctx,
-		gh:          gh,
-		cfg:         cfg,
-		cacheMgr:    cacheMgr,
+		currentView:  startView,
+		hubContext:   ctx,
+		gh:           gh,
+		cfg:          cfg,
+		cacheMgr:     cacheMgr,
+		catalogCache: make(map[string][]catalog.Book),
 	}
 
 	// Initialize the starting view
@@ -138,6 +145,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case hubContextLoadedMsg:
 		m.hubContext = msg.ctx
 		m.hub.UpdateContext(msg.ctx)
+		// Seed catalog cache so browse/index navigation skips re-fetching
+		for k, v := range msg.catalogs {
+			m.catalogCache[k] = v
+		}
 		return m, nil
 
 	case ActionRequestMsg:
@@ -292,6 +303,27 @@ func (m Model) updateCurrentView(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// getCatalog returns the parsed catalog for a shelf, using the in-session cache.
+// On a cache miss it fetches from GitHub and caches the result.
+// Since catalogCache is a map (reference type), writes are visible even through
+// value-receiver copies as long as the map was initialized in NewAtView.
+func (m Model) getCatalog(owner, repo, catalogPath string) ([]catalog.Book, error) {
+	key := owner + "/" + repo
+	if books, ok := m.catalogCache[key]; ok {
+		return books, nil
+	}
+	data, _, err := m.gh.GetFileContent(owner, repo, catalogPath, "")
+	if err != nil {
+		return nil, err
+	}
+	books, err := catalog.Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	m.catalogCache[key] = books
+	return books, nil
+}
+
 // collectBooks gathers all books from all shelves for the browse view
 // This replicates the logic from internal/app/browse.go
 func (m Model) collectBooks() []tui.BookItem {
@@ -303,15 +335,8 @@ func (m Model) collectBooks() []tui.BookItem {
 		catalogPath := shelf.EffectiveCatalogPath()
 		releaseTag := shelf.EffectiveRelease(m.cfg.Defaults.Release)
 
-		data, _, err := m.gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+		books, err := m.getCatalog(owner, shelf.Repo, catalogPath)
 		if err != nil {
-			// Skip shelves with errors
-			continue
-		}
-
-		books, err := catalog.Parse(data)
-		if err != nil {
-			// Skip shelves with parse errors
 			continue
 		}
 
@@ -349,11 +374,7 @@ func (m Model) collectIndexBooks() []cache.IndexBook {
 		owner := shelf.EffectiveOwner(m.cfg.GitHub.Owner)
 		catalogPath := shelf.EffectiveCatalogPath()
 
-		data, _, err := m.gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
-		if err != nil {
-			continue
-		}
-		books, err := catalog.Parse(data)
+		books, err := m.getCatalog(owner, shelf.Repo, catalogPath)
 		if err != nil {
 			continue
 		}
@@ -800,9 +821,11 @@ func PerformPendingAction(action *ActionRequestMsg, gh *github.Client, cfg *conf
 	}
 }
 
-// hubContextLoadedMsg carries the result of an async BuildContext call.
+// hubContextLoadedMsg carries the result of an async context load.
+// catalogs is the fetched catalog data, used to seed the in-session cache.
 type hubContextLoadedMsg struct {
-	ctx tui.HubContext
+	ctx      tui.HubContext
+	catalogs map[string][]catalog.Book
 }
 
 // BuildContextFast returns a minimal hub context derived from local config only —
@@ -814,14 +837,84 @@ func BuildContextFast(cfg *config.Config) tui.HubContext {
 	}
 }
 
-// loadHubContextAsync returns a Tea command that fetches the full hub context
-// in the background and delivers it as a hubContextLoadedMsg.
+// loadHubContextAsync returns a Tea command that builds the full hub context
+// in the background. It fetches each catalog once, reusing the data for both
+// shelf details and cache stats (no duplicate requests). Health checks
+// (RepoExists, GetReleaseByTag) are skipped here — they appear in ShelvesModel.
 func (m Model) loadHubContextAsync() tea.Cmd {
 	gh := m.gh
 	cfg := m.cfg
 	cacheMgr := m.cacheMgr
 	return func() tea.Msg {
-		return hubContextLoadedMsg{ctx: BuildContext(gh, cfg, cacheMgr)}
+		ctx := tui.HubContext{
+			ShelfCount: len(cfg.Shelves),
+		}
+		catalogs := make(map[string][]catalog.Book)
+
+		// Single pass: fetch each catalog once
+		for _, shelf := range cfg.Shelves {
+			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+			catalogPath := shelf.EffectiveCatalogPath()
+			key := owner + "/" + shelf.Repo
+
+			data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+			if err != nil {
+				continue
+			}
+			books, err := catalog.Parse(data)
+			if err != nil {
+				continue
+			}
+			catalogs[key] = books
+			ctx.BookCount += len(books)
+		}
+
+		// Build shelf details from cached catalog data (no extra network calls)
+		for _, shelf := range cfg.Shelves {
+			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+			key := owner + "/" + shelf.Repo
+			books := catalogs[key]
+			ctx.ShelfDetails = append(ctx.ShelfDetails, tui.ShelfStatus{
+				Name:      shelf.Name,
+				Repo:      shelf.Repo,
+				Owner:     owner,
+				BookCount: len(books),
+				Status:    "✓ Healthy",
+			})
+		}
+
+		// Calculate cache stats using local filesystem only
+		for _, shelf := range cfg.Shelves {
+			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+			key := owner + "/" + shelf.Repo
+			books := catalogs[key]
+			for i := range books {
+				b := &books[i]
+				if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
+					ctx.CachedCount++
+					path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
+					if info, err := os.Stat(path); err == nil {
+						ctx.CacheSize += info.Size()
+					}
+					if cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+						ctx.ModifiedCount++
+						ctx.ModifiedBooks = append(ctx.ModifiedBooks, tui.ModifiedBook{
+							ID:    b.ID,
+							Title: b.Title,
+						})
+					}
+				}
+			}
+		}
+
+		if ctx.BookCount > 0 {
+			ctx.CacheDir = cacheMgr.Path("", "", "", "")
+			if ctx.CacheDir != "" {
+				ctx.CacheDir = filepath.Dir(ctx.CacheDir)
+			}
+		}
+
+		return hubContextLoadedMsg{ctx: ctx, catalogs: catalogs}
 	}
 }
 

@@ -125,9 +125,10 @@ func BuildFilteredMenuItems(ctx HubContext) []list.Item {
 				}
 			}
 			// Hide book-dependent actions when no books exist
+			// browse is shelf-gated above; omit here so it shows before BookCount loads
 			if ctx.BookCount == 0 {
 				switch item.Key {
-				case "browse", "edit-book", "move", "delete-book":
+				case "edit-book", "move", "delete-book":
 					continue
 				}
 			}

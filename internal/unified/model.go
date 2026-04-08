@@ -31,11 +31,11 @@ const (
 	ViewCacheInfo   View = "cache-info"
 	ViewCreateShelf View = "create-shelf"
 	ViewDeleteShelf View = "delete-shelf"
-	ViewImportShelf  View = "import-shelf"
-	ViewImportRepo   View = "import-repo"
-	ViewShelves      View = "shelves"
-	ViewIndex        View = "index"
-	ViewRenameShelf  View = "rename-shelf"
+	ViewImportShelf View = "import-shelf"
+	ViewImportRepo  View = "import-repo"
+	ViewShelves     View = "shelves"
+	ViewIndex       View = "index"
+	ViewRenameShelf View = "rename-shelf"
 )
 
 // Model is the unified TUI orchestrator that manages view switching

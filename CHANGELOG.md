@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-04-08
+
+### Fixed
+- **Sync Modified upload progress bar:** The processing phase now shows a gradient
+  progress bar and `X.X / Y.Y MB (N%)` counter during each book upload. Previously
+  only a static spinner was shown. Implemented by splitting `syncBookCmd` into
+  `syncBookSetupCmd` (EnsureRelease / FindAsset / DeleteAsset / start goroutine) +
+  `waitForSyncTick` (recursive channel reader) + `syncCatalogCmd` (catalog commit
+  after upload). `progress.FrameMsg` forwarded to `progress.Model` for smooth
+  gradient animation between ticks (`unified/sync_all.go`).
+- **Sync Modified spinner:** Detecting and processing phases now animate a spinner
+  instead of rendering a static `⏳` emoji.
+
 ## [0.4.3] - 2026-04-08
 
 ### Added

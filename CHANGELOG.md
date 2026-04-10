@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-04-09
+
+### Improved
+- **Sync Modified hub awareness:** The "Sync Modified" menu item now appears
+  automatically within ~20 seconds of a cached book being modified locally,
+  without requiring the user to navigate away and back. A lightweight background
+  scan runs every 20 seconds while on the hub view, reusing already-cached
+  catalog data (no GitHub API calls) and comparing local file SHA256 checksums.
+  The scan auto-pauses when navigating to other views and resumes on return
+  (`unified/model.go`: `refreshModifiedStatusCmd`, `hubModifiedRefreshTick`).
+
 ## [0.4.4] - 2026-04-08
 
 ### Fixed
@@ -290,7 +301,9 @@ GitHub API dependencies.
 - Fixed incorrect relative path computation for cover images in the HTML index
   generator (`cache/html_index.go`).
 
-[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.5...HEAD
+[0.4.5]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.4...v0.4.5
+[0.4.4]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/blackwell-systems/shelfctl/compare/v0.4.0...v0.4.1

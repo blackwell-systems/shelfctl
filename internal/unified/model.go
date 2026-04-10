@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
@@ -122,13 +123,13 @@ func NewAtView(ctx tui.HubContext, gh *github.Client, cfg *config.Config, cacheM
 func (m Model) Init() tea.Cmd {
 	switch m.currentView {
 	case ViewHub:
-		return tea.Batch(m.hub.Init(), m.loadHubContextAsync())
+		return tea.Batch(m.hub.Init(), m.loadHubContextAsync(), hubModifiedRefreshTick())
 	case ViewBrowse:
 		return m.browse.Init()
 	case ViewCreateShelf:
 		return m.createShelf.Init()
 	default:
-		return tea.Batch(m.hub.Init(), m.loadHubContextAsync())
+		return tea.Batch(m.hub.Init(), m.loadHubContextAsync(), hubModifiedRefreshTick())
 	}
 }
 
@@ -152,6 +153,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Seed catalog cache so browse/index navigation skips re-fetching
 		for k, v := range msg.catalogs {
 			m.catalogCache[k] = v
+		}
+		return m, nil
+
+	case modifiedRefreshTickMsg:
+		// Only continue periodic scanning while on the hub and catalog data is available.
+		if m.currentView == ViewHub && len(m.catalogCache) > 0 {
+			return m, tea.Batch(m.refreshModifiedStatusCmd(), hubModifiedRefreshTick())
+		}
+		return m, nil
+
+	case modifiedStatusRefreshedMsg:
+		if m.currentView == ViewHub {
+			m.hubContext.ModifiedCount = msg.count
+			m.hubContext.ModifiedBooks = msg.books
+			m.hub.UpdateContext(m.hubContext)
 		}
 		return m, nil
 
@@ -518,6 +534,7 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(
 			m.hub.Init(),
 			m.loadHubContextAsync(),
+			hubModifiedRefreshTick(),
 			func() tea.Msg {
 				return tea.WindowSizeMsg{Width: m.width, Height: m.height}
 			},
@@ -870,6 +887,55 @@ func PerformPendingAction(action *ActionRequestMsg, gh *github.Client, cfg *conf
 type hubContextLoadedMsg struct {
 	ctx      tui.HubContext
 	catalogs map[string][]catalog.Book
+}
+
+// modifiedRefreshTickMsg drives periodic local-only rescans of modified books.
+type modifiedRefreshTickMsg time.Time
+
+// modifiedStatusRefreshedMsg carries updated modified-book counts from a local-only rescan.
+type modifiedStatusRefreshedMsg struct {
+	count int
+	books []tui.ModifiedBook
+}
+
+// hubModifiedRefreshTick schedules the next periodic modified-status scan.
+func hubModifiedRefreshTick() tea.Cmd {
+	return tea.Tick(20*time.Second, func(t time.Time) tea.Msg {
+		return modifiedRefreshTickMsg(t)
+	})
+}
+
+// refreshModifiedStatusCmd rescans local cache files against catalogCache checksums.
+// No network calls — uses already-cached catalog data from the initial async load.
+func (m Model) refreshModifiedStatusCmd() tea.Cmd {
+	cacheMgr := m.cacheMgr
+	cfg := m.cfg
+	// Snapshot catalog cache to avoid data races with future writes.
+	catalogs := make(map[string][]catalog.Book, len(m.catalogCache))
+	for k, v := range m.catalogCache {
+		catalogs[k] = v
+	}
+	return func() tea.Msg {
+		var count int
+		var books []tui.ModifiedBook
+		for _, shelf := range cfg.Shelves {
+			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+			key := owner + "/" + shelf.Repo
+			shelfBooks, ok := catalogs[key]
+			if !ok {
+				continue
+			}
+			for i := range shelfBooks {
+				b := &shelfBooks[i]
+				if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) &&
+					cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+					count++
+					books = append(books, tui.ModifiedBook{ID: b.ID, Title: b.Title})
+				}
+			}
+		}
+		return modifiedStatusRefreshedMsg{count: count, books: books}
+	}
 }
 
 // BuildContextFast returns a minimal hub context derived from local config only —

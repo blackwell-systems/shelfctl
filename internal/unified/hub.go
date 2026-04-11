@@ -350,6 +350,11 @@ func (m HubModel) View() string {
 	if statusBar != "" {
 		parts = append(parts, statusBar)
 	}
+	if m.context.LastAutoSyncAt != nil {
+		autoLine := lipgloss.NewStyle().Foreground(tui.ColorTealLight).
+			Render(fmt.Sprintf("  ↑ Auto-synced %d book(s)", m.context.LastAutoSyncCount))
+		parts = append(parts, autoLine)
+	}
 	parts = append(parts, m.list.View())
 
 	listContent := lipgloss.JoinVertical(lipgloss.Left, parts...)

@@ -6,6 +6,7 @@ type Config struct {
 	Defaults  DefaultsConfig  `mapstructure:"defaults"`
 	Shelves   []ShelfConfig   `mapstructure:"shelves"`
 	Migration MigrationConfig `mapstructure:"migration"`
+	Sync      SyncConfig      `mapstructure:"sync"`
 }
 
 // GitHubConfig holds GitHub API connection settings.
@@ -81,4 +82,10 @@ func (s *ShelfConfig) EffectiveCatalogPath() string {
 		return s.CatalogPath
 	}
 	return "catalog.yml"
+}
+
+// SyncConfig holds settings for automatic background sync.
+type SyncConfig struct {
+	AutoSync        bool `mapstructure:"auto_sync"`
+	DebounceMinutes int  `mapstructure:"debounce_minutes"`
 }

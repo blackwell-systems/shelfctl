@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - 'winget/**'
+  workflow_dispatch:
 
 jobs:
   validate-winget:

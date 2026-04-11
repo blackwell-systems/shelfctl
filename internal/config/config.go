@@ -33,6 +33,8 @@ func Load() (*Config, error) {
 	v.SetDefault("defaults.release", "library")
 	v.SetDefault("defaults.asset_naming", "id")
 	v.SetDefault("defaults.cache_dir", defaultCacheDir())
+	v.SetDefault("sync.auto_sync", false)
+	v.SetDefault("sync.debounce_minutes", 5)
 
 	v.SetEnvPrefix("SHELFCTL")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

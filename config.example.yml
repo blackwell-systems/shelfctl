@@ -54,6 +54,15 @@ migration:
         "programming/": "programming"
         "history/": "history"
 
+# Sync configuration (optional)
+# sync.auto_sync: when true, automatically upload modified books when hub
+#   detects them (runs after the 20-second background scan, debounce applies)
+# sync.debounce_minutes: skip files modified within this many minutes to
+#   avoid uploading files still being written to (default: 5)
+sync:
+  auto_sync: false
+  debounce_minutes: 5
+
 # Serve configuration (future feature)
 serve:
   port: 8080

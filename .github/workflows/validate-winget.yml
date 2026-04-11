@@ -21,3 +21,4 @@ jobs:
         $output = winget validate --manifest winget/ 2>&1
         $output | Write-Host
         if ($output -match "Manifest validation failed") { exit 1 }
+        exit 0

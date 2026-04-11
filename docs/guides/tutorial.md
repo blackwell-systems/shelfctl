@@ -57,8 +57,36 @@ Add to shell profile to persist (`~/.bashrc` or `~/.zshrc`).
 
 ## Step 2: Install shelfctl
 
+Choose the method that fits your platform:
+
+**Homebrew (macOS/Linux):**
+
+```bash
+brew install blackwell-systems/tap/shelfctl
+```
+
+**Install script (Linux/macOS):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/blackwell-systems/shelfctl/main/install.sh | sh
+```
+
+Installs the latest release to `/usr/local/bin`. Override with `INSTALL_DIR=~/bin` or pin a version with `VERSION=v0.4.4`.
+
+**Go install:**
+
 ```bash
 go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@latest
+```
+
+**Download pre-built binary:**
+
+Download the appropriate binary for your platform from the [releases page](https://github.com/blackwell-systems/shelfctl/releases/latest), extract, and move to your PATH.
+
+**winget (Windows):**
+
+```powershell
+winget install blackwell-systems.shelfctl
 ```
 
 Verify installation:

@@ -1013,6 +1013,7 @@ waves:
             - B
             - C
             - E
+          context_source: prepared-brief
 quality_gates:
     level: standard
     gates:
@@ -1066,6 +1067,16 @@ completion_reports:
             - internal/tui/hub.go
         verification: PASS
         notes: Added LastAutoSyncAt *time.Time and LastAutoSyncCount int to HubContext. Also added 'time' to the import block. Build and vet clean.
+    D:
+        status: complete
+        branch: main
+        commit: 509d9e2
+        files_changed:
+            - CHANGELOG.md
+            - docs/guides/hub.md
+            - docs/reference/commands.md
+        verification: PASS
+        notes: All three docs updated. CHANGELOG [Unreleased] entry added. hub.md Auto-Sync section added after Sync Modified. commands.md sync config table added in new Configuration section at end of file (no existing defaults section found in commands.md; config reference lives in architecture.md). All grep verification gates pass. go build/vet/test all clean.
     E:
         status: complete
         branch: saw/auto-sync/wave2-agent-E

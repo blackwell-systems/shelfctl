@@ -31,3 +31,14 @@ jobs:
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  validate-winget:
+    name: Validate winget manifest
+    runs-on: windows-latest
+    needs: release
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Validate winget manifest
+      run: winget validate --manifest winget/

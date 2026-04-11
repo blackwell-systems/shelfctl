@@ -20,4 +20,4 @@ Installers:
       - RelativeFilePath: shelfctl.exe
         PortableCommandAlias: shelfctl
 ManifestType: installer
-ManifestVersion: 1.6.0
+ManifestVersion: 1.12.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-04-11
+
 ### Added
 - **Opt-in auto-sync:** When `sync.auto_sync: true` is set in config,
   the hub automatically uploads locally modified books to GitHub after
@@ -18,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`sync.debounce_minutes` config field** (int, default `5`): files
   modified within this many minutes are skipped to avoid uploading files
   still being written to.
+- **Install script:** `curl -fsSL https://raw.githubusercontent.com/blackwell-systems/shelfctl/main/install.sh | sh` — installs the latest release to `/usr/local/bin` with SHA256 verification. Supports `INSTALL_DIR` and `VERSION` overrides.
+- **winget support:** shelfctl is available via Windows Package Manager (`winget install BlackwellSystems.shelfctl`), pending initial PR acceptance.
 
 ## [0.4.4] - 2026-04-09
 

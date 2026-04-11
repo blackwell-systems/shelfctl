@@ -1049,6 +1049,15 @@ completion_reports:
             - TestSyncConfig_Fields
         verification: PASS
         notes: 'SyncConfig struct was pre-scaffolded in schema.go (Sync field already on Config). Added viper defaults, tests, and config.example.yml sync: section. All 3 postconditions confirmed (type SyncConfig struct x1, Sync SyncConfig x1 via grep, sync.auto_sync x1).'
+    B:
+        status: complete
+        branch: saw/auto-sync/wave2-agent-B
+        commit: dffdec9
+        files_changed:
+            - internal/unified/sync_all.go
+            - internal/unified/model.go
+        verification: PASS
+        notes: All postconditions met. NewSyncAllModelAuto(1), autoSyncDoneMsg(1), withinDebounce(1), pendingAutoSync(4 refs). autoMode transitions emit autoSyncDoneMsg at all three syncAllDone transition points (syncDetectedMsg, syncUploadDoneMsg, syncProgressMsg) rather than only in the tea.KeyMsg handler, ensuring headless runs complete correctly. All 16 test packages pass.
     C:
         status: complete
         branch: saw/auto-sync/wave1-agent-C
@@ -1057,6 +1066,14 @@ completion_reports:
             - internal/tui/hub.go
         verification: PASS
         notes: Added LastAutoSyncAt *time.Time and LastAutoSyncCount int to HubContext. Also added 'time' to the import block. Build and vet clean.
+    E:
+        status: complete
+        branch: saw/auto-sync/wave2-agent-E
+        commit: "6140798"
+        files_changed:
+            - internal/unified/hub.go
+        verification: PASS
+        notes: Added auto-sync status line to hub View(). Build and vet clean. Postconditions confirmed (grep counts 1 each). No new imports needed.
 pre_mortem:
     overall_risk: medium
     rows:

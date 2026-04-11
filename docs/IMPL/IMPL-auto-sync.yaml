@@ -882,6 +882,7 @@ waves:
             - internal/unified/hub.go
           dependencies:
             - C
+      base_commit: a5ee0b016d5aeaf2a1fab08ac89b2d765062265d
     - number: 3
       agents:
         - id: D
@@ -1136,5 +1137,4 @@ critic_report:
     reviewed_at: "2026-04-11T22:38:57Z"
     issue_count: 0
 state: REVIEWED
-original_branch: main
 injection_method: hook

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
@@ -67,6 +68,11 @@ type HubContext struct {
 	CacheDir      string
 	// App version, set once at startup from ldflags
 	Version string
+	// LastAutoSyncAt is the time of the most recent auto-sync run this session.
+	// Nil if auto-sync has not run this session.
+	LastAutoSyncAt *time.Time
+	// LastAutoSyncCount is the number of books synced in the last auto-sync run.
+	LastAutoSyncCount int
 }
 
 // menuSection groups related menu items under a title

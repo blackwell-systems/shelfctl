@@ -1,3 +1,4 @@
+completion_date: "2026-04-11"
 title: Opt-in Auto-Sync for Hub TUI
 feature_slug: auto-sync
 verdict: SUITABLE
@@ -1164,5 +1165,5 @@ critic_report:
     summary: 'All five agents verified against the codebase. Every modify-action file exists. All symbol anchors match exactly: SyncAllModel struct ends with ''activeCmd string'', syncAllDone KeyMsg case returns NavigateMsg{Target:"hub"}, modifiedStatusRefreshedMsg struct has count/books fields, HubContext ends with Version string, refreshModifiedStatusCmd body matches the replacement anchor, and the default: case in model.go Update matches the described pattern. model.go already imports os and time, so withinDebounce will compile without additional import changes; spinner and progress are not yet imported in model.go so the brief''s conditional add instruction is accurate. tui.ColorTealLight is exported and available for Agent E. syncEntry is package-private in the unified package so model.go can use it directly. All doc files exist for Agent D. No errors found.'
     reviewed_at: "2026-04-11T22:38:57Z"
     issue_count: 0
-state: REVIEWED
+state: COMPLETE
 injection_method: hook

@@ -11,3 +11,5 @@
   - IMPL doc: docs/IMPL/complete/IMPL-test-harness.yaml
 - **testing-posture**: completed 2026-03-22, 4 waves, 16 agents
   - IMPL doc: docs/IMPL/complete/IMPL-testing-posture.yaml
+- **auto-sync**: completed 2026-04-11, 3 waves, 5 agents
+  - IMPL doc: docs/IMPL/complete/IMPL-auto-sync.yaml

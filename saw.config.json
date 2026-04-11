@@ -1,0 +1,35 @@
+{
+  "agent": {
+    "scout_model": "claude-sonnet-4-6",
+    "wave_model": "claude-sonnet-4-6"
+  },
+  "appearance": {},
+  "autonomy": {
+    "level": ""
+  },
+  "build": {
+    "command": "GOWORK=off go build ./...",
+    "detected": true
+  },
+  "providers": {
+    "anthropic": {},
+    "bedrock": {},
+    "openai": {}
+  },
+  "quality": {
+    "code_review": {}
+  },
+  "repos": [
+    {
+      "name": "shelfctl",
+      "path": "/Users/dayna.blackwell/code/shelfctl"
+    }
+  ],
+  "lint": {
+    "command": "GOWORK=off go vet ./..."
+  },
+  "test": {
+    "command": "GOWORK=off go test ./...",
+    "detected": true
+  }
+}

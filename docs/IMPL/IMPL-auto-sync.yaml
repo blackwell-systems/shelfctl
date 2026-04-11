@@ -1034,6 +1034,28 @@ scaffolds:
         }
       import_path: github.com/blackwell-systems/shelfctl/internal/config
       status: committed (355dbb9)
+completion_reports:
+    A:
+        status: complete
+        branch: saw/auto-sync/wave1-agent-A
+        commit: 159e78e
+        files_changed:
+            - internal/config/config.go
+            - internal/config/schema_test.go
+            - config.example.yml
+        tests_added:
+            - TestSyncConfig_Defaults
+            - TestSyncConfig_Fields
+        verification: PASS
+        notes: 'SyncConfig struct was pre-scaffolded in schema.go (Sync field already on Config). Added viper defaults, tests, and config.example.yml sync: section. All 3 postconditions confirmed (type SyncConfig struct x1, Sync SyncConfig x1 via grep, sync.auto_sync x1).'
+    C:
+        status: complete
+        branch: saw/auto-sync/wave1-agent-C
+        commit: b2ea448
+        files_changed:
+            - internal/tui/hub.go
+        verification: PASS
+        notes: Added LastAutoSyncAt *time.Time and LastAutoSyncCount int to HubContext. Also added 'time' to the import block. Build and vet clean.
 pre_mortem:
     overall_risk: medium
     rows:
@@ -1114,4 +1136,5 @@ critic_report:
     reviewed_at: "2026-04-11T22:38:57Z"
     issue_count: 0
 state: REVIEWED
+original_branch: main
 injection_method: hook

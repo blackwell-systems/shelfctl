@@ -176,6 +176,14 @@ This keeps repos lightweight and enables per-file on-demand downloads.
 brew install blackwell-systems/tap/shelfctl
 ```
 
+**Install script (Linux/macOS):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/blackwell-systems/shelfctl/main/install.sh | sh
+```
+
+Installs the latest release to `/usr/local/bin`. Override with `INSTALL_DIR=~/bin` or pin a version with `VERSION=v0.4.4`.
+
 **Download pre-built binary:**
 
 Download the appropriate binary for your platform from the [releases page](https://github.com/blackwell-systems/shelfctl/releases/latest), extract the archive, and run:

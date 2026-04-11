@@ -1032,7 +1032,7 @@ scaffolds:
             DebounceMinutes int  `mapstructure:"debounce_minutes"`
         }
       import_path: github.com/blackwell-systems/shelfctl/internal/config
-      status: pending
+      status: committed (355dbb9)
 pre_mortem:
     overall_risk: medium
     rows:

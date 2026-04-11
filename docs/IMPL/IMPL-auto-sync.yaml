@@ -1,0 +1,1115 @@
+title: Opt-in Auto-Sync for Hub TUI
+feature_slug: auto-sync
+verdict: SUITABLE
+suitability_assessment: |
+    All five suitability checks pass cleanly.
+
+    1. File decomposition: 6 distinct files change across 3 logical domains
+       (config schema, TUI model orchestration, hub view rendering). Agent A
+       owns config (schema.go + schema_test.go + config.go + config.example.yml),
+       Agent C owns tui/hub.go (HubContext field addition), Agent B owns
+       model.go + sync_all.go (auto-sync logic), Agent E owns unified/hub.go
+       (status line rendering), Agent D owns docs. No file is shared between
+       agents in the same wave.
+
+    2. No investigation-first items: the trigger points (hubContextLoadedMsg,
+       modifiedRefreshTickMsg, modifiedStatusRefreshedMsg) are fully understood
+       from reading the codebase. No unknown root cause.
+
+    3. Interface contracts are fully discoverable: SyncConfig struct, debounce
+       helper signature, auto-sync trigger message, and HubContext.LastAutoSync
+       field are all definable before implementation starts.
+
+    4. Pre-implementation status check: feature does not yet exist anywhere in
+       the codebase. No SyncConfig, no auto_sync field, no autoSyncDoneMsg.
+       All items are TODO.
+
+    5. Parallelization value: Go build+test cycle is fast (~3s), but agents own
+       3-5 files each with non-trivial logic (debounce, phase state machine
+       extension, status bar rendering). Two genuinely independent agents (A, C)
+       can run in parallel in Wave 1, and two independent agents (B, E) run in
+       parallel in Wave 2, saving meaningful iteration time.
+
+    Estimated times:
+    - Scout phase: ~20 min
+    - Agent execution: Wave 1 ~12 min (2 parallel), Wave 2 ~15 min (2 parallel),
+      Wave 3 ~8 min (1 agent)
+    - Merge and verification: ~5 min
+    Total SAW time: ~60 min
+
+    Sequential baseline: ~70 min (5 agents x ~14 min avg)
+    Time savings: ~10 min. Coordination value also significant: the IMPL doc
+    defines the cross-agent interfaces (SyncConfig, LastAutoSync, autoSyncDoneMsg)
+    preventing duplicate type declarations.
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: internal/config/schema.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/config/schema_test.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/config/config.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: config.example.yml
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/tui/hub.go
+      agent: C
+      wave: 1
+      action: modify
+    - file: internal/unified/model.go
+      agent: B
+      wave: 2
+      action: modify
+      depends_on:
+        - A
+        - C
+    - file: internal/unified/sync_all.go
+      agent: B
+      wave: 2
+      action: modify
+      depends_on:
+        - A
+    - file: internal/unified/hub.go
+      agent: E
+      wave: 2
+      action: modify
+      depends_on:
+        - C
+    - file: CHANGELOG.md
+      agent: D
+      wave: 3
+      action: modify
+      depends_on:
+        - A
+        - B
+        - C
+        - E
+    - file: docs/guides/hub.md
+      agent: D
+      wave: 3
+      action: modify
+      depends_on:
+        - A
+        - B
+        - C
+        - E
+    - file: docs/reference/commands.md
+      agent: D
+      wave: 3
+      action: modify
+      depends_on:
+        - A
+        - B
+        - C
+        - E
+interface_contracts:
+    - name: SyncConfig
+      description: |
+        New top-level config struct for sync settings. Added as the Sync field
+        on Config. Viper defaults: auto_sync=false, debounce_minutes=5.
+      definition: |
+        // SyncConfig holds settings for automatic background sync.
+        type SyncConfig struct {
+            AutoSync        bool `mapstructure:"auto_sync"`
+            DebounceMinutes int  `mapstructure:"debounce_minutes"`
+        }
+
+        // In Config struct, add after Migration MigrationConfig field:
+        Sync SyncConfig `mapstructure:"sync"`
+      location: internal/config/schema.go
+    - name: HubContext.LastAutoSync
+      description: |
+        New fields on HubContext tracking when auto-sync last ran and how many
+        books were synced. Zero value (nil Time, 0 count) means "never ran".
+        Written by model.go (Agent B) and read by unified/hub.go (Agent E).
+      definition: |
+        // In HubContext struct (internal/tui/hub.go), add after Version string:
+        LastAutoSyncAt    *time.Time // nil if never ran this session
+        LastAutoSyncCount int        // number of books synced in last auto-sync run
+      location: internal/tui/hub.go
+    - name: autoSyncDoneMsg
+      description: |
+        Message emitted by the headless SyncAllModel when auto-sync completes.
+        Defined in model.go and consumed in the same file's Update switch.
+      definition: |
+        // autoSyncDoneMsg is emitted when a background auto-sync run finishes.
+        type autoSyncDoneMsg struct {
+            synced int
+            errors int
+        }
+      location: internal/unified/model.go
+    - name: NewSyncAllModelAuto
+      description: |
+        Constructor for SyncAllModel that skips the confirmation phase and
+        starts processing immediately using a pre-detected book list.
+      definition: |
+        func NewSyncAllModelAuto(gh *github.Client, cfg *config.Config,
+            cacheMgr *cache.Manager, books []syncEntry) SyncAllModel
+      location: internal/unified/sync_all.go
+    - name: withinDebounce
+      description: |
+        Package-private helper in model.go. Returns true if the file at path
+        was last modified within debounceMins minutes of now.
+      definition: |
+        func withinDebounce(path string, debounceMins int) bool
+      location: internal/unified/model.go
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |
+            ## Agent A — Config Schema: SyncConfig
+
+            ### What to implement
+
+            Add `SyncConfig` to the config package and wire it into the top-level
+            `Config` struct so that `sync.auto_sync` and `sync.debounce_minutes`
+            can be read from the YAML config.
+
+            ### Files to modify
+
+            - `internal/config/schema.go` — add `SyncConfig` struct and `Sync` field on `Config`
+            - `internal/config/config.go` — add viper defaults for the two new fields
+            - `internal/config/schema_test.go` — add tests for the new struct
+            - `config.example.yml` — document the new `sync:` section
+
+            ### Implementation details
+
+            **1. `internal/config/schema.go`**
+
+            Add the following struct after the `MigrationSource` struct definition
+            (before `ShelfByName`). The exact insertion anchor is:
+
+            ```go
+            // MigrationSource defines a source repository for migration.
+            type MigrationSource struct {
+            	Owner   string            `mapstructure:"owner"`
+            	Repo    string            `mapstructure:"repo"`
+            	Ref     string            `mapstructure:"ref"`
+            	Mapping map[string]string `mapstructure:"mapping"`
+            }
+            ```
+
+            Insert after that block:
+
+            ```go
+            // SyncConfig holds settings for automatic background sync.
+            type SyncConfig struct {
+            	AutoSync        bool `mapstructure:"auto_sync"`
+            	DebounceMinutes int  `mapstructure:"debounce_minutes"`
+            }
+            ```
+
+            Add the `Sync` field to `Config`. The current `Config` struct ends with:
+
+            ```go
+            	Migration MigrationConfig `mapstructure:"migration"`
+            }
+            ```
+
+            Replace that line with:
+
+            ```go
+            	Migration MigrationConfig `mapstructure:"migration"`
+            	Sync      SyncConfig      `mapstructure:"sync"`
+            }
+            ```
+
+            **2. `internal/config/config.go`**
+
+            In the `Load()` function, add two new viper defaults. Insert after this
+            exact text:
+
+            ```go
+            	v.SetDefault("defaults.asset_naming", "id")
+            	v.SetDefault("defaults.cache_dir", defaultCacheDir())
+            ```
+
+            Add:
+
+            ```go
+            	v.SetDefault("sync.auto_sync", false)
+            	v.SetDefault("sync.debounce_minutes", 5)
+            ```
+
+            **3. `internal/config/schema_test.go`**
+
+            Add these two tests at the end of the file:
+
+            ```go
+            func TestSyncConfig_Defaults(t *testing.T) {
+            	cfg := &config.Config{}
+            	if cfg.Sync.AutoSync != false {
+            		t.Error("SyncConfig.AutoSync default should be false")
+            	}
+            	if cfg.Sync.DebounceMinutes != 0 {
+            		t.Error("SyncConfig.DebounceMinutes zero value should be 0")
+            	}
+            }
+
+            func TestSyncConfig_Fields(t *testing.T) {
+            	cfg := &config.Config{
+            		Sync: config.SyncConfig{
+            			AutoSync:        true,
+            			DebounceMinutes: 10,
+            		},
+            	}
+            	if !cfg.Sync.AutoSync {
+            		t.Error("SyncConfig.AutoSync should be true")
+            	}
+            	if cfg.Sync.DebounceMinutes != 10 {
+            		t.Errorf("SyncConfig.DebounceMinutes = %d, want 10", cfg.Sync.DebounceMinutes)
+            	}
+            }
+            ```
+
+            **4. `config.example.yml`**
+
+            Insert a new `sync:` section between the `migration:` block and the
+            `# Serve configuration` comment. The exact insertion anchor is:
+
+            ```yaml
+            # Serve configuration (future feature)
+            serve:
+              port: 8080
+              host: "127.0.0.1"
+            ```
+
+            Insert before that block:
+
+            ```yaml
+            # Sync configuration (optional)
+            # sync.auto_sync: when true, automatically upload modified books when hub
+            #   detects them (runs after the 20-second background scan, debounce applies)
+            # sync.debounce_minutes: skip files modified within this many minutes to
+            #   avoid uploading files still being written to (default: 5)
+            sync:
+              auto_sync: false
+              debounce_minutes: 5
+
+            ```
+
+            ### Verification gate
+
+            ```
+            go build ./internal/config/...
+            go vet ./internal/config/...
+            go test ./internal/config/... -run TestSyncConfig
+            ```
+
+            Postconditions:
+            ```bash
+            grep -c "type SyncConfig struct" internal/config/schema.go
+            # expected: 1
+
+            grep -c "Sync SyncConfig" internal/config/schema.go
+            # expected: 1
+
+            grep -c "sync.auto_sync" internal/config/config.go
+            # expected: 1
+            ```
+
+            ### Constraints
+
+            - Do NOT modify any files outside your ownership list.
+            - Do NOT define `autoSyncDoneMsg` or `LastAutoSync` — those belong to
+              Agents B and C respectively.
+            - Use mapstructure tag `sync` on the `Sync` field; do not use a different tag.
+          files:
+            - internal/config/schema.go
+            - internal/config/schema_test.go
+            - internal/config/config.go
+            - config.example.yml
+        - id: C
+          task: |
+            ## Agent C — HubContext: LastAutoSync fields
+
+            ### What to implement
+
+            Add two fields to `tui.HubContext` that track the last auto-sync run.
+            These fields are written by Agent B (model.go) and read by Agent E
+            (unified/hub.go) to render the status line.
+
+            This is a pure struct extension — no behavioral logic here.
+
+            ### Files to modify
+
+            - `internal/tui/hub.go` — add `LastAutoSyncAt *time.Time` and
+              `LastAutoSyncCount int` fields to `HubContext`
+
+            ### Implementation details
+
+            **`internal/tui/hub.go`**
+
+            Add two fields to `HubContext`. The struct currently ends with:
+
+            ```go
+            	// App version, set once at startup from ldflags
+            	Version string
+            }
+            ```
+
+            Replace that closing section with:
+
+            ```go
+            	// App version, set once at startup from ldflags
+            	Version string
+            	// LastAutoSyncAt is the time of the most recent auto-sync run this session.
+            	// Nil if auto-sync has not run this session.
+            	LastAutoSyncAt *time.Time
+            	// LastAutoSyncCount is the number of books synced in the last auto-sync run.
+            	LastAutoSyncCount int
+            }
+            ```
+
+            Add `"time"` to the import block. The current imports begin with:
+
+            ```go
+            import (
+            	"fmt"
+            	"io"
+            	"strings"
+            ```
+
+            Add `"time"` to that import group.
+
+            ### Verification gate
+
+            ```
+            go build ./internal/tui/...
+            go vet ./internal/tui/...
+            ```
+
+            Postconditions:
+            ```bash
+            grep -c "LastAutoSyncAt" internal/tui/hub.go
+            # expected: 1
+
+            grep -c "LastAutoSyncCount" internal/tui/hub.go
+            # expected: 1
+            ```
+
+            ### Constraints
+
+            - Do NOT modify any files outside your ownership list.
+            - Do NOT implement any rendering logic — that is owned by Agent E in
+              `internal/unified/hub.go`.
+            - Do NOT add methods to HubContext — only struct fields.
+          files:
+            - internal/tui/hub.go
+    - number: 2
+      agents:
+        - id: B
+          task: |
+            ## Agent B — Auto-Sync Logic (model.go + sync_all.go)
+
+            ### What to implement
+
+            1. In `internal/unified/sync_all.go`: add `autoMode bool` field to
+               `SyncAllModel`, add `NewSyncAllModelAuto` constructor, and modify the
+               `syncAllDone` Update branch to emit `autoSyncDoneMsg` instead of
+               navigating when in auto mode.
+
+            2. In `internal/unified/model.go`: add `autoSyncDoneMsg` type, add
+               `withinDebounce` helper, extend `modifiedStatusRefreshedMsg` with
+               `pendingAutoSync`, rewrite `refreshModifiedStatusCmd` to collect
+               debounce-passing entries, update `modifiedStatusRefreshedMsg` handler
+               to trigger auto-sync, add `autoSyncDoneMsg` handler, update
+               `hubContextLoadedMsg` handler to trigger immediate auto-sync pass,
+               and add headless message forwarding.
+
+            This agent depends on Agent A's `config.SyncConfig` (field
+            `m.cfg.Sync.AutoSync` and `m.cfg.Sync.DebounceMinutes`) and Agent C's
+            `tui.HubContext.LastAutoSyncAt` / `LastAutoSyncCount` fields (used in
+            the `autoSyncDoneMsg` handler to write those fields).
+
+            ### Files to modify
+
+            - `internal/unified/sync_all.go`
+            - `internal/unified/model.go`
+
+            ---
+
+            ### 1. `internal/unified/sync_all.go`
+
+            **a. Add `autoMode` field to `SyncAllModel` struct**
+
+            Find:
+            ```go
+            	spinner       spinner.Model
+            	width, height int
+            	activeCmd     string
+            }
+            ```
+
+            Replace with:
+            ```go
+            	spinner       spinner.Model
+            	width, height int
+            	activeCmd     string
+            	autoMode      bool // true when launched via auto-sync (no confirmation, no nav)
+            }
+            ```
+
+            **b. Add `NewSyncAllModelAuto` after `NewSyncAllModel`**
+
+            Insert after the closing brace of `NewSyncAllModel`:
+
+            ```go
+            // NewSyncAllModelAuto creates a SyncAllModel that skips the confirmation
+            // phase and begins processing immediately with the pre-detected book list.
+            // Used by the auto-sync path in the hub orchestrator.
+            func NewSyncAllModelAuto(gh *github.Client, cfg *config.Config,
+            	cacheMgr *cache.Manager, books []syncEntry) SyncAllModel {
+            	m := NewSyncAllModel(gh, cfg, cacheMgr)
+            	m.books = books
+            	m.phase = syncAllProcessing
+            	m.current = 0
+            	m.autoMode = true
+            	return m
+            }
+            ```
+
+            **c. Modify `syncAllDone` case in `Update`**
+
+            Find this exact text:
+            ```go
+            	case syncAllDone:
+            		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
+            ```
+
+            Replace with:
+            ```go
+            	case syncAllDone:
+            		if m.autoMode {
+            			synced := m.synced
+            			errs := len(m.errors)
+            			m.autoMode = false // prevent re-trigger on next tick
+            			return m, func() tea.Msg {
+            				return autoSyncDoneMsg{synced: synced, errors: errs}
+            			}
+            		}
+            		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
+            ```
+
+            ---
+
+            ### 2. `internal/unified/model.go`
+
+            **a. Extend `modifiedStatusRefreshedMsg`**
+
+            Find:
+            ```go
+            // modifiedStatusRefreshedMsg carries updated modified-book counts from a local-only rescan.
+            type modifiedStatusRefreshedMsg struct {
+            	count int
+            	books []tui.ModifiedBook
+            }
+            ```
+
+            Replace with:
+            ```go
+            // modifiedStatusRefreshedMsg carries updated modified-book counts from a local-only rescan.
+            type modifiedStatusRefreshedMsg struct {
+            	count           int
+            	books           []tui.ModifiedBook
+            	pendingAutoSync []syncEntry // non-nil when auto-sync should be triggered
+            }
+
+            // autoSyncDoneMsg is emitted when a background auto-sync run finishes.
+            type autoSyncDoneMsg struct {
+            	synced int
+            	errors int
+            }
+            ```
+
+            **b. Add `withinDebounce` helper**
+
+            Insert after the closing brace of `hubModifiedRefreshTick`:
+
+            ```go
+            // withinDebounce returns true if the file at path was last modified within
+            // debounceMins minutes of now. Used to skip files still being written to.
+            // Returns false (do not skip) if debounceMins <= 0 or the file cannot be stat'd.
+            func withinDebounce(path string, debounceMins int) bool {
+            	if debounceMins <= 0 {
+            		return false
+            	}
+            	info, err := os.Stat(path)
+            	if err != nil {
+            		return false
+            	}
+            	return time.Since(info.ModTime()) < time.Duration(debounceMins)*time.Minute
+            }
+            ```
+
+            **c. Rewrite `refreshModifiedStatusCmd`**
+
+            Replace the entire `refreshModifiedStatusCmd` function. The current
+            function starts and ends with:
+
+            ```go
+            // refreshModifiedStatusCmd rescans local cache files against catalogCache checksums.
+            // No network calls — uses already-cached catalog data from the initial async load.
+            func (m Model) refreshModifiedStatusCmd() tea.Cmd {
+            	cacheMgr := m.cacheMgr
+            	cfg := m.cfg
+            	// Snapshot catalog cache to avoid data races with future writes.
+            	catalogs := make(map[string][]catalog.Book, len(m.catalogCache))
+            	for k, v := range m.catalogCache {
+            		catalogs[k] = v
+            	}
+            	return func() tea.Msg {
+            		var count int
+            		var books []tui.ModifiedBook
+            		for _, shelf := range cfg.Shelves {
+            			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+            			key := owner + "/" + shelf.Repo
+            			shelfBooks, ok := catalogs[key]
+            			if !ok {
+            				continue
+            			}
+            			for i := range shelfBooks {
+            				b := &shelfBooks[i]
+            				if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) &&
+            					cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+            					count++
+            					books = append(books, tui.ModifiedBook{ID: b.ID, Title: b.Title})
+            				}
+            			}
+            		}
+            		return modifiedStatusRefreshedMsg{count: count, books: books}
+            	}
+            }
+            ```
+
+            Replace the entire function with:
+
+            ```go
+            // refreshModifiedStatusCmd rescans local cache files against catalogCache checksums.
+            // No network calls — uses already-cached catalog data from the initial async load.
+            // When cfg.Sync.AutoSync is true, also collects debounce-passing entries for auto-sync.
+            func (m Model) refreshModifiedStatusCmd() tea.Cmd {
+            	cacheMgr := m.cacheMgr
+            	cfg := m.cfg
+            	autoSync := cfg.Sync.AutoSync
+            	debounceMins := cfg.Sync.DebounceMinutes
+            	catalogs := make(map[string][]catalog.Book, len(m.catalogCache))
+            	for k, v := range m.catalogCache {
+            		catalogs[k] = v
+            	}
+            	return func() tea.Msg {
+            		var count int
+            		var books []tui.ModifiedBook
+            		var pending []syncEntry
+            		for _, shelf := range cfg.Shelves {
+            			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+            			key := owner + "/" + shelf.Repo
+            			shelfBooks, ok := catalogs[key]
+            			if !ok {
+            				continue
+            			}
+            			releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
+            			catalogPath := shelf.EffectiveCatalogPath()
+            			shelfCopy := shelf
+            			for i := range shelfBooks {
+            				b := &shelfBooks[i]
+            				if !cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
+            					continue
+            				}
+            				if !cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+            					continue
+            				}
+            				count++
+            				books = append(books, tui.ModifiedBook{ID: b.ID, Title: b.Title})
+            				if autoSync {
+            					cachedPath := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
+            					if withinDebounce(cachedPath, debounceMins) {
+            						continue // too recent; wait for next scan
+            					}
+            					newSHA, size, err := syncComputeHash(cachedPath)
+            					if err != nil {
+            						continue
+            					}
+            					pending = append(pending, syncEntry{
+            						shelf:       shelfCopy,
+            						book:        *b,
+            						cachedPath:  cachedPath,
+            						size:        size,
+            						newSHA:      newSHA,
+            						releaseTag:  releaseTag,
+            						catalogPath: catalogPath,
+            						owner:       owner,
+            					})
+            				}
+            			}
+            		}
+            		return modifiedStatusRefreshedMsg{count: count, books: books, pendingAutoSync: pending}
+            	}
+            }
+            ```
+
+            **d. Update `modifiedStatusRefreshedMsg` handler in `Update`**
+
+            Find:
+            ```go
+            	case modifiedStatusRefreshedMsg:
+            		if m.currentView == ViewHub {
+            			m.hubContext.ModifiedCount = msg.count
+            			m.hubContext.ModifiedBooks = msg.books
+            			m.hub.UpdateContext(m.hubContext)
+            		}
+            		return m, nil
+            ```
+
+            Replace with:
+            ```go
+            	case modifiedStatusRefreshedMsg:
+            		if m.currentView == ViewHub {
+            			m.hubContext.ModifiedCount = msg.count
+            			m.hubContext.ModifiedBooks = msg.books
+            			m.hub.UpdateContext(m.hubContext)
+            			if len(msg.pendingAutoSync) > 0 && !m.syncAll.autoMode {
+            				m.syncAll = NewSyncAllModelAuto(m.gh, m.cfg, m.cacheMgr, msg.pendingAutoSync)
+            				return m, m.syncAll.Init()
+            			}
+            		}
+            		return m, nil
+
+            	case autoSyncDoneMsg:
+            		now := time.Now()
+            		m.hubContext.LastAutoSyncAt = &now
+            		m.hubContext.LastAutoSyncCount = msg.synced
+            		if m.currentView == ViewHub {
+            			m.hub.UpdateContext(m.hubContext)
+            		}
+            		// Re-scan: synced books should no longer appear as modified
+            		if len(m.catalogCache) > 0 {
+            			return m, m.refreshModifiedStatusCmd()
+            		}
+            		return m, nil
+            ```
+
+            **e. Update `hubContextLoadedMsg` handler**
+
+            Find:
+            ```go
+            	case hubContextLoadedMsg:
+            		m.hubContext = msg.ctx
+            		m.hub.UpdateContext(msg.ctx)
+            		// Seed catalog cache so browse/index navigation skips re-fetching
+            		for k, v := range msg.catalogs {
+            			m.catalogCache[k] = v
+            		}
+            		return m, nil
+            ```
+
+            Replace with:
+            ```go
+            	case hubContextLoadedMsg:
+            		m.hubContext = msg.ctx
+            		m.hub.UpdateContext(msg.ctx)
+            		// Seed catalog cache so browse/index navigation skips re-fetching
+            		for k, v := range msg.catalogs {
+            			m.catalogCache[k] = v
+            		}
+            		// Immediately check for auto-sync candidates if enabled
+            		if m.cfg.Sync.AutoSync && msg.ctx.ModifiedCount > 0 {
+            			return m, m.refreshModifiedStatusCmd()
+            		}
+            		return m, nil
+            ```
+
+            **f. Add headless message forwarding in `Update`**
+
+            The headless SyncAllModel (when autoMode=true) needs to receive upload
+            progress messages even when the current view is not ViewSyncAll.
+
+            Find:
+            ```go
+            	default:
+            		// Forward to current view
+            		return m.updateCurrentView(msg)
+            	}
+            ```
+
+            Replace with:
+            ```go
+            	default:
+            		// Forward upload/progress messages to headless auto-sync model when active
+            		if m.syncAll.autoMode {
+            			switch msg.(type) {
+            			case syncUploadReadyMsg, syncUploadTickMsg, syncUploadDoneMsg,
+            				syncProgressMsg, spinner.TickMsg, progress.FrameMsg:
+            				var cmd tea.Cmd
+            				m.syncAll, cmd = m.syncAll.Update(msg)
+            				return m, cmd
+            			}
+            		}
+            		// Forward to current view
+            		return m.updateCurrentView(msg)
+            	}
+            ```
+
+            Check the existing imports in model.go. If `"github.com/charmbracelet/bubbles/spinner"`
+            and `"github.com/charmbracelet/bubbles/progress"` are not already imported,
+            add them to the import block.
+
+            ### Verification gate
+
+            ```
+            go build ./internal/unified/...
+            go vet ./internal/unified/...
+            go test ./...
+            ```
+
+            Postconditions:
+            ```bash
+            grep -c "func NewSyncAllModelAuto" internal/unified/sync_all.go
+            # expected: 1
+
+            grep -c "type autoSyncDoneMsg struct" internal/unified/model.go
+            # expected: 1
+
+            grep -c "func withinDebounce" internal/unified/model.go
+            # expected: 1
+
+            grep -c "pendingAutoSync" internal/unified/model.go
+            # expected: at least 2 (field definition + usage)
+            ```
+
+            ### Constraints
+
+            - Do NOT define `SyncConfig` — owned by Agent A.
+            - Do NOT add fields to `tui.HubContext` — owned by Agent C. Access
+              `m.hubContext.LastAutoSyncAt` and `m.hubContext.LastAutoSyncCount`
+              as fields Agent C already added.
+            - Do NOT modify `internal/unified/hub.go` — owned by Agent E.
+            - Do NOT modify any files outside your ownership list.
+            - Do NOT switch `m.currentView` to `ViewSyncAll` for auto-sync runs;
+              the model runs headlessly.
+          files:
+            - internal/unified/model.go
+            - internal/unified/sync_all.go
+          dependencies:
+            - A
+            - C
+        - id: E
+          task: |
+            ## Agent E — Hub Status Line Rendering
+
+            ### What to implement
+
+            Add a "↑ Auto-synced N book(s)" status line to the hub view that appears
+            after a successful auto-sync run. The line is shown when
+            `m.context.LastAutoSyncAt` is non-nil (set by Agent B's model.go).
+
+            ### Files to modify
+
+            - `internal/unified/hub.go`
+
+            ### Implementation details
+
+            **`internal/unified/hub.go` — `HubModel.View()`**
+
+            In `View()`, add the auto-sync status line between the existing `statusBar`
+            block and `parts = append(parts, m.list.View())`.
+
+            Find this exact text:
+            ```go
+            	// Combine header, status, and list
+            	parts := []string{header}
+            	if statusBar != "" {
+            		parts = append(parts, statusBar)
+            	}
+            	parts = append(parts, m.list.View())
+            ```
+
+            Replace with:
+            ```go
+            	// Combine header, status, and list
+            	parts := []string{header}
+            	if statusBar != "" {
+            		parts = append(parts, statusBar)
+            	}
+            	if m.context.LastAutoSyncAt != nil {
+            		autoLine := lipgloss.NewStyle().Foreground(tui.ColorTealLight).
+            			Render(fmt.Sprintf("  ↑ Auto-synced %d book(s)", m.context.LastAutoSyncCount))
+            		parts = append(parts, autoLine)
+            	}
+            	parts = append(parts, m.list.View())
+            ```
+
+            No new imports are needed: `fmt`, `lipgloss`, and `tui` are all already
+            imported in `internal/unified/hub.go`.
+
+            `m.context.LastAutoSyncAt` is the `*time.Time` field added by Agent C
+            to `tui.HubContext`. `m.context.LastAutoSyncCount` is the `int` field
+            also added by Agent C.
+
+            ### Verification gate
+
+            ```
+            go build ./internal/unified/...
+            go vet ./internal/unified/...
+            ```
+
+            Postconditions:
+            ```bash
+            grep -c "Auto-synced" internal/unified/hub.go
+            # expected: 1
+
+            grep -c "LastAutoSyncAt" internal/unified/hub.go
+            # expected: 1
+            ```
+
+            ### Constraints
+
+            - Do NOT modify any files outside your ownership list.
+            - Do NOT implement any auto-sync triggering logic — that is owned by
+              Agent B in `internal/unified/model.go`.
+            - Do NOT add fields to `HubModel` — only modify the View() render path.
+          files:
+            - internal/unified/hub.go
+          dependencies:
+            - C
+    - number: 3
+      agents:
+        - id: D
+          task: |
+            ## Agent D — Documentation Updates
+
+            ### What to implement
+
+            Update documentation to reflect the new `sync.auto_sync` and
+            `sync.debounce_minutes` config fields and the hub auto-sync behavior.
+
+            ### Files to modify
+
+            - `CHANGELOG.md` — add entry to `[Unreleased]` section
+            - `docs/guides/hub.md` — document auto-sync behavior and how to enable
+            - `docs/reference/commands.md` — document new config fields
+
+            ### Implementation details
+
+            **1. `CHANGELOG.md`**
+
+            Find this exact text:
+            ```
+            ## [Unreleased]
+            ```
+
+            Insert directly after that line:
+
+            ```markdown
+
+            ### Added
+            - **Opt-in auto-sync:** When `sync.auto_sync: true` is set in config,
+              the hub automatically uploads locally modified books to GitHub after
+              they pass a debounce window (default 5 minutes). No confirmation
+              prompt is shown. A status line "↑ Auto-synced N book(s)" appears in
+              the hub after a successful run.
+            - **`sync.auto_sync` config field** (bool, default `false`): enables
+              background auto-sync from the hub view.
+            - **`sync.debounce_minutes` config field** (int, default `5`): files
+              modified within this many minutes are skipped to avoid uploading files
+              still being written to.
+            ```
+
+            **2. `docs/guides/hub.md`**
+
+            Find the existing "Sync Modified" section (search for `sync-modified`
+            or `Sync Modified` in the file). Add a new "### Auto-Sync" subsection
+            after the Sync Modified description block. Insert after the relevant
+            section:
+
+            ```markdown
+            ### Auto-Sync (opt-in)
+
+            When `sync.auto_sync: true` is set in your config, the hub will
+            automatically upload modified books in the background without a
+            confirmation prompt.
+
+            **How it works:**
+            - After the hub loads (and on each 20-second background scan), shelfctl
+              checks for locally modified cached books.
+            - Any book whose cache file was modified more than `sync.debounce_minutes`
+              minutes ago (default: 5) is queued for upload.
+            - Files modified within the debounce window are skipped and reconsidered
+              on the next scan.
+            - After syncing, the hub shows: `↑ Auto-synced N book(s)`
+
+            **Enable auto-sync in your config:**
+            ```yaml
+            sync:
+              auto_sync: true
+              debounce_minutes: 5  # optional, default is 5
+            ```
+
+            **When to use it:** Best for workflows where you frequently annotate
+            PDFs and want changes pushed automatically.
+
+            **When NOT to use it:** Leave `auto_sync: false` (the default) if you
+            want explicit control over when files are uploaded.
+            ```
+
+            **3. `docs/reference/commands.md`**
+
+            Find the config reference section for `defaults`. After the defaults
+            section, add a `sync` subsection. Search the file for `cache_dir` or
+            `asset_naming` to locate where the defaults config block ends, then
+            insert after it:
+
+            ```markdown
+            #### `sync`
+
+            | Field | Type | Default | Description |
+            |-------|------|---------|-------------|
+            | `sync.auto_sync` | bool | `false` | When `true`, automatically upload modified books from the hub without confirmation. |
+            | `sync.debounce_minutes` | int | `5` | Skip files modified within this many minutes (avoids uploading files still being written). |
+
+            **Example:**
+            ```yaml
+            sync:
+              auto_sync: true
+              debounce_minutes: 10
+            ```
+            ```
+
+            ### Verification gate
+
+            ```bash
+            grep -c "auto_sync" CHANGELOG.md
+            grep -c "auto_sync" docs/guides/hub.md
+            grep -c "auto_sync" docs/reference/commands.md
+            grep -c "debounce_minutes" docs/reference/commands.md
+            ```
+
+            All four commands should output at least 1.
+
+            ### Constraints
+
+            - Do NOT modify any Go source files.
+            - Do NOT invent behavior not described in the feature spec. Document
+              only what was implemented by Agents A, B, C, and E.
+            - Keep the CHANGELOG entry in `[Unreleased]`; do not create a new
+              version heading.
+          files:
+            - CHANGELOG.md
+            - docs/guides/hub.md
+            - docs/reference/commands.md
+          dependencies:
+            - A
+            - B
+            - C
+            - E
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: go build ./...
+          required: true
+        - type: lint
+          command: go vet ./...
+          required: true
+        - type: test
+          command: go test ./...
+          required: true
+scaffolds:
+    - file_path: internal/config/schema.go
+      contents: |
+        // SyncConfig holds settings for automatic background sync.
+        type SyncConfig struct {
+            AutoSync        bool `mapstructure:"auto_sync"`
+            DebounceMinutes int  `mapstructure:"debounce_minutes"`
+        }
+      import_path: github.com/blackwell-systems/shelfctl/internal/config
+      status: pending
+pre_mortem:
+    overall_risk: medium
+    rows:
+        - scenario: |
+            Agent E modifies internal/unified/hub.go while Agent B also modifies it
+            through a misread of the ownership table.
+          likelihood: low
+          impact: high
+          mitigation: |
+            File ownership is explicitly disjoint: Agent B owns model.go and
+            sync_all.go; Agent E owns hub.go. Both agent prompts contain explicit
+            "Do NOT modify" constraints listing each other's files.
+        - scenario: |
+            Agent B's headless forwarding block is incomplete — spinner.TickMsg or
+            progress.FrameMsg is missing from the type switch, causing the headless
+            upload to stall mid-file.
+          likelihood: medium
+          impact: medium
+          mitigation: |
+            The agent prompt explicitly lists all six message types to forward.
+            The postcondition check verifies structure; a manual test with a real
+            modified book will expose stalls. The autoMode guard also prevents
+            re-triggering on a stalled run.
+        - scenario: |
+            After autoSyncDoneMsg fires and refreshModifiedStatusCmd is called,
+            the just-synced books still show as modified (catalog SHA not yet
+            updated in catalogCache), causing an immediate second auto-sync run.
+          likelihood: medium
+          impact: medium
+          mitigation: |
+            The catalogCache is only updated from loadHubContextAsync (network
+            fetch). After auto-sync the catalog SHA on GitHub is updated, but
+            catalogCache still holds the old SHA. The synced book will temporarily
+            remain "modified" locally until the next full hub load. This is
+            acceptable — the next modifiedRefreshTickMsg will fire within 20 seconds
+            and find the catalog has caught up if the hub re-loads; or the user will
+            see "↑ Auto-synced N book(s)" acknowledging completion. A guard
+            `!m.syncAll.autoMode` in the pendingAutoSync trigger prevents a tight
+            re-sync loop within the same scan cycle.
+        - scenario: |
+            Agent C adds *time.Time field to HubContext but forgets the "time" import,
+            causing a compile failure in internal/tui.
+          likelihood: medium
+          impact: low
+          mitigation: |
+            Agent C's prompt explicitly shows the current import block and instructs
+            adding "time". Verification gate runs go build ./internal/tui/...
+            immediately, surfacing this before merge.
+        - scenario: |
+            syncComputeHash is called inside refreshModifiedStatusCmd (model.go)
+            but syncComputeHash is defined in sync_all.go. If these were in different
+            packages this would fail, but both are in package unified so the call
+            is valid.
+          likelihood: low
+          impact: low
+          mitigation: |
+            Both files are in package unified. Go resolves cross-file calls within
+            a package at compile time. Agent B prompt notes this explicitly.
+critic_report:
+    verdict: PASS
+    agent_reviews:
+        A:
+            agent_id: A
+            verdict: PASS
+        B:
+            agent_id: B
+            verdict: PASS
+        C:
+            agent_id: C
+            verdict: PASS
+        D:
+            agent_id: D
+            verdict: PASS
+        E:
+            agent_id: E
+            verdict: PASS
+    summary: 'All five agents verified against the codebase. Every modify-action file exists. All symbol anchors match exactly: SyncAllModel struct ends with ''activeCmd string'', syncAllDone KeyMsg case returns NavigateMsg{Target:"hub"}, modifiedStatusRefreshedMsg struct has count/books fields, HubContext ends with Version string, refreshModifiedStatusCmd body matches the replacement anchor, and the default: case in model.go Update matches the described pattern. model.go already imports os and time, so withinDebounce will compile without additional import changes; spinner and progress are not yet imported in model.go so the brief''s conditional add instruction is accurate. tui.ColorTealLight is exported and available for Agent E. syncEntry is package-private in the unified package so model.go can use it directly. All doc files exist for Agent D. No errors found.'
+    reviewed_at: "2026-04-11T22:38:57Z"
+    issue_count: 0
+state: SCOUT_PENDING

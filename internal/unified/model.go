@@ -14,6 +14,8 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -154,6 +156,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for k, v := range msg.catalogs {
 			m.catalogCache[k] = v
 		}
+		// Immediately check for auto-sync candidates if enabled
+		if m.cfg.Sync.AutoSync && msg.ctx.ModifiedCount > 0 {
+			return m, m.refreshModifiedStatusCmd()
+		}
 		return m, nil
 
 	case modifiedRefreshTickMsg:
@@ -168,6 +174,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.hubContext.ModifiedCount = msg.count
 			m.hubContext.ModifiedBooks = msg.books
 			m.hub.UpdateContext(m.hubContext)
+			if len(msg.pendingAutoSync) > 0 && !m.syncAll.autoMode {
+				m.syncAll = NewSyncAllModelAuto(m.gh, m.cfg, m.cacheMgr, msg.pendingAutoSync)
+				return m, m.syncAll.Init()
+			}
+		}
+		return m, nil
+
+	case autoSyncDoneMsg:
+		now := time.Now()
+		m.hubContext.LastAutoSyncAt = &now
+		m.hubContext.LastAutoSyncCount = msg.synced
+		if m.currentView == ViewHub {
+			m.hub.UpdateContext(m.hubContext)
+		}
+		// Re-scan: synced books should no longer appear as modified
+		if len(m.catalogCache) > 0 {
+			return m, m.refreshModifiedStatusCmd()
 		}
 		return m, nil
 
@@ -201,6 +224,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	default:
+		// Forward upload/progress messages to headless auto-sync model when active
+		if m.syncAll.autoMode {
+			switch msg.(type) {
+			case syncUploadReadyMsg, syncUploadTickMsg, syncUploadDoneMsg,
+				syncProgressMsg, spinner.TickMsg, progress.FrameMsg:
+				var cmd tea.Cmd
+				m.syncAll, cmd = m.syncAll.Update(msg)
+				return m, cmd
+			}
+		}
 		// Forward to current view
 		return m.updateCurrentView(msg)
 	}
@@ -894,8 +927,15 @@ type modifiedRefreshTickMsg time.Time
 
 // modifiedStatusRefreshedMsg carries updated modified-book counts from a local-only rescan.
 type modifiedStatusRefreshedMsg struct {
-	count int
-	books []tui.ModifiedBook
+	count           int
+	books           []tui.ModifiedBook
+	pendingAutoSync []syncEntry // non-nil when auto-sync should be triggered
+}
+
+// autoSyncDoneMsg is emitted when a background auto-sync run finishes.
+type autoSyncDoneMsg struct {
+	synced int
+	errors int
 }
 
 // hubModifiedRefreshTick schedules the next periodic modified-status scan.
@@ -905,12 +945,28 @@ func hubModifiedRefreshTick() tea.Cmd {
 	})
 }
 
+// withinDebounce returns true if the file at path was last modified within
+// debounceMins minutes of now. Used to skip files still being written to.
+// Returns false (do not skip) if debounceMins <= 0 or the file cannot be stat'd.
+func withinDebounce(path string, debounceMins int) bool {
+	if debounceMins <= 0 {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return time.Since(info.ModTime()) < time.Duration(debounceMins)*time.Minute
+}
+
 // refreshModifiedStatusCmd rescans local cache files against catalogCache checksums.
 // No network calls — uses already-cached catalog data from the initial async load.
+// When cfg.Sync.AutoSync is true, also collects debounce-passing entries for auto-sync.
 func (m Model) refreshModifiedStatusCmd() tea.Cmd {
 	cacheMgr := m.cacheMgr
 	cfg := m.cfg
-	// Snapshot catalog cache to avoid data races with future writes.
+	autoSync := cfg.Sync.AutoSync
+	debounceMins := cfg.Sync.DebounceMinutes
 	catalogs := make(map[string][]catalog.Book, len(m.catalogCache))
 	for k, v := range m.catalogCache {
 		catalogs[k] = v
@@ -918,6 +974,7 @@ func (m Model) refreshModifiedStatusCmd() tea.Cmd {
 	return func() tea.Msg {
 		var count int
 		var books []tui.ModifiedBook
+		var pending []syncEntry
 		for _, shelf := range cfg.Shelves {
 			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
 			key := owner + "/" + shelf.Repo
@@ -925,16 +982,42 @@ func (m Model) refreshModifiedStatusCmd() tea.Cmd {
 			if !ok {
 				continue
 			}
+			releaseTag := shelf.EffectiveRelease(cfg.Defaults.Release)
+			catalogPath := shelf.EffectiveCatalogPath()
+			shelfCopy := shelf
 			for i := range shelfBooks {
 				b := &shelfBooks[i]
-				if cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) &&
-					cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
-					count++
-					books = append(books, tui.ModifiedBook{ID: b.ID, Title: b.Title})
+				if !cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset) {
+					continue
+				}
+				if !cacheMgr.HasBeenModified(owner, shelf.Repo, b.ID, b.Source.Asset, b.Checksum.SHA256) {
+					continue
+				}
+				count++
+				books = append(books, tui.ModifiedBook{ID: b.ID, Title: b.Title})
+				if autoSync {
+					cachedPath := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
+					if withinDebounce(cachedPath, debounceMins) {
+						continue // too recent; wait for next scan
+					}
+					newSHA, size, err := syncComputeHash(cachedPath)
+					if err != nil {
+						continue
+					}
+					pending = append(pending, syncEntry{
+						shelf:       shelfCopy,
+						book:        *b,
+						cachedPath:  cachedPath,
+						size:        size,
+						newSHA:      newSHA,
+						releaseTag:  releaseTag,
+						catalogPath: catalogPath,
+						owner:       owner,
+					})
 				}
 			}
 		}
-		return modifiedStatusRefreshedMsg{count: count, books: books}
+		return modifiedStatusRefreshedMsg{count: count, books: books, pendingAutoSync: pending}
 	}
 }
 

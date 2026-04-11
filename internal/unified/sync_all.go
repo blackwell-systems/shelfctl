@@ -98,6 +98,7 @@ type SyncAllModel struct {
 	spinner       spinner.Model
 	width, height int
 	activeCmd     string
+	autoMode      bool // true when launched via auto-sync (no confirmation, no nav)
 }
 
 // NewSyncAllModel creates a new sync-all view
@@ -117,6 +118,19 @@ func NewSyncAllModel(gh *github.Client, cfg *config.Config, cacheMgr *cache.Mana
 		spinner:        s,
 		uploadProgress: prog,
 	}
+}
+
+// NewSyncAllModelAuto creates a SyncAllModel that skips the confirmation
+// phase and begins processing immediately with the pre-detected book list.
+// Used by the auto-sync path in the hub orchestrator.
+func NewSyncAllModelAuto(gh *github.Client, cfg *config.Config,
+	cacheMgr *cache.Manager, books []syncEntry) SyncAllModel {
+	m := NewSyncAllModel(gh, cfg, cacheMgr)
+	m.books = books
+	m.phase = syncAllProcessing
+	m.current = 0
+	m.autoMode = true
+	return m
 }
 
 func (m SyncAllModel) Init() tea.Cmd {
@@ -158,12 +172,25 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 				return m, func() tea.Msg { return QuitAppMsg{} }
 			}
 		case syncAllDone:
+			if m.autoMode {
+				synced := m.synced
+				errs := len(m.errors)
+				m.autoMode = false // prevent re-trigger on next tick
+				return m, func() tea.Msg {
+					return autoSyncDoneMsg{synced: synced, errors: errs}
+				}
+			}
 			return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 		}
 
 	case syncDetectedMsg:
 		if len(msg.books) == 0 {
 			m.phase = syncAllDone
+			if m.autoMode {
+				m.autoMode = false
+				synced, errs := m.synced, len(m.errors)
+				return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs} }
+			}
 			return m, nil
 		}
 		m.books = msg.books
@@ -186,6 +213,11 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 			m.current++
 			if m.current >= len(m.books) {
 				m.phase = syncAllDone
+				if m.autoMode {
+					m.autoMode = false
+					synced, errs := m.synced, len(m.errors)
+					return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs} }
+				}
 				return m, nil
 			}
 			return m, m.syncBookSetupCmd(m.current)
@@ -203,6 +235,11 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 		m.uploadTotal = 0
 		if m.current >= len(m.books) {
 			m.phase = syncAllDone
+			if m.autoMode {
+				m.autoMode = false
+				synced, errs := m.synced, len(m.errors)
+				return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs} }
+			}
 			return m, nil
 		}
 		return m, m.syncBookSetupCmd(m.current)

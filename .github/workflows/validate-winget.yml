@@ -16,4 +16,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Validate winget manifest
-      run: winget validate --manifest winget/
+      shell: pwsh
+      run: |
+        $output = winget validate --manifest winget/ 2>&1
+        $output | Write-Host
+        if ($output -match "Manifest validation failed") { exit 1 }

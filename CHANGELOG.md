@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Opt-in auto-sync:** When `sync.auto_sync: true` is set in config,
+  the hub automatically uploads locally modified books to GitHub after
+  they pass a debounce window (default 5 minutes). No confirmation
+  prompt is shown. A status line "↑ Auto-synced N book(s)" appears in
+  the hub after a successful run.
+- **`sync.auto_sync` config field** (bool, default `false`): enables
+  background auto-sync from the hub view.
+- **`sync.debounce_minutes` config field** (int, default `5`): files
+  modified within this many minutes are skipped to avoid uploading files
+  still being written to.
+
 ## [0.4.4] - 2026-04-09
 
 ### Improved

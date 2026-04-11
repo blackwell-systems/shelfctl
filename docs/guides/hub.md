@@ -136,6 +136,34 @@ The hub provides access to all core operations and loops continuously until you 
 - Displays live ✓/✗ status per book during processing
 - Returns to hub with a summary on completion
 
+### Auto-Sync (opt-in)
+
+When `sync.auto_sync: true` is set in your config, the hub will
+automatically upload modified books in the background without a
+confirmation prompt.
+
+**How it works:**
+- After the hub loads (and on each 20-second background scan), shelfctl
+  checks for locally modified cached books.
+- Any book whose cache file was modified more than `sync.debounce_minutes`
+  minutes ago (default: 5) is queued for upload.
+- Files modified within the debounce window are skipped and reconsidered
+  on the next scan.
+- After syncing, the hub shows: `↑ Auto-synced N book(s)`
+
+**Enable auto-sync in your config:**
+```yaml
+sync:
+  auto_sync: true
+  debounce_minutes: 5  # optional, default is 5
+```
+
+**When to use it:** Best for workflows where you frequently annotate
+PDFs and want changes pushed automatically.
+
+**When NOT to use it:** Leave `auto_sync: false` (the default) if you
+want explicit control over when files are uploaded.
+
 **Quit**
 - Exit shelfctl cleanly
 

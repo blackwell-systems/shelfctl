@@ -1357,3 +1357,27 @@ shelfctl completion bash
 # Generate zsh completion script
 shelfctl completion zsh > _shelfctl
 ```
+
+---
+
+## Configuration
+
+### Config file location
+
+Default: `~/.config/shelfctl/config.yml`
+
+Override with `--config <path>`.
+
+#### `sync`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `sync.auto_sync` | bool | `false` | When `true`, automatically upload modified books from the hub without confirmation. |
+| `sync.debounce_minutes` | int | `5` | Skip files modified within this many minutes (avoids uploading files still being written). |
+
+**Example:**
+```yaml
+sync:
+  auto_sync: true
+  debounce_minutes: 10
+```

@@ -112,3 +112,28 @@ func TestShelfByName_ReturnsPointer(t *testing.T) {
 		t.Error("ShelfByName should return a pointer to the original slice element")
 	}
 }
+
+func TestSyncConfig_Defaults(t *testing.T) {
+	cfg := &config.Config{}
+	if cfg.Sync.AutoSync != false {
+		t.Error("SyncConfig.AutoSync default should be false")
+	}
+	if cfg.Sync.DebounceMinutes != 0 {
+		t.Error("SyncConfig.DebounceMinutes zero value should be 0")
+	}
+}
+
+func TestSyncConfig_Fields(t *testing.T) {
+	cfg := &config.Config{
+		Sync: config.SyncConfig{
+			AutoSync:        true,
+			DebounceMinutes: 10,
+		},
+	}
+	if !cfg.Sync.AutoSync {
+		t.Error("SyncConfig.AutoSync should be true")
+	}
+	if cfg.Sync.DebounceMinutes != 10 {
+		t.Errorf("SyncConfig.DebounceMinutes = %d, want 10", cfg.Sync.DebounceMinutes)
+	}
+}

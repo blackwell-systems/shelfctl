@@ -88,7 +88,7 @@ using the `SCOOP_BUCKET_TOKEN` secret.
 ---
 
 ### Windows Package Manager (winget)
-**Status:** Submission in progress — v0.4.4 manifests prepared
+**Status:** Active — automated via `winget-releaser` GitHub Action on every release
 
 Manifests live in [`winget/`](../winget/). Once accepted, users install via:
 ```bash
@@ -135,11 +135,10 @@ Each release currently involves:
 2. GoReleaser automatically pushes updated formula to `homebrew-tap`
 3. GoReleaser automatically pushes updated manifest to `scoop-bucket`
 4. `validate-winget` CI job validates `winget/` manifests on Windows runner
-5. **Manual:** winget PR submitted to `microsoft/winget-pkgs` (until automated)
+5. `winget-releaser` action automatically submits PR to `microsoft/winget-pkgs`
 6. Binary rebuilt locally with `make install` to stamp the new version
 
-When winget automation is in place, step 5 becomes automatic,
-reducing the release process to tag + push.
+The release process is now fully automated — tag + push is all that's needed.
 
 ---
 
@@ -149,6 +148,6 @@ reducing the release process to tag + push.
 |---------|----------|---------|
 | Homebrew formula | `github.com/blackwell-systems/homebrew-tap/Formula/shelfctl.rb` | Automated |
 | Scoop manifest | `github.com/blackwell-systems/scoop-bucket/bucket/shelfctl.json` | Automated |
-| winget manifests | `winget/` in this repo | Manual PR per release |
+| winget manifests | `winget/` in this repo | Automated via winget-releaser |
 | Install script | `install.sh` in this repo | Rarely (URL convention stable) |
 | GoReleaser config | `.goreleaser.yml` | Rarely |

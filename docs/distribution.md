@@ -7,7 +7,7 @@ This document covers all active and planned distribution channels for shelfctl.
 ## Active Channels
 
 ### Homebrew Tap (macOS/Linux)
-**Status:** Active — manual update required after each release
+**Status:** Active — automated via GoReleaser on every release
 
 Users install via:
 ```bash
@@ -15,14 +15,38 @@ brew install blackwell-systems/tap/shelfctl
 ```
 
 Formula lives in [blackwell-systems/homebrew-tap](https://github.com/blackwell-systems/homebrew-tap).
-Currently updated manually by copying new version, URLs, and SHA256 hashes after each GitHub release.
+GoReleaser automatically pushes an updated `Formula/shelfctl.rb` on every tag push
+using the `HOMEBREW_TAP_TOKEN` secret (classic PAT with `repo` scope).
 
-**Known gap:** The GoReleaser `brews:` config is disabled due to requiring a cross-repo PAT.
-Automating this is the highest-priority distribution improvement — it eliminates a manual step
-on every release.
+---
 
-**Automation path:** Create a `HOMEBREW_TAP_TOKEN` secret with `repo` scope on `homebrew-tap`,
-then uncomment the `brews:` block in `.goreleaser.yml`.
+### Scoop Bucket (Windows)
+**Status:** Active — automated via GoReleaser on every release
+
+```powershell
+scoop bucket add blackwell-systems https://github.com/blackwell-systems/scoop-bucket
+scoop install shelfctl
+```
+
+Bucket lives at [blackwell-systems/scoop-bucket](https://github.com/blackwell-systems/scoop-bucket).
+GoReleaser automatically pushes an updated `bucket/shelfctl.json` manifest on every tag push
+using the same `HOMEBREW_TAP_TOKEN` secret.
+
+---
+
+### Windows Package Manager (winget)
+**Status:** Active — automated via `winget-releaser` GitHub Action on every release
+
+```powershell
+winget install BlackwellSystems.shelfctl
+```
+
+Package identifier: `BlackwellSystems.shelfctl`. Manifest schema: 1.12.0.
+
+On every release, the `winget-releaser` action automatically generates manifests from
+the published release assets and submits a PR to `microsoft/winget-pkgs` using the
+`HOMEBREW_TAP_TOKEN` secret. Local manifests in [`winget/`](../winget/) are validated
+on every push via the `validate-winget` CI job.
 
 ---
 
@@ -35,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/blackwell-systems/shelfctl/main/ins
 
 Installs the latest release to `/usr/local/bin`. Supports overrides:
 - `INSTALL_DIR=~/bin` — custom install location
-- `VERSION=v0.4.4` — pin a specific version
+- `VERSION=v0.4.5` — pin a specific version
 
 Script at [`install.sh`](../install.sh). Features:
 - OS and architecture auto-detection (Darwin/Linux × amd64/arm64)
@@ -73,48 +97,7 @@ SHA256 checksums published as `checksums.txt` alongside binaries.
 
 ---
 
-### Scoop Bucket (Windows)
-**Status:** Active — automated via GoReleaser on every release
-
-```powershell
-scoop bucket add blackwell-systems https://github.com/blackwell-systems/scoop-bucket
-scoop install shelfctl
-```
-
-Bucket lives at [blackwell-systems/scoop-bucket](https://github.com/blackwell-systems/scoop-bucket).
-GoReleaser automatically pushes an updated `bucket/shelfctl.json` manifest on every tag push
-using the `SCOOP_BUCKET_TOKEN` secret.
-
----
-
-### Windows Package Manager (winget)
-**Status:** Active — automated via `winget-releaser` GitHub Action on every release
-
-Manifests live in [`winget/`](../winget/). Once accepted, users install via:
-```bash
-winget install BlackwellSystems.shelfctl
-```
-
-Package identifier: `BlackwellSystems.shelfctl`
-
-Manifest schema: 1.12.0. Validated on every release via `validate-winget` CI job
-(`.github/workflows/release.yml`) running `winget validate` on a `windows-latest` runner.
-
-**Future:** Automate PR submission using the `winget-releaser` GitHub Action with a
-`WINGET_TOKEN` PAT (same PAT setup as Homebrew automation).
-
----
-
 ## Proposed Channels
-
-### Homebrew Automation (highest priority)
-Eliminate the manual formula update on every release. Requires a one-time PAT setup.
-See "Known gap" under Homebrew Tap above.
-
-### winget Automation
-After initial manual submission is accepted, automate future updates using
-[`vedantmgoyal9/winget-releaser`](https://github.com/vedantmgoyal9/winget-releaser)
-in the release workflow. Requires a `WINGET_TOKEN` PAT with `public_repo` scope.
 
 ### AUR (Arch Linux)
 A community-maintained AUR package would serve Arch Linux users. Low effort to create
@@ -125,20 +108,24 @@ maintenance. Low priority until Arch user demand is confirmed.
 A `flake.nix` would make shelfctl installable via `nix profile install`. Moderate effort.
 Low priority unless Nix users request it.
 
+### Chocolatey (Windows)
+An older but widely-used Windows package manager, particularly in enterprise environments.
+Low priority given winget and Scoop coverage.
+
 ---
 
 ## Release Workflow Summary
 
-Each release currently involves:
+Each release involves only:
 
 1. Tag pushed to `main` → GoReleaser builds all 6 targets and publishes GitHub Release
 2. GoReleaser automatically pushes updated formula to `homebrew-tap`
 3. GoReleaser automatically pushes updated manifest to `scoop-bucket`
-4. `validate-winget` CI job validates `winget/` manifests on Windows runner
-5. `winget-releaser` action automatically submits PR to `microsoft/winget-pkgs`
+4. `winget-releaser` action automatically submits PR to `microsoft/winget-pkgs`
+5. `validate-winget` CI job validates `winget/` manifests on Windows runner
 6. Binary rebuilt locally with `make install` to stamp the new version
 
-The release process is now fully automated — tag + push is all that's needed.
+The release process is fully automated — tag + push is all that's needed.
 
 ---
 

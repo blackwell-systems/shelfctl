@@ -73,6 +73,20 @@ SHA256 checksums published as `checksums.txt` alongside binaries.
 
 ---
 
+### Scoop Bucket (Windows)
+**Status:** Active — automated via GoReleaser on every release
+
+```powershell
+scoop bucket add blackwell-systems https://github.com/blackwell-systems/scoop-bucket
+scoop install shelfctl
+```
+
+Bucket lives at [blackwell-systems/scoop-bucket](https://github.com/blackwell-systems/scoop-bucket).
+GoReleaser automatically pushes an updated `bucket/shelfctl.json` manifest on every tag push
+using the `SCOOP_BUCKET_TOKEN` secret.
+
+---
+
 ### Windows Package Manager (winget)
 **Status:** Submission in progress — v0.4.4 manifests prepared
 
@@ -118,12 +132,13 @@ Low priority unless Nix users request it.
 Each release currently involves:
 
 1. Tag pushed to `main` → GoReleaser builds all 6 targets and publishes GitHub Release
-2. `validate-winget` CI job validates `winget/` manifests on Windows runner
-3. **Manual:** Homebrew formula updated in `homebrew-tap` repo
-4. **Manual:** winget PR submitted to `microsoft/winget-pkgs` (until automated)
-5. Binary rebuilt locally with `make install` to stamp the new version
+2. GoReleaser automatically pushes updated formula to `homebrew-tap`
+3. GoReleaser automatically pushes updated manifest to `scoop-bucket`
+4. `validate-winget` CI job validates `winget/` manifests on Windows runner
+5. **Manual:** winget PR submitted to `microsoft/winget-pkgs` (until automated)
+6. Binary rebuilt locally with `make install` to stamp the new version
 
-When Homebrew and winget automation are in place, steps 3 and 4 become automatic,
+When winget automation is in place, step 5 becomes automatic,
 reducing the release process to tag + push.
 
 ---
@@ -132,7 +147,8 @@ reducing the release process to tag + push.
 
 | Channel | Location | Updated |
 |---------|----------|---------|
-| Homebrew formula | `github.com/blackwell-systems/homebrew-tap/Formula/shelfctl.rb` | Manual |
-| winget manifests | `winget/` in this repo | Per release |
+| Homebrew formula | `github.com/blackwell-systems/homebrew-tap/Formula/shelfctl.rb` | Automated |
+| Scoop manifest | `github.com/blackwell-systems/scoop-bucket/bucket/shelfctl.json` | Automated |
+| winget manifests | `winget/` in this repo | Manual PR per release |
 | Install script | `install.sh` in this repo | Rarely (URL convention stable) |
 | GoReleaser config | `.goreleaser.yml` | Rarely |

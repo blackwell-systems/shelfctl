@@ -50,6 +50,16 @@ brews:
     description: "Personal library manager for PDFs using GitHub Release assets"
     license: MIT
 
+scoops:
+  - repository:
+      owner: blackwell-systems
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    directory: bucket
+    homepage: https://github.com/blackwell-systems/shelfctl
+    description: "Personal library manager for PDFs using GitHub Release assets"
+    license: MIT
+
 changelog:
   sort: asc
   filters:
@@ -87,6 +97,17 @@ release:
     **Go install**:
     ```bash
     go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@{{ .Tag }}
+    ```
+
+    **Scoop (Windows)**:
+    ```powershell
+    scoop bucket add blackwell-systems https://github.com/blackwell-systems/scoop-bucket
+    scoop install shelfctl
+    ```
+
+    **winget (Windows)**:
+    ```powershell
+    winget install BlackwellSystems.shelfctl
     ```
 
     **Download binary**:

@@ -54,7 +54,7 @@ scoops:
   - repository:
       owner: blackwell-systems
       name: scoop-bucket
-      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: bucket
     homepage: https://github.com/blackwell-systems/shelfctl
     description: "Personal library manager for PDFs using GitHub Release assets"

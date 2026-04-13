@@ -97,37 +97,38 @@ shelfctl --help
 
 ## Step 3: Set up configuration
 
-Create the config directory:
+shelfctl creates its config automatically on first run. Just run:
+
+```bash
+shelfctl
+```
+
+You'll see:
+
+```
+No config found. Let's set up shelfctl.
+
+GitHub username or org: your-username
+Token env var name [SHELFCTL_GITHUB_TOKEN]:
+
+Config created at ~/.config/shelfctl/config.yml
+```
+
+Enter your GitHub username or organization name, and press Enter to
+accept the default token environment variable name (or type a custom one).
+
+**Manual setup (optional):** If you prefer to create the config manually,
+copy `config.example.yml`:
 
 ```bash
 mkdir -p ~/.config/shelfctl
+cp config.example.yml ~/.config/shelfctl/config.yml
+# Edit with your GitHub username
 ```
 
-Copy the example config:
-
-```bash
-curl -o ~/.config/shelfctl/config.yml \
-  https://raw.githubusercontent.com/blackwell-systems/shelfctl/main/config.example.yml
-```
-
-Or download from the repo and copy manually.
-
-Edit `~/.config/shelfctl/config.yml`:
-
-```yaml
-github:
-  owner: "your-github-username"  # Change this!
-  token_env: "SHELFCTL_GITHUB_TOKEN"      # Environment variable to read token from
-
-defaults:
-  release: "library"
-  cache_dir: "~/.local/share/shelfctl/cache"
-  asset_naming: "id"
-
-shelves: []  # Will populate via init command
-```
-
-**Security**: The token itself is never stored in the config file - only the environment variable name. shelfctl reads the token from your environment at runtime.
+**Security**: The token itself is never stored in the config file - only
+the environment variable name. shelfctl reads the token from your
+environment at runtime.
 
 ## Step 4: Create your first shelf
 
@@ -566,18 +567,9 @@ export SHELFCTL_GITHUB_TOKEN=$(gh auth token)
 # 2. Install
 go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@latest
 
-# 3. Configure
-mkdir -p ~/.config/shelfctl
-cat > ~/.config/shelfctl/config.yml <<EOF
-github:
-  owner: "myusername"
-  token_env: "SHELFCTL_GITHUB_TOKEN"
-defaults:
-  release: "library"
-  cache_dir: "~/.local/share/shelfctl/cache"
-  asset_naming: "id"
-shelves: []
-EOF
+# 3. Run shelfctl (auto-creates config)
+shelfctl
+# Follow the prompts: enter your GitHub username, accept default token env var
 
 # 4. Create shelf
 shelfctl init --repo shelf-books --name books --create-repo --create-release

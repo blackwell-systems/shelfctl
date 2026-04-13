@@ -12,83 +12,65 @@ The following friction items were resolved in the v0.4.0 release:
 6. **Config loading error messages** - Now include file path and hint to check permissions
 7. **Missing config error** - Suggests running `shelfctl init --help`
 8. **README restructuring** - 30-second quickstart at top, Core Concepts section, TUI Quick Reference callout
-9. **GitHub token permissions** - Clarified that fine-grained tokens need BOTH Contents and Releases permissions
+9. **GitHub token permissions** - Clarified that fine-grained tokens need Contents (Read/Write); Releases fall under Contents
 10. **Empty shelf guidance** - Browsing a shelf with zero books now displays helpful text explaining how to add books
 11. **Comprehensive testing infrastructure** - 100+ tests, CI/CD automation, mock server for isolated testing
 
+## Solved in v0.4.7
+
+12. **API rate limits quantified** - README now states "Authenticated API allows 5,000 requests/hour"
+13. **Migration workflow context** - README now explains use case ("Already have PDFs committed in a repo?") before showing scan/batch commands
+14. **Duplicate book ID documented** - `--force` flag documented in commands.md; behavior is explicit
+15. **"Release" terminology** - README Core Concepts now explicitly states "NOT a version release" for the library release tag
+16. **Token persistence** - Troubleshooting doc now includes shell profile instructions with `echo '...' >> ~/.zshrc`
+
 ## Summary
-shelfctl has strong documentation and clear help text, but the first-run experience still has some friction points. New users face a multi-step bootstrapping process (config file creation, token setup, owner configuration, shelf initialization) with no guided wizard to help them through it. Error messages generally provide actionable next steps, though some edge cases remain. The terminology (shelf/repo/release/catalog) is now better documented with the Core Concepts section.
 
-## First-time Setup
+Bootstrapping friction remains the biggest barrier. New users face a multi-step setup (config file, token, owner, shelf init) with no guided wizard. Error messages are generally actionable but some edge cases remain.
 
-- **[CRITICAL] GitHub owner must be set before init works**: Running `shelfctl init --repo shelf-test --name test --create-repo` fails with "error: --owner is required (or set github.owner in config)" but there's no config file yet. This is a chicken-and-egg problem.
-  - **Severity**: High
-  - **Suggested fix**: Allow `init` to prompt for owner on first run and create the config file automatically, or make `--owner` mandatory in the help text for first-time users
+---
 
-- **[MEDIUM] Missing prerequisites check**: The tool doesn't check if Git is installed (required for repo operations) or warn about optional dependencies like poppler (for PDF cover extraction).
-  - **Severity**: Medium
-  - **Suggested fix**: Add a `shelfctl doctor` command that checks prerequisites and reports status
+## Remaining Items
 
-## CLI Discoverability
+### First-time Setup
 
-- **[LOW] Default flag values sometimes confusing**: `init --private` defaults to true, which is good for security, but the help text shows it as a flag without explaining that private is the default.
-  - **Severity**: Low
-  - **Suggested fix**: Change help text to: "--private    Make the repo private (default: true, use --private=false for public)"
+- **[CRITICAL] GitHub owner chicken-and-egg**: Running `shelfctl init --repo shelf-test --name test --create-repo` fails with `--owner is required (or set github.owner in config)` but there's no config file yet. `init.go` returns the error without prompting.
+  - **Suggested fix**: Auto-create config on first run — no new command needed. Both `shelfctl` (TUI) and `shelfctl init` should detect missing config, prompt for GitHub owner and token env var name inline, write `~/.config/shelfctl/config.yml`, then continue. Two questions, no wizard:
+    ```
+    No config found. Let's set up shelfctl.
 
-## TUI Navigation
+    GitHub username or org: blackwell-systems
+    Token env var name [SHELFCTL_GITHUB_TOKEN]:
 
-- **[HIGH] TUI requires existing config and shelves**: Running `shelfctl` (TUI mode) without a config or without any shelves configured shows help text instead of launching an interactive setup wizard. The code has logic to detect this (hub_runner.go:24-28) but falls back to a legacy `runHub()` that isn't fully implemented.
-  - **Severity**: High
-  - **Suggested fix**: Complete the interactive setup wizard in `runHub()` to guide users through config creation, token setup, and first shelf creation
+    Config created at ~/.config/shelfctl/config.yml
+    ```
 
-- **[MEDIUM] Error handling in TUI unclear**: Code shows TUI exits on action failures, but there's no indication in docs about what happens if a download fails, GitHub API times out, or the user has no internet connection.
-  - **Severity**: Medium
-  - **Suggested fix**: Document TUI error handling behavior in docs/guides/hub.md
+- **[MEDIUM] No prerequisites check**: No check for Git installation or optional deps like poppler.
+  - **Suggested fix**: `shelfctl doctor` command — on the roadmap
 
-## Terminology and Concepts
+### TUI
 
-- **[MEDIUM] "Release" vs "release tag" confusion**: The tool defaults to a release tag called "library" but this isn't explained anywhere in first-run docs. A user might think "release" means a versioned release (v1.0) rather than a storage container.
-  - **Severity**: Medium
-  - **Suggested fix**: Use "storage release" or "asset release" in docs to distinguish from version releases, or explain in Prerequisites: "shelfctl uses GitHub release tags as storage containers (default: 'library')"
+- **[HIGH] TUI setup wizard not implemented**: `hub_runner.go` detects missing config/token and falls through to a text-based setup message. The interactive wizard path (comment: "For now, fall back to legacy runHub() for setup") is not completed.
+  - **Suggested fix**: Same auto-create flow as above — detect missing config in `runUnifiedTUI()`, prompt inline, write config, then launch the TUI normally. No separate wizard needed.
 
-- **[LOW] catalog.yml exposure is inconsistent**: Sometimes the docs say "only metadata is versioned" (true), but it's not clear that users can directly edit catalog.yml or that it's just a YAML file in their repo. Advanced users might want to know this; new users don't need to.
-  - **Severity**: Low
-  - **Suggested fix**: Add a "For advanced users" section in Architecture doc explaining direct catalog.yml manipulation
+- **[MEDIUM] TUI error behavior undocumented**: No docs covering what happens when downloads fail, GitHub API times out, or connectivity drops while in the TUI.
+  - **Suggested fix**: Add a section to docs/guides/hub.md
 
-## Common Failure Modes
+### Error Messages
 
-- **[HIGH] Network failures aren't actionable**: When GitHub API is unreachable or rate-limited, errors are technical (401, 403, 500). The troubleshooting doc covers 401/403 for auth, but not rate limiting or general connectivity.
-  - **Severity**: High
-  - **Suggested fix**: Add network error handling with user-friendly messages: "Unable to reach GitHub API. Check your internet connection or try again later."
+- **[HIGH] Network failures not actionable**: GitHub API 401/403/500 errors surface as raw HTTP status codes. No friendly messages for connectivity issues or rate limiting.
+  - **Suggested fix**: Intercept common error codes and return user-readable messages
 
-- **[HIGH] Invalid shelf config shows generic error**: Running `shelfctl shelves` with a shelf that has an invalid repo name fails with "error: one or more shelves have issues" but doesn't say which shelf or what the issue is.
-  - **Severity**: High
-  - **Suggested fix**: Make error messages specific: "Shelf 'programming' failed: repository 'username/shelf-programming' not found"
+- **[HIGH] Invalid shelf config shows generic error**: `shelfctl shelves` fails with "one or more shelves have issues" (`shelves.go:60,69`) without naming the shelf or the specific issue.
+  - **Suggested fix**: Name the shelf and issue: "Shelf 'programming' failed: repository not found"
 
-- **[MEDIUM] Token scope errors are cryptic**: If a user creates a token with only `public_repo` scope but tries to create a private shelf, the error is a GitHub API 403. The troubleshooting doc mentions this but users might not connect the dots.
-  - **Severity**: Medium
-  - **Suggested fix**: Detect 403 on private repo operations and suggest: "Permission denied. Ensure your GitHub token has 'repo' scope (not just 'public_repo')"
+- **[MEDIUM] Token scope errors cryptic**: 403 on private repo operations surfaces as a raw API error. No hint that `repo` scope is needed vs `public_repo`.
+  - **Suggested fix**: Detect 403 on private repo operations and suggest checking token scope
 
-- **[LOW] Duplicate book ID not prevented**: If a user tries to `shelve` a book with an ID that already exists, the behavior isn't documented (does it overwrite? fail?).
-  - **Severity**: Low
-  - **Suggested fix**: Document behavior in commands.md and consider adding a `--force` flag to allow overwrites
+### CLI
 
-## Documentation Gaps
+- **[LOW] `--private` default not surfaced**: `init --private` defaults to true but help text doesn't state this explicitly.
+  - **Suggested fix**: Update help text to: `--private    Make repo private (default: true, use --private=false for public)`
 
-- **[MEDIUM] No troubleshooting for common setup mistakes**: Troubleshooting doc focuses on runtime errors but doesn't cover setup mistakes like forgetting to add token to shell profile (so it works in current terminal but not after reboot).
-  - **Severity**: Medium
-  - **Suggested fix**: Add "Setup checklist" section: verify token persists across sessions, test with `echo $GITHUB_TOKEN`, etc.
-
-- **[LOW] Migration workflow is prominent but not explained**: The README shows migration commands early but doesn't explain the use case (moving from a monolithic books repo to organized shelves). A first-time user might think migration is required.
-  - **Severity**: Low
-  - **Suggested fix**: Add context: "Already have PDFs committed in a GitHub repo? Use migration to reorganize them:" before showing scan/batch commands
-
-- **[LOW] API rate limits mentioned but not quantified**: The README says "you're unlikely to hit rate limits" but doesn't give numbers (5000/hour authenticated) or explain what happens if you do hit them.
-  - **Severity**: Low
-  - **Suggested fix**: Add note: "Authenticated API allows 5,000 requests/hour. Typical usage (browsing, adding books) uses ~1-10 requests per operation."
-
-## Remaining Quick Wins
-
-1. **Add interactive config initialization**: Detect missing config on first run and prompt: "No config found. Create one now? (Y/n)". Collect GitHub username and token, create `~/.config/shelfctl/config.yml` automatically. This eliminates the biggest barrier to getting started.
-
-2. **Show which shelf failed in validation errors**: Change `shelfctl shelves` error output to name the problematic shelf and the specific issue (repo not found, catalog missing, etc.). This turns a dead-end error into an actionable debugging step.
+- **[LOW] catalog.yml direct editing undocumented**: Advanced users may want to know they can edit catalog.yml directly. Not mentioned anywhere.
+  - **Suggested fix**: Add a note in docs/reference/architecture.md under "For advanced users"

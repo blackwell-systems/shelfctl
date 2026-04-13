@@ -118,10 +118,22 @@ func TestFormatBookCount_Many(t *testing.T) {
 // --- formatStatus ---
 
 func TestFormatStatus_RepoNotOK(t *testing.T) {
-	s := shelfStatus{repoOK: false, errorMsg: "repo not found"}
+	s := shelfStatus{repoOK: false, errorMsg: "repository 'myowner/myrepo' not found"}
 	got := stripAnsi(formatStatus(s))
-	if !strings.Contains(got, "repo not found") {
-		t.Errorf("got %q, want it to contain %q", got, "repo not found")
+	if !strings.Contains(got, "repository 'myowner/myrepo' not found") {
+		t.Errorf("got %q, want it to contain %q", got, "repository 'myowner/myrepo' not found")
+	}
+}
+
+func TestFormatStatus_RepoNotFound_IncludesShelfName(t *testing.T) {
+	s := shelfStatus{
+		name:     "my-shelf",
+		repoOK:   false,
+		errorMsg: "repository 'owner/shelf-my-shelf' not found",
+	}
+	got := stripAnsi(formatStatus(s))
+	if !strings.Contains(got, "owner/shelf-my-shelf") {
+		t.Errorf("got %q, want it to contain repo path %q", got, "owner/shelf-my-shelf")
 	}
 }
 

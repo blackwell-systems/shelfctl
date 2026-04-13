@@ -24,9 +24,14 @@ The following friction items were resolved in the v0.4.0 release:
 15. **"Release" terminology** - README Core Concepts now explicitly states "NOT a version release" for the library release tag
 16. **Token persistence** - Troubleshooting doc now includes shell profile instructions with `echo '...' >> ~/.zshrc`
 
+## Solved in v0.5.0
+
+17. **Auto-create config on first run** - Both `shelfctl` (TUI) and `shelfctl init` now detect missing config, prompt for GitHub owner and token env var inline, write `~/.config/shelfctl/config.yml`, and continue. Eliminates the chicken-and-egg problem where `init` required a config that didn't exist yet. Non-TTY environments (CI/pipes) skip prompting and show the existing error message.
+18. **TUI setup wizard replaced with inline prompt** - `runUnifiedTUI()` no longer falls through to legacy `runHub()` for setup. Missing config triggers the same inline prompt as `init`, then launches the TUI normally.
+
 ## Summary
 
-Bootstrapping friction remains the biggest barrier. New users face a multi-step setup (config file, token, owner, shelf init) with no guided wizard. Error messages are generally actionable but some edge cases remain.
+Bootstrapping friction has been significantly reduced. The auto-create config flow eliminates the biggest barrier (config chicken-and-egg). Remaining items are medium/low priority quality-of-life improvements.
 
 ---
 
@@ -34,24 +39,10 @@ Bootstrapping friction remains the biggest barrier. New users face a multi-step 
 
 ### First-time Setup
 
-- **[CRITICAL] GitHub owner chicken-and-egg**: Running `shelfctl init --repo shelf-test --name test --create-repo` fails with `--owner is required (or set github.owner in config)` but there's no config file yet. `init.go` returns the error without prompting.
-  - **Suggested fix**: Auto-create config on first run — no new command needed. Both `shelfctl` (TUI) and `shelfctl init` should detect missing config, prompt for GitHub owner and token env var name inline, write `~/.config/shelfctl/config.yml`, then continue. Two questions, no wizard:
-    ```
-    No config found. Let's set up shelfctl.
-
-    GitHub username or org: blackwell-systems
-    Token env var name [SHELFCTL_GITHUB_TOKEN]:
-
-    Config created at ~/.config/shelfctl/config.yml
-    ```
-
 - **[MEDIUM] No prerequisites check**: No check for Git installation or optional deps like poppler.
   - **Suggested fix**: `shelfctl doctor` command — on the roadmap
 
 ### TUI
-
-- **[HIGH] TUI setup wizard not implemented**: `hub_runner.go` detects missing config/token and falls through to a text-based setup message. The interactive wizard path (comment: "For now, fall back to legacy runHub() for setup") is not completed.
-  - **Suggested fix**: Same auto-create flow as above — detect missing config in `runUnifiedTUI()`, prompt inline, write config, then launch the TUI normally. No separate wizard needed.
 
 - **[MEDIUM] TUI error behavior undocumented**: No docs covering what happens when downloads fail, GitHub API times out, or connectivity drops while in the TUI.
   - **Suggested fix**: Add a section to docs/guides/hub.md

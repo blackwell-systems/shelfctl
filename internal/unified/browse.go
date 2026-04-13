@@ -1,7 +1,6 @@
 package unified
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -87,7 +87,7 @@ func (d *browserDownloader) Sync(owner, repo, bookID, release, asset, catalogPat
 
 	// Get cached file path, hash, and size
 	cachedPath := d.cache.Path(owner, repo, bookID, asset)
-	cachedSHA, cachedSize, err := computeFileHash(cachedPath)
+	cachedSHA, cachedSize, err := util.ComputeFileHash(cachedPath)
 	if err != nil {
 		return false, fmt.Errorf("computing hash: %w", err)
 	}
@@ -168,23 +168,6 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	}
 
 	return n, err
-}
-
-// computeFileHash computes SHA256 hash and size of a file
-func computeFileHash(path string) (string, int64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", 0, err
-	}
-	defer func() { _ = f.Close() }()
-
-	h := sha256.New()
-	size, err := io.Copy(h, f)
-	if err != nil {
-		return "", 0, err
-	}
-
-	return fmt.Sprintf("%x", h.Sum(nil)), size, nil
 }
 
 // NewBrowseModel creates a new browse model with the full browser

@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/blackwell-systems/shelfctl/internal/util"
 )
 
 func TestComputeFileHash(t *testing.T) {
@@ -17,7 +19,7 @@ func TestComputeFileHash(t *testing.T) {
 	}
 
 	// Compute hash
-	hash, size, err := computeFileHash(testFile)
+	hash, size, err := util.ComputeFileHash(testFile)
 	if err != nil {
 		t.Fatalf("computeFileHash failed: %v", err)
 	}
@@ -35,7 +37,7 @@ func TestComputeFileHash(t *testing.T) {
 }
 
 func TestComputeFileHash_NonExistent(t *testing.T) {
-	_, _, err := computeFileHash("/nonexistent/file.txt")
+	_, _, err := util.ComputeFileHash("/nonexistent/file.txt")
 	if err == nil {
 		t.Error("Expected error for nonexistent file, got nil")
 	}
@@ -49,7 +51,7 @@ func TestComputeFileHash_EmptyFile(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	hash, size, err := computeFileHash(testFile)
+	hash, size, err := util.ComputeFileHash(testFile)
 	if err != nil {
 		t.Fatalf("computeFileHash failed: %v", err)
 	}
@@ -79,7 +81,7 @@ func TestComputeFileHash_LargeFile(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	hash, size, err := computeFileHash(testFile)
+	hash, size, err := util.ComputeFileHash(testFile)
 	if err != nil {
 		t.Fatalf("computeFileHash failed: %v", err)
 	}
@@ -89,7 +91,7 @@ func TestComputeFileHash_LargeFile(t *testing.T) {
 	}
 
 	// Hash should be deterministic
-	hash2, _, err := computeFileHash(testFile)
+	hash2, _, err := util.ComputeFileHash(testFile)
 	if err != nil {
 		t.Fatalf("Second computeFileHash failed: %v", err)
 	}

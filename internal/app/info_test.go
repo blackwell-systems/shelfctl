@@ -2,6 +2,8 @@ package app
 
 import (
 	"testing"
+
+	"github.com/blackwell-systems/shelfctl/internal/util"
 )
 
 func TestHumanBytes(t *testing.T) {
@@ -19,9 +21,9 @@ func TestHumanBytes(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		got := humanBytes(tc.input)
+		got := util.HumanBytes(tc.input)
 		if got != tc.want {
-			t.Errorf("humanBytes(%d) = %q, want %q", tc.input, got, tc.want)
+			t.Errorf("util.HumanBytes(%d) = %q, want %q", tc.input, got, tc.want)
 		}
 	}
 }

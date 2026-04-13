@@ -3,9 +3,11 @@ package app
 import (
 	"runtime"
 	"testing"
+
+	"github.com/blackwell-systems/shelfctl/internal/util"
 )
 
-// TestIsPDF tests the isPDF helper function
+// TestIsPDF tests the util.IsPDF helper function
 func TestIsPDF(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -51,9 +53,9 @@ func TestIsPDF(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isPDF(tt.filename)
+			got := util.IsPDF(tt.filename)
 			if got != tt.want {
-				t.Errorf("isPDF(%q) = %v, want %v", tt.filename, got, tt.want)
+				t.Errorf("util.IsPDF(%q) = %v, want %v", tt.filename, got, tt.want)
 			}
 		})
 	}
@@ -64,7 +66,7 @@ func TestOpenFile_CommandAssembly(t *testing.T) {
 	// This test verifies the command-name selection based on runtime.GOOS.
 	// We don't execute the command, just verify the logic.
 
-	// Based on the implementation in open.go, openFile selects:
+	// Based on the implementation in open.go, util.OpenFile selects:
 	// - darwin: "open"
 	// - windows: "cmd"
 	// - others: "xdg-open"
@@ -79,10 +81,10 @@ func TestOpenFile_CommandAssembly(t *testing.T) {
 		expectedCmd = "xdg-open"
 	}
 
-	// Verify our expectation matches what openFile would use.
-	// Since openFile calls exec.Start which we can't test directly,
+	// Verify our expectation matches what util.OpenFile would use.
+	// Since util.OpenFile calls exec.Start which we can't test directly,
 	// we document the expected behavior here as a reference test.
-	t.Logf("On %s, openFile should use command: %s", runtime.GOOS, expectedCmd)
+	t.Logf("On %s, util.OpenFile should use command: %s", runtime.GOOS, expectedCmd)
 
 	// This is a documentation test - the actual logic is verified by
 	// manual testing or integration tests that would be too complex

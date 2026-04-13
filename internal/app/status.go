@@ -8,6 +8,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -195,7 +196,7 @@ func printStatusText(result statusOutput, verbose bool) {
 
 	if len(result.Shelves) > 1 || verbose {
 		fmt.Println()
-		total := fmt.Sprintf("Total: %d books, %d cached (%s)", result.TotalBooks, result.TotalCached, humanBytes(result.TotalCacheBytes))
+		total := fmt.Sprintf("Total: %d books, %d cached (%s)", result.TotalBooks, result.TotalCached, util.HumanBytes(result.TotalCacheBytes))
 		if result.TotalModified > 0 {
 			total += fmt.Sprintf(", %d modified", result.TotalModified)
 		}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,7 @@ func newInfoCmd() *cobra.Command {
 				printField("tags", strings.Join(b.Tags, ", "))
 			}
 			if b.SizeBytes > 0 {
-				printField("size", humanBytes(b.SizeBytes))
+				printField("size", util.HumanBytes(b.SizeBytes))
 			}
 			if b.Checksum.SHA256 != "" {
 				printField("sha256", b.Checksum.SHA256)
@@ -128,17 +129,4 @@ func findBook(id, shelfName string) (*catalog.Book, *config.ShelfConfig, error) 
 	}
 
 	return firstBook, firstShelf, nil
-}
-
-func humanBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
-	}
-	div, exp := int64(unit), 0
-	for n := n / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
 }

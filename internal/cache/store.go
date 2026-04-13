@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"strings"
+
+	"github.com/blackwell-systems/shelfctl/internal/util"
 )
 
 // Store writes r to the cache path for the given coordinates, verifying
@@ -45,17 +45,11 @@ func (m *Manager) Store(owner, repo, bookID, assetFilename string, r io.Reader, 
 	}
 
 	// Extract cover thumbnail for PDFs (best-effort, silently skips on failure)
-	if isPDF(assetFilename) {
+	if util.IsPDF(assetFilename) {
 		_ = m.ExtractCover(repo, bookID, destPath)
 	}
 
 	return destPath, nil
-}
-
-// isPDF checks if the filename indicates a PDF file
-func isPDF(filename string) bool {
-	ext := filepath.Ext(strings.ToLower(filename))
-	return ext == ".pdf"
 }
 
 // HasBeenModified checks if the cached file's SHA256 differs from the expected value.

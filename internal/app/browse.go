@@ -87,7 +87,7 @@ func (d *browserDownloader) Sync(owner, repo, bookID, release, asset, catalogPat
 
 	// Get cached file path, hash, and size
 	cachedPath := d.cache.Path(owner, repo, bookID, asset)
-	cachedSHA, cachedSize, err := computeFileHash(cachedPath)
+	cachedSHA, cachedSize, err := util.ComputeFileHash(cachedPath)
 	if err != nil {
 		return false, fmt.Errorf("computing hash: %w", err)
 	}
@@ -421,7 +421,7 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 			printField("tags", strings.Join(b.Tags, ", "))
 		}
 		if b.SizeBytes > 0 {
-			printField("size", humanBytes(b.SizeBytes))
+			printField("size", util.HumanBytes(b.SizeBytes))
 		}
 		if b.Checksum.SHA256 != "" {
 			printField("sha256", b.Checksum.SHA256)
@@ -483,7 +483,7 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 				}()
 
 				// Show progress UI
-				label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
+				label := fmt.Sprintf("Downloading %s (%s)", b.ID, util.HumanBytes(asset.Size))
 				if err := tui.ShowProgress(label, asset.Size, progressCh); err != nil {
 					// User cancelled - wait for goroutine to exit
 					<-errCh
@@ -496,7 +496,7 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 				}
 			} else {
 				// Non-interactive mode: just print and download
-				fmt.Printf("Downloading %s (%s) …\n", b.ID, humanBytes(asset.Size))
+				fmt.Printf("Downloading %s (%s) …\n", b.ID, util.HumanBytes(asset.Size))
 				_, err = cacheMgr.Store(item.Owner, item.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
 				if err != nil {
 					return fmt.Errorf("cache: %w", err)
@@ -510,7 +510,7 @@ func handleBrowserAction(cmd *cobra.Command, result *tui.BrowserResult) error {
 
 		// Open the file
 		path := cacheMgr.Path(item.Owner, item.Repo, b.ID, b.Source.Asset)
-		return openFile(path, "")
+		return util.OpenFile(path, "")
 
 	case tui.ActionEdit:
 		// Edit book metadata

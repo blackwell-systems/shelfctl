@@ -1,0 +1,555 @@
+title: Auto-create config on first run
+feature_slug: auto-create-config
+verdict: SUITABLE
+suitability_assessment: |
+    Suitability gate passed on all five criteria:
+
+    1. File decomposition: 7+ files changing across 3 distinct areas (setup logic,
+       config prompting, documentation). Two agents can work with disjoint ownership.
+    2. Investigation-first: No unknowns. The missing-config detection points and
+       config.Save() path are well-understood from code review.
+    3. Interface discoverability: The cross-agent interface is a single function
+       (PromptAndCreateConfig) with a clear signature determinable now.
+    4. Pre-implementation status: No prior implementation exists for inline config
+       prompting. The init_wizard.go handles shelf creation but NOT initial config
+       creation. hub_runner.go falls through to runHub() which shows a text message
+       but does not prompt for config creation.
+    5. Parallelization value: Two agents with 3-4 files each, build/test cycle ~10s.
+       Moderate parallelization benefit plus coordination value as audit trail.
+
+    Estimated times:
+    - Scout phase: ~8 min (dependency mapping, interface contracts, IMPL doc)
+    - Agent execution: ~8 min (2 agents x 8 min avg, Wave 1 parallel + Wave 2 serial)
+    - Merge & verification: ~3 min
+    Total SAW time: ~19 min
+
+    Sequential baseline: ~20 min (2 agents x 10 min avg sequential time)
+    Time savings: ~1 min (5% faster)
+
+    Recommendation: Marginal speed gains but clear coordination value. The code
+    changes touch two independent areas (core logic vs docs) making parallel
+    execution clean and conflict-free.
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: internal/app/setup_prompt.go
+      agent: A
+      wave: 1
+      action: new
+    - file: internal/app/setup_prompt_test.go
+      agent: A
+      wave: 1
+      action: new
+    - file: internal/app/hub_runner.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/app/root.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/app/init.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: docs/NEW-USER-FRICTION.md
+      agent: B
+      wave: 1
+      action: modify
+    - file: docs/guides/tutorial.md
+      agent: B
+      wave: 1
+      action: modify
+    - file: docs/reference/troubleshooting.md
+      agent: B
+      wave: 1
+      action: modify
+    - file: README.md
+      agent: B
+      wave: 1
+      action: modify
+interface_contracts:
+    - name: PromptAndCreateConfig
+      description: |
+        Detects missing config, prompts user for GitHub owner and token env var,
+        writes config.yml, and returns the loaded config. Called from both
+        runUnifiedTUI() and the init command's PersistentPreRunE. Returns nil
+        config and nil error if stdin is not a TTY (caller should fall through
+        to existing error behavior). Returns error only on I/O or write failure.
+      definition: |
+        // PromptAndCreateConfig checks if config exists at the default path.
+        // If missing AND stdin is a TTY, prompts the user for GitHub owner and
+        // token env var name, writes a minimal config.yml, and returns the
+        // loaded config. If stdin is not a TTY, returns (nil, nil) so the
+        // caller can fall through to existing non-interactive error handling.
+        func PromptAndCreateConfig() (*config.Config, error)
+      location: internal/app/setup_prompt.go
+    - name: configFileExists
+      description: |
+        Helper that checks whether a config file exists at the default path
+        or SHELFCTL_CONFIG override. Used to distinguish "no config" from
+        "config exists but is empty/invalid".
+      definition: |
+        // configFileExists returns true if a config file exists at the
+        // effective config path (SHELFCTL_CONFIG env or default path).
+        func configFileExists() bool
+      location: internal/app/setup_prompt.go
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |
+            ## Agent A: Core setup prompt and caller integration
+
+            ### What to implement
+
+            Create `internal/app/setup_prompt.go` with two functions:
+
+            1. `configFileExists() bool` - checks if config file exists at the
+               effective path (respecting SHELFCTL_CONFIG env var, falling back
+               to config.DefaultPath()).
+
+            2. `PromptAndCreateConfig() (*config.Config, error)` - the main
+               auto-setup flow:
+               - If stdin is not a TTY (check with `util.IsTTY()`), return (nil, nil)
+               - Print: "No config found. Let's set up shelfctl.\n"
+               - Prompt "GitHub username or org: " (required, no default, loop until non-empty)
+               - Prompt "Token env var name [SHELFCTL_GITHUB_TOKEN]: " (default: SHELFCTL_GITHUB_TOKEN, accept empty for default)
+               - Build a minimal config.Config with:
+                 - GitHub.Owner = entered owner
+                 - GitHub.TokenEnv = entered token env var
+                 - GitHub.APIBase = "https://api.github.com"
+                 - Defaults.Release = "library"
+                 - Defaults.AssetNaming = "id"
+                 - Shelves = empty slice
+               - Call config.Save(cfg) to write it
+               - Print: "Config created at ~/.config/shelfctl/config.yml\n"
+                 (use config.DefaultPath() for the actual path)
+               - Reload via config.Load() and return the result
+
+            Use `bufio.NewReader(os.Stdin)` for reading input (consistent with
+            existing patterns in hub_runner.go lines 148-157).
+
+            ### Modify hub_runner.go
+
+            In `runUnifiedTUI()`, replace the early-return block at the top
+            (the `if !hasToken || !hasShelves` block, lines 24-28) with
+            auto-create logic. Insert BEFORE the existing check:
+
+            Insert before this exact text:
+            ```go
+            	// Check configuration status
+            	hasToken := cfg != nil && cfg.GitHub.Token != ""
+            	hasShelves := cfg != nil && len(cfg.Shelves) > 0
+            ```
+
+            Add a config-existence check:
+            ```go
+            	// Auto-create config if missing
+            	if !configFileExists() {
+            		newCfg, err := PromptAndCreateConfig()
+            		if err != nil {
+            			return fmt.Errorf("setup failed: %w", err)
+            		}
+            		if newCfg != nil {
+            			cfg = newCfg
+            			// Initialize GitHub client if token is available
+            			if cfg.GitHub.Token != "" {
+            				gh = ghclient.New(cfg.GitHub.Token, cfg.GitHub.APIBase)
+            				cacheMgr = cache.New(cfg.Defaults.CacheDir)
+            			}
+            			fmt.Println()
+            		}
+            	}
+            ```
+
+            You will need to add the import for `ghclient` if not already present.
+            Check: `hub_runner.go` does NOT currently import `ghclient`. The package
+            variable `gh` is typed `*ghclient.Client` and set in `root.go`. Add:
+            ```go
+            ghclient "github.com/blackwell-systems/shelfctl/internal/github"
+            "github.com/blackwell-systems/shelfctl/internal/cache"
+            ```
+
+            ### Modify root.go
+
+            In `PersistentPreRunE` (line 76), update the init/root command block.
+            Currently this block (lines 85-96) loads config silently and initializes
+            clients. After the config load attempt, add auto-create logic.
+
+            Find this exact text:
+            ```go
+            		// Allow init and root (hub) to run without an existing config.
+            		if (cmd.Name() == "init" || cmd.Name() == "shelfctl") && cmd.Parent() == nil {
+            			var err error
+            			cfg, err = config.Load()
+            			if err != nil {
+            				cfg = &config.Config{}
+            			}
+            ```
+
+            Replace the entire block (lines 85-96) with:
+            ```go
+            		// Allow init and root (hub) to run without an existing config.
+            		if (cmd.Name() == "init" || cmd.Name() == "shelfctl") && cmd.Parent() == nil {
+            			var err error
+            			cfg, err = config.Load()
+            			if err != nil {
+            				cfg = &config.Config{}
+            			}
+            			// For init command: auto-create config if missing and TTY
+            			if cmd.Name() == "init" && !configFileExists() {
+            				newCfg, promptErr := PromptAndCreateConfig()
+            				if promptErr != nil {
+            					return fmt.Errorf("setup failed: %w", promptErr)
+            				}
+            				if newCfg != nil {
+            					cfg = newCfg
+            				}
+            			}
+            			// For root command (hub), still try to initialize clients if possible
+            			if cfg != nil && cfg.GitHub.Token != "" {
+            				gh = ghclient.New(cfg.GitHub.Token, cfg.GitHub.APIBase)
+            				cacheMgr = cache.New(cfg.Defaults.CacheDir)
+            			}
+            			return nil
+            		}
+            ```
+
+            ### Modify init.go
+
+            In `validateInitParams()`, update the owner resolution to use the
+            newly-created config. The current code already falls back to
+            `cfg.GitHub.Owner`, which will now be populated by the auto-create
+            flow. No change needed in validateInitParams itself.
+
+            However, the init command should print a note when config was just
+            created. In the `RunE` function of `newInitCmd()`, add after the
+            existing `validateInitParams` call (line 53):
+
+            Find this exact text:
+            ```go
+            			// Validate and resolve parameters
+            			effectiveOwner, effectiveShelfName, err := validateInitParams(owner, repoName, shelfName)
+            			if err != nil {
+            				return err
+            			}
+            ```
+
+            No changes needed here - the auto-create in PersistentPreRunE runs
+            before RunE, so cfg.GitHub.Owner will already be set.
+
+            ### Tests (setup_prompt_test.go)
+
+            Create `internal/app/setup_prompt_test.go` with:
+
+            1. `TestConfigFileExists_NoFile` - verify returns false when no config
+               exists (use t.TempDir and SHELFCTL_CONFIG env override)
+            2. `TestConfigFileExists_WithFile` - verify returns true when config
+               exists at SHELFCTL_CONFIG path
+            3. `TestPromptAndCreateConfig_NonTTY` - verify returns (nil, nil) when
+               stdin is not a TTY (this is the default in test environments)
+
+            Note: Testing the interactive prompt path requires TTY simulation which
+            is complex. Focus on the non-TTY path and configFileExists logic.
+            The interactive path will be verified manually.
+
+            ### Interfaces
+
+            ```go
+            func PromptAndCreateConfig() (*config.Config, error)
+            func configFileExists() bool
+            ```
+
+            ### Verification gate
+
+            ```bash
+            go build ./...
+            go test ./internal/app/... -run TestConfigFile -v
+            go test ./internal/app/... -run TestPromptAndCreateConfig -v
+            go vet ./...
+            # Postcondition: PromptAndCreateConfig defined exactly once
+            grep -c "func PromptAndCreateConfig" internal/app/setup_prompt.go
+            # Expected: 1
+            # Postcondition: configFileExists defined exactly once
+            grep -c "func configFileExists" internal/app/setup_prompt.go
+            # Expected: 1
+            # Postcondition: hub_runner.go calls PromptAndCreateConfig
+            grep -c "PromptAndCreateConfig" internal/app/hub_runner.go
+            # Expected: 1
+            # Postcondition: root.go calls PromptAndCreateConfig for init
+            grep -c "PromptAndCreateConfig" internal/app/root.go
+            # Expected: 1
+            ```
+
+            ### Constraints
+            - Do NOT modify any documentation files (.md files) -- those are owned by Agent B.
+            - Do NOT modify internal/config/config.go or schema.go -- the existing
+              config.Save() and config.Load() functions are sufficient.
+            - Do NOT add a new cobra command -- this is enhancement of existing flows.
+            - Use `bufio.NewReader(os.Stdin)` for input, consistent with existing
+              patterns (see hub_runner.go runShelveFromURL).
+          files:
+            - internal/app/setup_prompt.go
+            - internal/app/setup_prompt_test.go
+            - internal/app/hub_runner.go
+            - internal/app/root.go
+            - internal/app/init.go
+        - id: B
+          task: |
+            ## Agent B: Documentation updates
+
+            ### What to implement
+
+            Update four documentation files to reflect the new auto-create config
+            behavior. The core feature is: when no config file exists, both
+            `shelfctl` (TUI) and `shelfctl init` now prompt inline for GitHub
+            owner and token env var name, write the config, and continue.
+
+            ### 1. docs/NEW-USER-FRICTION.md
+
+            Move the CRITICAL "GitHub owner chicken-and-egg" item and the HIGH
+            "TUI setup wizard not implemented" item from "Remaining Items" to
+            a new "Solved in v0.5.0" section (or the next appropriate version).
+
+            Find this exact text:
+            ```markdown
+            ## Remaining Items
+
+            ### First-time Setup
+
+            - **[CRITICAL] GitHub owner chicken-and-egg**: Running `shelfctl init --repo shelf-test --name test --create-repo` fails with `--owner is required (or set github.owner in config)` but there's no config file yet. `init.go` returns the error without prompting.
+            ```
+
+            Mark the CRITICAL item and HIGH TUI item as solved. Add a new section
+            before "## Remaining Items":
+
+            ```markdown
+            ## Solved in v0.5.0
+
+            17. **Auto-create config on first run** - Both `shelfctl` (TUI) and `shelfctl init` now detect missing config, prompt for GitHub owner and token env var inline, write `~/.config/shelfctl/config.yml`, and continue. Eliminates the chicken-and-egg problem where `init` required a config that didn't exist yet. Non-TTY environments (CI/pipes) skip prompting and show the existing error message.
+            18. **TUI setup wizard replaced with inline prompt** - `runUnifiedTUI()` no longer falls through to legacy `runHub()` for setup. Missing config triggers the same inline prompt as `init`, then launches the TUI normally.
+            ```
+
+            Remove the CRITICAL and HIGH items from Remaining Items. Update the
+            Summary paragraph to reflect reduced friction.
+
+            ### 2. docs/guides/tutorial.md
+
+            Replace the manual "Step 3: Set up configuration" section (lines 98-128)
+            with a simplified version that explains the auto-create flow.
+
+            Find this exact text:
+            ```markdown
+            ## Step 3: Set up configuration
+
+            Create the config directory:
+
+            ```bash
+            mkdir -p ~/.config/shelfctl
+            ```
+            ```
+
+            Replace the entire Step 3 section (through the Security note) with:
+
+            ```markdown
+            ## Step 3: Set up configuration
+
+            shelfctl creates its config automatically on first run. Just run:
+
+            ```bash
+            shelfctl
+            ```
+
+            You'll see:
+
+            ```
+            No config found. Let's set up shelfctl.
+
+            GitHub username or org: your-username
+            Token env var name [SHELFCTL_GITHUB_TOKEN]:
+
+            Config created at ~/.config/shelfctl/config.yml
+            ```
+
+            Enter your GitHub username or organization name, and press Enter to
+            accept the default token environment variable name (or type a custom one).
+
+            **Manual setup (optional):** If you prefer to create the config manually,
+            copy `config.example.yml`:
+
+            ```bash
+            mkdir -p ~/.config/shelfctl
+            cp config.example.yml ~/.config/shelfctl/config.yml
+            # Edit with your GitHub username
+            ```
+
+            **Security**: The token itself is never stored in the config file - only
+            the environment variable name. shelfctl reads the token from your
+            environment at runtime.
+            ```
+
+            Also update the "Example: Complete setup from scratch" section at the
+            bottom of tutorial.md. Find this text:
+            ```markdown
+            # 3. Configure
+            mkdir -p ~/.config/shelfctl
+            cat > ~/.config/shelfctl/config.yml <<EOF
+            ```
+
+            Replace the manual config creation block with:
+            ```markdown
+            # 3. Run shelfctl (auto-creates config)
+            shelfctl
+            # Follow the prompts: enter your GitHub username, accept default token env var
+            ```
+
+            ### 3. docs/reference/troubleshooting.md
+
+            Update the "Config file not found" section (lines 185-197).
+
+            Find this exact text:
+            ```markdown
+            ### Config file not found
+
+            **Symptom**: Commands fail with "config file not found".
+
+            **Cause**: No config at `~/.config/shelfctl/config.yml`.
+
+            **Solution**:
+
+            ```bash
+            mkdir -p ~/.config/shelfctl
+            cp config.example.yml ~/.config/shelfctl/config.yml
+            # Edit with your settings
+            ```
+            ```
+
+            Replace with:
+            ```markdown
+            ### Config file not found
+
+            **Symptom**: Commands fail with "config file not found".
+
+            **Cause**: No config at `~/.config/shelfctl/config.yml`.
+
+            **Solution**:
+
+            Run `shelfctl` or `shelfctl init` interactively -- they will prompt you
+            to create the config automatically:
+
+            ```
+            No config found. Let's set up shelfctl.
+
+            GitHub username or org: your-username
+            Token env var name [SHELFCTL_GITHUB_TOKEN]:
+
+            Config created at ~/.config/shelfctl/config.yml
+            ```
+
+            Or create manually:
+
+            ```bash
+            mkdir -p ~/.config/shelfctl
+            cp config.example.yml ~/.config/shelfctl/config.yml
+            # Edit with your settings
+            ```
+            ```
+
+            ### 4. README.md
+
+            Update the "30-Second Quickstart" section (lines 57-72). The current
+            quickstart requires manual owner flag. Simplify it.
+
+            Find this exact text:
+            ```markdown
+            ## 30-Second Quickstart
+
+            ```bash
+            # 1. Set up authentication (create token at github.com/settings/tokens)
+            export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here
+
+            # 2. Create your first shelf
+            shelfctl init --repo shelf-books --name books --create-repo --owner YOUR_USERNAME
+            ```
+
+            Replace with:
+            ```markdown
+            ## 30-Second Quickstart
+
+            ```bash
+            # 1. Set up authentication (create token at github.com/settings/tokens)
+            export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here
+
+            # 2. Create your first shelf (auto-creates config on first run)
+            shelfctl init --repo shelf-books --name books --create-repo
+            ```
+
+            Note: the `--owner YOUR_USERNAME` flag is removed because the auto-create
+            prompt will have already set the owner in config.
+
+            ### Verification gate
+
+            ```bash
+            # Postcondition: NEW-USER-FRICTION.md mentions auto-create
+            grep -c "Auto-create config" docs/NEW-USER-FRICTION.md
+            # Expected: 1
+            # Postcondition: tutorial.md mentions auto-create
+            grep -c "creates its config automatically" docs/guides/tutorial.md
+            # Expected: 1
+            # Postcondition: troubleshooting.md mentions auto prompt
+            grep -c "prompt you" docs/reference/troubleshooting.md
+            # Expected: >= 1
+            # Postcondition: README quickstart no longer requires --owner
+            grep -c "\-\-owner YOUR_USERNAME" README.md
+            # Expected: 0
+            ```
+
+            ### Constraints
+            - Do NOT modify any Go source files -- those are owned by Agent A.
+            - Do NOT change the structure of config.example.yml.
+            - Keep the existing heading hierarchy in each doc file.
+            - Preserve all content not related to config creation setup.
+          files:
+            - docs/NEW-USER-FRICTION.md
+            - docs/guides/tutorial.md
+            - docs/reference/troubleshooting.md
+            - README.md
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: go build ./...
+          required: true
+        - type: test
+          command: go test ./...
+          required: true
+        - type: lint
+          command: go vet ./...
+          required: true
+        - type: format
+          command: gofmt -l .
+          required: false
+post_merge_checklist:
+    groups: []
+pre_mortem:
+    overall_risk: low
+    rows:
+        - scenario: Agent A's hub_runner.go edit breaks the import block by adding ghclient import incorrectly
+          likelihood: low
+          impact: medium
+          mitigation: Build gate catches immediately. Agent A prompt specifies exact import alias matching root.go pattern.
+        - scenario: PromptAndCreateConfig reads from stdin in test environment causing test hang
+          likelihood: medium
+          impact: medium
+          mitigation: Tests only cover non-TTY path (util.IsTTY() returns false in CI). Interactive path tested manually.
+        - scenario: Agent B's README edit accidentally removes the --owner flag from other examples beyond quickstart
+          likelihood: low
+          impact: low
+          mitigation: Agent B prompt is scoped to only the 30-Second Quickstart section. Other examples retain --owner as optional.
+        - scenario: Race between PersistentPreRunE auto-create and RunE reading cfg
+          likelihood: low
+          impact: high
+          mitigation: Cobra runs PersistentPreRunE synchronously before RunE. No race possible.
+state: REVIEWED
+injection_method: hook

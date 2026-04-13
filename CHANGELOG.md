@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TODO(bug9) migrate fix:** `processMigrationQueue` no longer spawns a cobra subcommand via `Execute()` which bypassed `PersistentPreRunE`. Now calls `migrateOneFile()` directly.
 - **Deduplicated shared functions:** `humanBytes`, `openFile`, `isPDF`, and `computeFileHash` were copy-pasted between `internal/app/` and `internal/unified/`. Consolidated into `internal/util/file.go` with all call sites updated.
 
+### Documentation
+- **TUI error handling guide:** New "Error Handling" section in docs/guides/hub.md covering all failure modes (API unreachable, 401, 403, 429, download failure, sync failure).
+- **catalog.yml editing guide:** New "Editing catalog.yml Directly" section in docs/reference/architecture.md for advanced users who want to edit metadata via git.
+
 ## [0.4.7] - 2026-04-13
 
 ### Added

@@ -1,6 +1,7 @@
 package github
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -44,7 +45,7 @@ func (c *Client) CreateRelease(owner, repo, tag, name string) (*Release, error) 
 // EnsureRelease returns the existing release for tag, creating it if absent.
 func (c *Client) EnsureRelease(owner, repo, tag string) (*Release, error) {
 	r, err := c.GetReleaseByTag(owner, repo, tag)
-	if err == ErrNotFound {
+	if errors.Is(err, ErrNotFound) {
 		return c.CreateRelease(owner, repo, tag, tag)
 	}
 	return r, err

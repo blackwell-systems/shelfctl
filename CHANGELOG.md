@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-04-13
+
 ### Added
 - **Auto-sync TUI toggle:** New "Auto-sync: on/off" menu item under the Cache section in the hub. Pressing Enter toggles auto-sync and persists the change to `~/.config/shelfctl/config.yml` immediately, no restart required.
 - **`shelfctl config set` CLI command:** Set config fields from the command line (e.g. `shelfctl config set sync.auto_sync true`, `shelfctl config set sync.debounce_minutes 10`).

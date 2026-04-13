@@ -186,6 +186,20 @@ shelves:
 
 **Solution**:
 
+Run `shelfctl` or `shelfctl init` interactively -- they will prompt you
+to create the config automatically:
+
+```
+No config found. Let's set up shelfctl.
+
+GitHub username or org: your-username
+Token env var name [SHELFCTL_GITHUB_TOKEN]:
+
+Config created at ~/.config/shelfctl/config.yml
+```
+
+Or create manually:
+
 ```bash
 mkdir -p ~/.config/shelfctl
 cp config.example.yml ~/.config/shelfctl/config.yml

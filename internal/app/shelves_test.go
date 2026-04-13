@@ -249,10 +249,10 @@ func TestFixErrorMessageVariant_TableMode(t *testing.T) {
 			failedShelves = append(failedShelves, "shelf '"+s.name+"': "+s.errorMsg)
 		}
 	}
-	// Table mode error format includes "Run with --fix to repair."
-	errMsg := "shelf issues:\n  " + strings.Join(failedShelves, "\n  ") + "\n\nRun with --fix to repair."
+	// Table mode error format includes "Run with --fix to repair"
+	errMsg := "shelf issues:\n  " + strings.Join(failedShelves, "\n  ") + "\n\nRun with --fix to repair"
 
-	if !strings.Contains(errMsg, "Run with --fix to repair.") {
+	if !strings.Contains(errMsg, "Run with --fix to repair") {
 		t.Errorf("table mode error should contain --fix hint, got: %s", errMsg)
 	}
 	if !strings.Contains(errMsg, "bad-shelf") {

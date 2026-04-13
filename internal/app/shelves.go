@@ -63,7 +63,7 @@ func newShelvesCmd() *cobra.Command {
 							failedShelves = append(failedShelves, fmt.Sprintf("shelf '%s': %s", s.name, s.errorMsg))
 						}
 					}
-					return fmt.Errorf("shelf issues:\n  %s\n\nRun with --fix to repair.", strings.Join(failedShelves, "\n  "))
+					return fmt.Errorf("shelf issues:\n  %s\n\nRun with --fix to repair", strings.Join(failedShelves, "\n  "))
 				}
 				fmt.Println()
 				ok("All shelves healthy")

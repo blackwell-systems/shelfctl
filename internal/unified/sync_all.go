@@ -509,5 +509,3 @@ func (m SyncAllModel) View() string {
 
 	return outerStyle.Render(tui.StyleBorder.Render(innerPadding.Render(b.String())))
 }
-
-

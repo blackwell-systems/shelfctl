@@ -24,16 +24,16 @@ func createAskpassScript() (string, error) {
 	}
 	path := f.Name()
 	if _, err := f.WriteString(askpassScript); err != nil {
-		f.Close()
-		os.Remove(path)
+		_ = f.Close()
+		_ = os.Remove(path)
 		return "", fmt.Errorf("write askpass script: %w", err)
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return "", fmt.Errorf("close askpass script: %w", err)
 	}
 	if err := os.Chmod(path, 0700); err != nil {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return "", fmt.Errorf("chmod askpass script: %w", err)
 	}
 	return path, nil

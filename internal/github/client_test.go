@@ -1,7 +1,9 @@
 package github
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -138,14 +140,54 @@ func TestCheckStatus_Conflict(t *testing.T) {
 }
 
 func TestCheckStatus_UnknownError(t *testing.T) {
-	resp := &http.Response{StatusCode: http.StatusInternalServerError}
+	// Use a non-5xx, non-standard code to test the generic fallback
+	resp := &http.Response{StatusCode: http.StatusTeapot} // 418
 	err := checkStatus(resp)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	expected := "github API error 500"
+	expected := "github API error 418"
 	if err.Error() != expected {
 		t.Errorf("expected %q, got %q", expected, err.Error())
+	}
+}
+
+func TestCheckStatus_RateLimited(t *testing.T) {
+	resp := &http.Response{StatusCode: http.StatusTooManyRequests}
+	err := checkStatus(resp)
+	if err != ErrRateLimited {
+		t.Errorf("expected ErrRateLimited, got %v", err)
+	}
+}
+
+func TestCheckStatus_ServerError(t *testing.T) {
+	codes := []int{500, 502, 503}
+	for _, code := range codes {
+		t.Run(fmt.Sprintf("status_%d", code), func(t *testing.T) {
+			resp := &http.Response{StatusCode: code}
+			err := checkStatus(resp)
+			if err != ErrServerError {
+				t.Errorf("expected ErrServerError for %d, got %v", code, err)
+			}
+		})
+	}
+}
+
+func TestClientDo_WrapsConnectionError(t *testing.T) {
+	// Create a client pointing at an unreachable address
+	c := New("test-token", "http://127.0.0.1:1")
+	req, _ := http.NewRequest(http.MethodGet, c.url("test"), nil)
+	_, err := c.do(req)
+	if err == nil {
+		t.Fatal("expected error for unreachable server, got nil")
+	}
+	if !strings.Contains(err.Error(), "unable to reach GitHub API") {
+		t.Errorf("expected user-friendly connection error, got: %v", err)
+	}
+	// The original error should be wrapped
+	var netErr *net.OpError
+	if !errors.As(err, &netErr) {
+		t.Errorf("expected wrapped net.OpError, got: %v", err)
 	}
 }
 

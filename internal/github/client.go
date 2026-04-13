@@ -2,9 +2,12 @@ package github
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -49,7 +52,17 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	if req.Header.Get("Content-Type") == "" && req.Body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	return c.http.Do(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			return nil, fmt.Errorf("request to GitHub API timed out: %w", err)
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("request to GitHub API timed out: %w", err)
+		}
+		return nil, fmt.Errorf("unable to reach GitHub API: check your internet connection: %w", err)
+	}
+	return resp, nil
 }
 
 // doJSON sends a request and decodes the JSON response into out.
@@ -98,7 +111,12 @@ func checkStatus(resp *http.Response) error {
 		return ErrNotFound
 	case http.StatusConflict:
 		return ErrConflict
+	case http.StatusTooManyRequests:
+		return ErrRateLimited
 	default:
+		if resp.StatusCode >= 500 {
+			return ErrServerError
+		}
 		return fmt.Errorf("github API error %d", resp.StatusCode)
 	}
 }

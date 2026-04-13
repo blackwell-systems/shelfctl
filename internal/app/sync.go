@@ -1,14 +1,13 @@
 package app
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -96,7 +95,7 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 
 			// Check if modified
 			cachedPath := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
-			cachedSHA, cachedSize, err := computeFileHash(cachedPath)
+			cachedSHA, cachedSize, err := util.ComputeFileHash(cachedPath)
 			if err != nil {
 				warn("Could not read cached file for %s: %v", b.ID, err)
 				continue
@@ -274,22 +273,6 @@ func runSync(cmd *cobra.Command, bookIDs []string, shelfName string, all bool) e
 	}
 
 	return nil
-}
-
-func computeFileHash(path string) (string, int64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", 0, err
-	}
-	defer func() { _ = f.Close() }()
-
-	h := sha256.New()
-	size, err := io.Copy(h, f)
-	if err != nil {
-		return "", 0, err
-	}
-
-	return fmt.Sprintf("%x", h.Sum(nil)), size, nil
 }
 
 func contains(list []string, item string) bool {

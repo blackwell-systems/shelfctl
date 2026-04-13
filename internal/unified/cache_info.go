@@ -8,6 +8,7 @@ import (
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -137,7 +138,7 @@ func (m CacheInfoModel) View() string {
 		b.WriteString(tui.StyleNormal.Render(fmt.Sprintf("  Modified:     %d (annotations/highlights)", m.modifiedCount)))
 		b.WriteString("\n")
 	}
-	b.WriteString(tui.StyleNormal.Render(fmt.Sprintf("  Cache size:   %s", humanBytes(m.totalSize))))
+	b.WriteString(tui.StyleNormal.Render(fmt.Sprintf("  Cache size:   %s", util.HumanBytes(m.totalSize))))
 	b.WriteString("\n")
 	b.WriteString(dim.Render(fmt.Sprintf("  Cache dir:    %s", m.cacheDir)))
 	b.WriteString("\n")
@@ -150,7 +151,7 @@ func (m CacheInfoModel) View() string {
 		for _, s := range m.shelfStats {
 			cached := fmt.Sprintf("%d/%d cached", s.cachedBooks, s.totalBooks)
 			if s.cacheSize > 0 {
-				cached += fmt.Sprintf(" (%s)", humanBytes(s.cacheSize))
+				cached += fmt.Sprintf(" (%s)", util.HumanBytes(s.cacheSize))
 			}
 			b.WriteString(tui.StyleNormal.Render(fmt.Sprintf("  %s: %s", s.name, cached)))
 			b.WriteString("\n")

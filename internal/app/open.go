@@ -3,10 +3,7 @@ package app
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/config"
@@ -89,7 +86,7 @@ Examples:
 					}()
 
 					// Show progress UI
-					label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
+					label := fmt.Sprintf("Downloading %s (%s)", b.ID, util.HumanBytes(asset.Size))
 					if err := tui.ShowProgress(label, asset.Size, progressCh); err != nil {
 						// User cancelled - wait for goroutine to exit
 						<-errCh
@@ -102,7 +99,7 @@ Examples:
 					}
 				} else {
 					// Non-interactive mode: just print and download
-					fmt.Printf("Downloading %s (%s) …\n", b.ID, humanBytes(asset.Size))
+					fmt.Printf("Downloading %s (%s) …\n", b.ID, util.HumanBytes(asset.Size))
 					_, err = cacheMgr.Store(owner, shelf.Repo, b.ID, b.Source.Asset, rc, b.Checksum.SHA256)
 					if err != nil {
 						return fmt.Errorf("cache: %w", err)
@@ -115,7 +112,7 @@ Examples:
 			}
 
 			path := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
-			return openFile(path, app)
+			return util.OpenFile(path, app)
 		},
 	}
 
@@ -124,38 +121,10 @@ Examples:
 	return cmd
 }
 
-func openFile(path, app string) error {
-	var cmdName string
-	var args []string
-
-	if app != "" {
-		cmdName = app
-		args = []string{path}
-	} else {
-		switch runtime.GOOS {
-		case "darwin":
-			cmdName = "open"
-			args = []string{path}
-		case "windows":
-			cmdName = "cmd"
-			args = []string{"/c", "start", "", path}
-		default: // linux, freebsd, etc.
-			cmdName = "xdg-open"
-			args = []string{path}
-		}
-	}
-
-	c := exec.Command(cmdName, args...)
-	if err := c.Start(); err != nil {
-		return fmt.Errorf("opening file with %q: %w", cmdName, err)
-	}
-	return nil
-}
-
 // showPopplerHintIfNeeded shows a one-time hint about installing poppler for PDF cover extraction.
 func showPopplerHintIfNeeded(assetFilename string) {
 	// Only for PDFs
-	if !isPDF(assetFilename) {
+	if !util.IsPDF(assetFilename) {
 		return
 	}
 
@@ -178,9 +147,4 @@ func showPopplerHintIfNeeded(assetFilename string) {
 
 	// Mark as shown
 	_ = os.WriteFile(markerPath, []byte("1"), 0644)
-}
-
-// isPDF checks if the filename indicates a PDF file
-func isPDF(filename string) bool {
-	return strings.ToLower(filepath.Ext(filename)) == ".pdf"
 }

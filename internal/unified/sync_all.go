@@ -1,9 +1,7 @@
 package unified
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -12,6 +10,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -297,7 +296,7 @@ func (m SyncAllModel) detectAsync() tea.Cmd {
 					continue
 				}
 				cachedPath := cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
-				newSHA, size, err := syncComputeHash(cachedPath)
+				newSHA, size, err := util.ComputeFileHash(cachedPath)
 				if err != nil {
 					continue
 				}
@@ -509,21 +508,4 @@ func (m SyncAllModel) View() string {
 	}
 
 	return outerStyle.Render(tui.StyleBorder.Render(innerPadding.Render(b.String())))
-}
-
-// syncComputeHash computes the SHA256 and byte size of a local file.
-func syncComputeHash(path string) (string, int64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", 0, err
-	}
-	defer func() { _ = f.Close() }()
-
-	h := sha256.New()
-	size, err := io.Copy(h, f)
-	if err != nil {
-		return "", 0, err
-	}
-
-	return fmt.Sprintf("%x", h.Sum(nil)), size, nil
 }

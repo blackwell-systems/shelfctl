@@ -7,42 +7,43 @@ import (
 	"testing"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 )
 
 // --- isPDF ---
 
 func TestIsPDF_Lowercase(t *testing.T) {
-	if !isPDF("book.pdf") {
+	if !util.IsPDF("book.pdf") {
 		t.Error("book.pdf should be PDF")
 	}
 }
 
 func TestIsPDF_Uppercase(t *testing.T) {
-	if !isPDF("BOOK.PDF") {
+	if !util.IsPDF("BOOK.PDF") {
 		t.Error("BOOK.PDF should be PDF")
 	}
 }
 
 func TestIsPDF_MixedCase(t *testing.T) {
-	if !isPDF("Book.Pdf") {
+	if !util.IsPDF("Book.Pdf") {
 		t.Error("Book.Pdf should be PDF")
 	}
 }
 
 func TestIsPDF_NotPDF(t *testing.T) {
-	if isPDF("book.epub") {
+	if util.IsPDF("book.epub") {
 		t.Error("book.epub should not be PDF")
 	}
 }
 
 func TestIsPDF_Empty(t *testing.T) {
-	if isPDF("") {
+	if util.IsPDF("") {
 		t.Error("empty string should not be PDF")
 	}
 }
 
 func TestIsPDF_NoExtension(t *testing.T) {
-	if isPDF("README") {
+	if util.IsPDF("README") {
 		t.Error("README should not be PDF")
 	}
 }

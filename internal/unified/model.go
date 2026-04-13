@@ -3,9 +3,7 @@ package unified
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -14,6 +12,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -752,7 +751,7 @@ func (m Model) handleOpenBook(item *tui.BookItem) error {
 		}()
 
 		// Show progress UI (TUI-based progress bar)
-		label := fmt.Sprintf("Downloading %s (%s)", b.ID, humanBytes(asset.Size))
+		label := fmt.Sprintf("Downloading %s (%s)", b.ID, util.HumanBytes(asset.Size))
 		if err := tui.ShowProgress(label, asset.Size, progressCh); err != nil {
 			return err // User cancelled
 		}
@@ -767,7 +766,7 @@ func (m Model) handleOpenBook(item *tui.BookItem) error {
 
 	// Open the file
 	path := m.cacheMgr.Path(item.Owner, item.Repo, b.ID, b.Source.Asset)
-	return openFile(path, "")
+	return util.OpenFile(path, "")
 }
 
 // handleEditBook opens the edit form and updates book metadata
@@ -877,49 +876,6 @@ func (m Model) GetRestartView() View {
 	return m.restartAtView
 }
 
-// humanBytes formats bytes as human-readable size
-func humanBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
-	}
-	div, exp := int64(unit), 0
-	for n := n / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
-}
-
-// openFile opens a file with the system default application
-func openFile(path, app string) error {
-	var cmdName string
-	var args []string
-
-	if app != "" {
-		cmdName = app
-		args = []string{path}
-	} else {
-		switch runtime.GOOS {
-		case "darwin":
-			cmdName = "open"
-			args = []string{path}
-		case "windows":
-			cmdName = "cmd"
-			args = []string{"/c", "start", "", path}
-		default: // linux, freebsd, etc.
-			cmdName = "xdg-open"
-			args = []string{path}
-		}
-	}
-
-	c := exec.Command(cmdName, args...)
-	if err := c.Start(); err != nil {
-		return fmt.Errorf("opening file with %q: %w", cmdName, err)
-	}
-	return nil
-}
-
 // PerformPendingAction executes a pending action outside the TUI
 // This should be called after the TUI has exited
 func PerformPendingAction(action *ActionRequestMsg, gh *github.Client, cfg *config.Config, cacheMgr *cache.Manager) error {
@@ -1026,7 +982,7 @@ func (m Model) refreshModifiedStatusCmd() tea.Cmd {
 					if withinDebounce(cachedPath, debounceMins) {
 						continue // too recent; wait for next scan
 					}
-					newSHA, size, err := syncComputeHash(cachedPath)
+					newSHA, size, err := util.ComputeFileHash(cachedPath)
 					if err != nil {
 						continue
 					}

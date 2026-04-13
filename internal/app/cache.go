@@ -10,6 +10,7 @@ import (
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -135,7 +136,7 @@ func clearAllCache(force bool) error {
 	size, count := calculateDirSize(cacheDir)
 
 	// Confirm
-	fmt.Printf("This will remove %d cached files (%s)\n", count, humanBytes(size))
+	fmt.Printf("This will remove %d cached files (%s)\n", count, util.HumanBytes(size))
 	if force {
 		fmt.Printf("%s This includes modified files with annotations\n", color.YellowString("⚠"))
 	}
@@ -153,7 +154,7 @@ func clearAllCache(force bool) error {
 		return fmt.Errorf("removing cache: %w", err)
 	}
 
-	ok("Cleared %d files (%s)", count, humanBytes(size))
+	ok("Cleared %d files (%s)", count, util.HumanBytes(size))
 	return nil
 }
 
@@ -208,7 +209,7 @@ func clearShelfCache(shelfName string, force bool) error {
 	}
 
 	// Confirm
-	fmt.Printf("This will remove %d cached books from shelf %s (%s)\n", cachedCount, shelfName, humanBytes(cachedSize))
+	fmt.Printf("This will remove %d cached books from shelf %s (%s)\n", cachedCount, shelfName, util.HumanBytes(cachedSize))
 	if force && modifiedCount > 0 {
 		fmt.Printf("%s This includes %d modified files with annotations\n", color.YellowString("⚠"), modifiedCount)
 	}
@@ -242,7 +243,7 @@ func clearShelfCache(shelfName string, force bool) error {
 		}
 	}
 
-	ok("Removed %d books from cache (%s)", removed, humanBytes(cachedSize))
+	ok("Removed %d books from cache (%s)", removed, util.HumanBytes(cachedSize))
 	if skipped > 0 {
 		fmt.Printf("%s Skipped %d modified books (use --force to delete)\n", color.CyanString("ℹ"), skipped)
 	}
@@ -298,7 +299,7 @@ func clearSpecificBooks(bookIDs []string, force bool) error {
 	}
 
 	if removedCount > 0 {
-		ok("Removed %d books from cache (%s)", removedCount, humanBytes(totalSize))
+		ok("Removed %d books from cache (%s)", removedCount, util.HumanBytes(totalSize))
 	}
 	if skippedCount > 0 {
 		fmt.Printf("\n%s Skipped %d modified books\n", color.CyanString("ℹ"), skippedCount)
@@ -405,7 +406,7 @@ func clearBooksInteractive(cmd *cobra.Command, force bool) error {
 		removedCount++
 	}
 
-	ok("Removed %d books from cache (%s)", removedCount, humanBytes(totalSize))
+	ok("Removed %d books from cache (%s)", removedCount, util.HumanBytes(totalSize))
 	if len(skipped) > 0 {
 		fmt.Printf("%s Skipped %d modified books\n", color.CyanString("ℹ"), len(skipped))
 	}
@@ -447,7 +448,7 @@ func showAllCacheInfo() error {
 	if modifiedCount > 0 {
 		printField("modified", fmt.Sprintf("%d (annotations/highlights)", modifiedCount))
 	}
-	printField("cache_size", humanBytes(totalSize))
+	printField("cache_size", util.HumanBytes(totalSize))
 	printField("cache_dir", cacheMgr.Path("", "", "", ""))
 
 	uncachedCount := totalBooks - cachedCount
@@ -520,7 +521,7 @@ func showShelfCacheInfo(shelfName string) error {
 	if modifiedCount > 0 {
 		printField("modified", fmt.Sprintf("%d (annotations/highlights)", modifiedCount))
 	}
-	printField("cache_size", humanBytes(totalSize))
+	printField("cache_size", util.HumanBytes(totalSize))
 	printField("repository", fmt.Sprintf("%s/%s", owner, shelf.Repo))
 
 	uncachedCount := totalBooks - cachedCount
@@ -603,9 +604,9 @@ func clearOrphans() error {
 	}
 
 	// Display orphans
-	fmt.Printf("Found %d orphaned cache entries (%s):\n\n", report.TotalCount, humanBytes(report.TotalSize))
+	fmt.Printf("Found %d orphaned cache entries (%s):\n\n", report.TotalCount, util.HumanBytes(report.TotalSize))
 	for _, entry := range report.Entries {
-		fmt.Printf("  %s/%s (%s)\n", entry.Repo, entry.Filename, humanBytes(entry.Size))
+		fmt.Printf("  %s/%s (%s)\n", entry.Repo, entry.Filename, util.HumanBytes(entry.Size))
 	}
 	fmt.Printf("\nThese files are no longer referenced in any shelf catalog.\n")
 
@@ -625,7 +626,7 @@ func clearOrphans() error {
 		warn("Some files failed to delete: %v", err)
 	}
 
-	ok("Cleared %d orphaned files (%s)", deleted, humanBytes(report.TotalSize))
+	ok("Cleared %d orphaned files (%s)", deleted, util.HumanBytes(report.TotalSize))
 	return nil
 }
 

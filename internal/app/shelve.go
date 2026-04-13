@@ -694,7 +694,7 @@ func printBookSummary(cmd *cobra.Command, bookID, title, sha256 string, size int
 		fmt.Printf("  id:      %s\n", color.WhiteString(bookID))
 		fmt.Printf("  title:   %s\n", title)
 		fmt.Printf("  sha256:  %s\n", sha256)
-		fmt.Printf("  size:    %s\n", humanBytes(size))
+		fmt.Printf("  size:    %s\n", util.HumanBytes(size))
 		fmt.Printf("  asset:   %s\n", assetName)
 	} else {
 		// Script mode: just print the book ID for easy parsing

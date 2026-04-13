@@ -8,6 +8,7 @@ import (
 	"github.com/blackwell-systems/bubbletea-multiselect"
 	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -297,7 +298,7 @@ func (m CacheClearModel) renderConfirmation() string {
 
 	// Size info
 	b.WriteString("\n")
-	b.WriteString(tui.StyleNormal.Render(fmt.Sprintf("Space to free: %s", humanBytes(m.totalSize))))
+	b.WriteString(tui.StyleNormal.Render(fmt.Sprintf("Space to free: %s", util.HumanBytes(m.totalSize))))
 	b.WriteString("\n\n")
 
 	// Help
@@ -336,4 +337,3 @@ func (m CacheClearModel) clearCacheAsync() tea.Cmd {
 	}
 }
 
-// humanBytes is defined in model.go

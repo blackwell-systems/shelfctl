@@ -9,6 +9,7 @@ import (
 	"github.com/blackwell-systems/bubbletea-multiselect"
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/migrate"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
@@ -410,7 +411,7 @@ func buildImportRepoMultiselect(files []migrate.FileEntry) multiselect.Model {
 		isCurrent := index == ml.Index()
 		checkbox := ms.CheckboxPrefix(fi)
 
-		sizeStr := humanBytes(int64(fi.file.Size))
+		sizeStr := util.HumanBytes(int64(fi.file.Size))
 		line := fmt.Sprintf("%s %s (%s)", checkbox, fi.file.Path, sizeStr)
 
 		if isCurrent {

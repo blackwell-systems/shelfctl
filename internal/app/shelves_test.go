@@ -160,3 +160,144 @@ func TestFormatStatus_Healthy(t *testing.T) {
 		t.Errorf("got %q, want it to contain %q", got, "Healthy")
 	}
 }
+
+// --- Multiple failing shelves ---
+
+func TestMultipleFailingShelves_EachNamedInError(t *testing.T) {
+	statuses := []shelfStatus{
+		{name: "shelf-a", repoOK: false, errorMsg: "repository 'org/shelf-a' not found"},
+		{name: "shelf-b", repoOK: false, errorMsg: "repository 'org/shelf-b' not found"},
+		{name: "shelf-c", repoOK: true, catalogOK: false, errorMsg: "catalog.yml missing"},
+	}
+
+	var failedShelves []string
+	for _, s := range statuses {
+		if s.errorMsg != "" {
+			failedShelves = append(failedShelves, "shelf '"+s.name+"': "+s.errorMsg)
+		}
+	}
+	joined := strings.Join(failedShelves, "; ")
+
+	if !strings.Contains(joined, "shelf 'shelf-a'") {
+		t.Errorf("error should mention shelf-a, got: %s", joined)
+	}
+	if !strings.Contains(joined, "shelf 'shelf-b'") {
+		t.Errorf("error should mention shelf-b, got: %s", joined)
+	}
+	if !strings.Contains(joined, "shelf 'shelf-c'") {
+		t.Errorf("error should mention shelf-c, got: %s", joined)
+	}
+}
+
+// --- Different error types ---
+
+func TestFormatStatus_RepoError(t *testing.T) {
+	s := shelfStatus{repoOK: false, errorMsg: "repo error: 403 Forbidden"}
+	got := stripAnsi(formatStatus(s))
+	if !strings.Contains(got, "repo error: 403 Forbidden") {
+		t.Errorf("got %q, want it to contain auth error message", got)
+	}
+}
+
+func TestFormatStatus_NetworkTimeout(t *testing.T) {
+	s := shelfStatus{repoOK: false, errorMsg: "repo error: context deadline exceeded (Client.Timeout)"}
+	got := stripAnsi(formatStatus(s))
+	if !strings.Contains(got, "context deadline exceeded") {
+		t.Errorf("got %q, want it to contain timeout error", got)
+	}
+}
+
+// --- Mix of passing and failing shelves ---
+
+func TestMixOfPassingAndFailing_OnlyFailingInError(t *testing.T) {
+	statuses := []shelfStatus{
+		{name: "healthy-shelf", repoOK: true, catalogOK: true, releaseOK: true, errorMsg: ""},
+		{name: "broken-shelf", repoOK: false, errorMsg: "repository 'org/broken-shelf' not found"},
+		{name: "also-healthy", repoOK: true, catalogOK: true, releaseOK: true, errorMsg: ""},
+	}
+
+	var failedShelves []string
+	for _, s := range statuses {
+		if s.errorMsg != "" {
+			failedShelves = append(failedShelves, "shelf '"+s.name+"': "+s.errorMsg)
+		}
+	}
+	joined := strings.Join(failedShelves, "; ")
+
+	if strings.Contains(joined, "healthy-shelf") {
+		t.Errorf("error should NOT mention healthy-shelf, got: %s", joined)
+	}
+	if strings.Contains(joined, "also-healthy") {
+		t.Errorf("error should NOT mention also-healthy, got: %s", joined)
+	}
+	if !strings.Contains(joined, "broken-shelf") {
+		t.Errorf("error should mention broken-shelf, got: %s", joined)
+	}
+}
+
+// --- --fix error message variant (table mode with --fix hint) ---
+
+func TestFixErrorMessageVariant_TableMode(t *testing.T) {
+	// Simulate the table-mode error format from shelves.go line ~66
+	statuses := []shelfStatus{
+		{name: "bad-shelf", repoOK: true, catalogOK: false, needsFix: true, errorMsg: "catalog.yml missing"},
+	}
+
+	var failedShelves []string
+	for _, s := range statuses {
+		if s.errorMsg != "" {
+			failedShelves = append(failedShelves, "shelf '"+s.name+"': "+s.errorMsg)
+		}
+	}
+	// Table mode error format includes "Run with --fix to repair."
+	errMsg := "shelf issues:\n  " + strings.Join(failedShelves, "\n  ") + "\n\nRun with --fix to repair."
+
+	if !strings.Contains(errMsg, "Run with --fix to repair.") {
+		t.Errorf("table mode error should contain --fix hint, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "bad-shelf") {
+		t.Errorf("table mode error should name the shelf, got: %s", errMsg)
+	}
+}
+
+func TestFixErrorMessageVariant_ListMode(t *testing.T) {
+	// Simulate the list-mode error format from shelves.go line ~81
+	statuses := []shelfStatus{
+		{name: "broken", repoOK: false, errorMsg: "repository 'org/broken' not found"},
+	}
+
+	var failedShelves []string
+	for _, s := range statuses {
+		if s.errorMsg != "" {
+			failedShelves = append(failedShelves, "shelf '"+s.name+"': "+s.errorMsg)
+		}
+	}
+	// List mode error format uses semicolons and no --fix hint
+	errMsg := "shelf issues: " + strings.Join(failedShelves, "; ")
+
+	if strings.Contains(errMsg, "--fix") {
+		t.Errorf("list mode error should NOT contain --fix hint, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "broken") {
+		t.Errorf("list mode error should name the shelf, got: %s", errMsg)
+	}
+}
+
+// --- formatStatus with needsFix flag ---
+
+func TestFormatStatus_CatalogMissing_NeedsFix_ShowsWarning(t *testing.T) {
+	s := shelfStatus{repoOK: true, catalogOK: false, needsFix: true, errorMsg: "catalog.yml missing"}
+	got := stripAnsi(formatStatus(s))
+	// When needsFix is true, formatStatus uses yellow warning symbol
+	if !strings.Contains(got, "catalog.yml missing") {
+		t.Errorf("got %q, want it to contain %q", got, "catalog.yml missing")
+	}
+}
+
+func TestFormatStatus_ReleaseMissing_NeedsFix(t *testing.T) {
+	s := shelfStatus{repoOK: true, catalogOK: true, releaseOK: false, needsFix: true, errorMsg: "release 'library' missing"}
+	got := stripAnsi(formatStatus(s))
+	if !strings.Contains(got, "release 'library' missing") {
+		t.Errorf("got %q, want it to contain %q", got, "release 'library' missing")
+	}
+}

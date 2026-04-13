@@ -3,6 +3,7 @@ package app
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -30,10 +31,15 @@ func PromptAndCreateConfig() (*config.Config, error) {
 	if !util.IsTTY() {
 		return nil, nil
 	}
+	return promptAndCreateConfigFromReader(os.Stdin)
+}
 
+// promptAndCreateConfigFromReader is the testable core of PromptAndCreateConfig.
+// It reads interactive input from r instead of os.Stdin.
+func promptAndCreateConfigFromReader(r io.Reader) (*config.Config, error) {
 	fmt.Print("No config found. Let's set up shelfctl.\n")
 
-	reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(r)
 
 	// Prompt for GitHub owner (required, loop until non-empty)
 	var owner string

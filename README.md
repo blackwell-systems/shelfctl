@@ -60,8 +60,8 @@ Your library stays portable, backed by normal git repos. Free by default (only p
 # 1. Set up authentication (create token at github.com/settings/tokens)
 export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here
 
-# 2. Create your first shelf
-shelfctl init --repo shelf-books --name books --create-repo --owner YOUR_USERNAME
+# 2. Create your first shelf (auto-creates config on first run)
+shelfctl init --repo shelf-books --name books --create-repo
 
 # 3. Add a book
 shelfctl shelve ~/Downloads/book.pdf --shelf books

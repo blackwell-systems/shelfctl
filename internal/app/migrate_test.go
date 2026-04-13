@@ -846,6 +846,73 @@ func TestMigrateLedgerOperations(t *testing.T) {
 	}
 }
 
+// TestProcessMigrationQueueNonDryRun tests the non-dry-run path calls migrateOneFile directly.
+func TestProcessMigrationQueueNonDryRun(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test-queue-nondryrun-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	queueFile := filepath.Join(tmpDir, "queue.txt")
+	queueContent := "books/programming/test.pdf\nbooks/fiction/novel.pdf\n"
+	if err := os.WriteFile(queueFile, []byte(queueContent), 0644); err != nil {
+		t.Fatalf("failed to write queue file: %v", err)
+	}
+
+	ledgerPath := filepath.Join(tmpDir, "ledger.jsonl")
+	ledger, err := migrate.OpenLedger(ledgerPath)
+	if err != nil {
+		t.Fatalf("failed to open ledger: %v", err)
+	}
+
+	// Test with no migration sources configured - should warn and continue
+	cfg = &config.Config{
+		Migration: config.MigrationConfig{
+			Sources: []config.MigrationSource{},
+		},
+	}
+
+	f, err := os.Open(queueFile)
+	if err != nil {
+		t.Fatalf("failed to open queue file: %v", err)
+	}
+	processed, _ := processMigrationQueue(f, ledger, 0, false, false, true)
+	_ = f.Close()
+
+	// With empty sources, non-dry-run should process 0 (all fail with "no migration sources")
+	if processed != 0 {
+		t.Errorf("expected 0 processed with no sources, got %d", processed)
+	}
+
+	// Test with sources configured but no matching routes
+	cfg = &config.Config{
+		Migration: config.MigrationConfig{
+			Sources: []config.MigrationSource{
+				{
+					Owner: "old-org",
+					Repo:  "old-repo",
+					Mapping: map[string]string{
+						"other/path/": "tech",
+					},
+				},
+			},
+		},
+	}
+
+	f2, err := os.Open(queueFile)
+	if err != nil {
+		t.Fatalf("failed to open queue file: %v", err)
+	}
+	processed2, _ := processMigrationQueue(f2, ledger, 0, false, false, true)
+	_ = f2.Close()
+
+	// With non-matching routes, migrateOneFile returns error, so processed stays 0
+	if processed2 != 0 {
+		t.Errorf("expected 0 processed with non-matching routes, got %d", processed2)
+	}
+}
+
 // TestProcessMigrationQueueWithErrors tests error handling during batch processing.
 func TestProcessMigrationQueueWithErrors(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-queue-errors-*")

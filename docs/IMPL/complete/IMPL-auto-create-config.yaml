@@ -1,3 +1,4 @@
+completion_date: "2026-04-13"
 title: Auto-create config on first run
 feature_slug: auto-create-config
 verdict: SUITABLE
@@ -533,6 +534,36 @@ quality_gates:
           required: false
 post_merge_checklist:
     groups: []
+completion_reports:
+    A:
+        status: complete
+        branch: saw/auto-create-config/wave1-agent-A
+        commit: 1f96514
+        files_changed:
+            - internal/app/setup_prompt.go
+            - internal/app/setup_prompt_test.go
+            - internal/app/hub_runner.go
+            - internal/app/root.go
+        files_created:
+            - internal/app/setup_prompt.go
+            - internal/app/setup_prompt_test.go
+        tests_added:
+            - TestConfigFileExists_NoFile
+            - TestConfigFileExists_WithFile
+            - TestPromptAndCreateConfig_NonTTY
+        verification: PASS
+        notes: All functions implemented per spec. configFileExists and PromptAndCreateConfig in setup_prompt.go. Auto-create integrated into runUnifiedTUI (hub_runner.go) and PersistentPreRunE for init (root.go). No changes needed in init.go as the brief confirmed.
+    B:
+        status: complete
+        branch: saw/auto-create-config/wave1-agent-B
+        commit: 9de5ebf
+        files_changed:
+            - docs/NEW-USER-FRICTION.md
+            - docs/guides/tutorial.md
+            - docs/reference/troubleshooting.md
+            - README.md
+        verification: PASS
+        notes: All four documentation files updated. Verification postconditions pass. Build/test/vet all green.
 pre_mortem:
     overall_risk: low
     rows:
@@ -552,5 +583,5 @@ pre_mortem:
           likelihood: low
           impact: high
           mitigation: Cobra runs PersistentPreRunE synchronously before RunE. No race possible.
-state: REVIEWED
+state: COMPLETE
 injection_method: hook

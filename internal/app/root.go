@@ -88,6 +88,16 @@ func init() {
 			if err != nil {
 				cfg = &config.Config{}
 			}
+			// For init command: auto-create config if missing and TTY
+			if cmd.Name() == "init" && !configFileExists() {
+				newCfg, promptErr := PromptAndCreateConfig()
+				if promptErr != nil {
+					return fmt.Errorf("setup failed: %w", promptErr)
+				}
+				if newCfg != nil {
+					cfg = newCfg
+				}
+			}
 			// For root command (hub), still try to initialize clients if possible
 			if cfg != nil && cfg.GitHub.Token != "" {
 				gh = ghclient.New(cfg.GitHub.Token, cfg.GitHub.APIBase)

@@ -318,6 +318,31 @@ For importing from existing repos with hundreds of files:
 - Cached divider strings rebuilt only on window resize
 - Hub details pane cached until content type changes
 
+## Editing catalog.yml Directly
+
+`catalog.yml` is a standard YAML file in your shelf repo's default branch. You can edit it directly with git if you prefer:
+
+```bash
+git clone https://github.com/you/shelf-books
+cd shelf-books
+# Edit catalog.yml — add/remove/reorder books, change metadata
+vim catalog.yml
+git add catalog.yml && git commit -m "update metadata" && git push
+```
+
+shelfctl reads `catalog.yml` from GitHub on every operation, so changes are picked up immediately. The schema is an array of book objects:
+
+```yaml
+- id: sicp
+  title: "Structure and Interpretation of Computer Programs"
+  authors: ["Harold Abelson", "Gerald Jay Sussman"]
+  tags: [cs, lisp]
+  sha256: abc123...
+  asset: sicp.pdf
+```
+
+Fields managed by shelfctl (`sha256`, `asset`, `size`) should not be edited manually — they're computed from the actual release assets.
+
 ## Security
 
 - GitHub token read from environment variable, never written to config

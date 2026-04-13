@@ -347,6 +347,19 @@ shelfctl move book-id --to-shelf history
 shelfctl  # launches interactive menu
 ```
 
+## Error Handling
+
+The hub handles errors inline without crashing:
+
+- **GitHub API unreachable** — the status bar shows "Unable to reach GitHub API. Check your internet connection." The hub remains usable for cached content (browsing, opening already-downloaded books).
+- **Authentication failure (401)** — shows "Authentication failed: check that SHELFCTL_GITHUB_TOKEN is set and valid." Shelf loading stops but the hub stays open.
+- **Permission denied (403)** — shows "Permission denied: ensure your token has 'repo' scope for private repos." Affects only the failing shelf; other shelves still load.
+- **Rate limited (429)** — shows "GitHub API rate limit exceeded." Cached content remains available. The hub retries on the next manual refresh or 20-second background scan.
+- **Download failure** — if a book download fails mid-stream, the partial file is discarded and the error is shown in the status bar. The cache is not corrupted.
+- **Sync failure** — individual book sync errors are shown in the status line (e.g. "Auto-sync failed: book-id: reason"). Other books continue syncing.
+
+In all cases, pressing `q` or `Esc` exits cleanly.
+
 ## Feedback
 
 As you use the hub, consider what would make it more useful:

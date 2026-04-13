@@ -261,7 +261,7 @@ What's next?
 The welcome message shows visual status for each requirement:
 
 - ✓ **GitHub token configured** - Token is set and ready
-- ✗ **GitHub token not found** - Need to `export GITHUB_TOKEN=...`
+- ✗ **GitHub token not found** - Need to `export SHELFCTL_GITHUB_TOKEN=...`
 - ✓ **N shelf(s) configured** - Shelves are set up
 - ✗ **No shelves configured** - Need to run `shelfctl init` or accept the guided workflow
 

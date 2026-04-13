@@ -111,8 +111,8 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.GitHub.APIBase != "https://api.github.com" {
 		t.Errorf("GitHub.APIBase = %q, want default %q", cfg.GitHub.APIBase, "https://api.github.com")
 	}
-	if cfg.GitHub.TokenEnv != "GITHUB_TOKEN" {
-		t.Errorf("GitHub.TokenEnv = %q, want default %q", cfg.GitHub.TokenEnv, "GITHUB_TOKEN")
+	if cfg.GitHub.TokenEnv != "SHELFCTL_GITHUB_TOKEN" {
+		t.Errorf("GitHub.TokenEnv = %q, want default %q", cfg.GitHub.TokenEnv, "SHELFCTL_GITHUB_TOKEN")
 	}
 	if cfg.GitHub.Backend != "api" {
 		t.Errorf("GitHub.Backend = %q, want default %q", cfg.GitHub.Backend, "api")

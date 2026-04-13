@@ -134,6 +134,12 @@ func NewSyncAllModelAuto(gh *github.Client, cfg *config.Config,
 }
 
 func (m SyncAllModel) Init() tea.Cmd {
+	if m.autoMode && m.phase == syncAllProcessing {
+		// Books are pre-detected by the hub scanner — skip detection and start
+		// uploading immediately. detectAsync() would return a syncDetectedMsg
+		// that is not forwarded to this model in headless mode.
+		return tea.Batch(m.syncBookSetupCmd(0), m.spinner.Tick)
+	}
 	return tea.Batch(m.detectAsync(), m.spinner.Tick)
 }
 
@@ -175,9 +181,10 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 			if m.autoMode {
 				synced := m.synced
 				errs := len(m.errors)
+				errMsgs := m.errors
 				m.autoMode = false // prevent re-trigger on next tick
 				return m, func() tea.Msg {
-					return autoSyncDoneMsg{synced: synced, errors: errs}
+					return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs}
 				}
 			}
 			return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
@@ -189,7 +196,8 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 			if m.autoMode {
 				m.autoMode = false
 				synced, errs := m.synced, len(m.errors)
-				return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs} }
+				errMsgs := m.errors
+return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
 			}
 			return m, nil
 		}
@@ -216,7 +224,8 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 				if m.autoMode {
 					m.autoMode = false
 					synced, errs := m.synced, len(m.errors)
-					return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs} }
+					errMsgs := m.errors
+return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
 				}
 				return m, nil
 			}
@@ -238,7 +247,8 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 			if m.autoMode {
 				m.autoMode = false
 				synced, errs := m.synced, len(m.errors)
-				return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs} }
+				errMsgs := m.errors
+return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
 			}
 			return m, nil
 		}

@@ -164,7 +164,7 @@ Optional: `cover`, `meta.*`
 # ~/.config/shelfctl/config.yml
 github:
   owner: "your-username"
-  token_env: "GITHUB_TOKEN"    # Reads from env var, never stores token
+  token_env: "SHELFCTL_GITHUB_TOKEN"    # Reads from env var, never stores token
   api_base: "https://api.github.com"
 
 defaults:

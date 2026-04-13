@@ -350,10 +350,21 @@ func (m HubModel) View() string {
 	if statusBar != "" {
 		parts = append(parts, statusBar)
 	}
-	if m.context.LastAutoSyncAt != nil {
-		autoLine := lipgloss.NewStyle().Foreground(tui.ColorTealLight).
-			Render(fmt.Sprintf("  ↑ Auto-synced %d book(s)", m.context.LastAutoSyncCount))
-		parts = append(parts, autoLine)
+	if m.context.AutoSyncInProgress {
+		syncingLine := lipgloss.NewStyle().Foreground(tui.ColorTealLight).
+			Render("  ↑ Auto-syncing…")
+		parts = append(parts, syncingLine)
+	} else if m.context.LastAutoSyncAt != nil {
+		ts := m.context.LastAutoSyncAt.Format("3:04 PM")
+		var autoMsg string
+		if m.context.LastAutoSyncErrors > 0 && m.context.LastAutoSyncCount == 0 {
+			autoMsg = fmt.Sprintf("  ↑ Auto-sync failed at %s: %s", ts, m.context.LastAutoSyncErrorMsg)
+		} else if m.context.LastAutoSyncErrors > 0 {
+			autoMsg = fmt.Sprintf("  ↑ Auto-synced %d book(s) at %s, %d failed", m.context.LastAutoSyncCount, ts, m.context.LastAutoSyncErrors)
+		} else {
+			autoMsg = fmt.Sprintf("  ↑ Auto-synced %d book(s) at %s", m.context.LastAutoSyncCount, ts)
+		}
+		parts = append(parts, lipgloss.NewStyle().Foreground(tui.ColorTealLight).Render(autoMsg))
 	}
 	parts = append(parts, m.list.View())
 

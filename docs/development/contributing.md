@@ -41,7 +41,7 @@ Set up a test configuration:
 mkdir -p ~/.config/shelfctl
 cp config.example.yml ~/.config/shelfctl/config.yml
 # Edit config.yml with your test repo details
-export GITHUB_TOKEN=ghp_...
+export SHELFCTL_GITHUB_TOKEN=ghp_...
 ```
 
 Create a test shelf repo on GitHub (e.g., `shelf-test`) and use it for development.

@@ -41,7 +41,7 @@ Shelf repos hold metadata (catalog.yml). Release assets hold the files.
 No self-hosted infrastructure required.
 
 Getting Started:
-  1. Set up authentication: export GITHUB_TOKEN=your_token
+  1. Set up authentication: export SHELFCTL_GITHUB_TOKEN=your_token
   2. Create your first shelf: shelfctl init --repo shelf-books --name books --create-repo --owner YOUR_USERNAME
   3. Add a book: shelfctl shelve ~/book.pdf --shelf books
   4. Browse your library: shelfctl browse
@@ -136,6 +136,7 @@ func init() {
 		newSearchCmd(),
 		newTagsCmd(),
 		newCompletionCmd(),
+		newConfigCmd(),
 	)
 
 	// Set up colored help template after commands are added

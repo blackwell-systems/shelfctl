@@ -10,7 +10,7 @@ A step-by-step guide to setting up and using shelfctl.
 
 ## Step 1: Authenticate with GitHub
 
-shelfctl requires a GitHub personal access token (PAT) set in the `GITHUB_TOKEN` environment variable.
+shelfctl requires a GitHub personal access token (PAT) set in the `SHELFCTL_GITHUB_TOKEN` environment variable.
 
 **Classic PAT scopes:**
 - `repo` - for private shelves
@@ -27,17 +27,17 @@ If you already have [GitHub CLI](https://cli.github.com/) installed and authenti
 
 ```bash
 gh auth login
-export GITHUB_TOKEN=$(gh auth token)
+export SHELFCTL_GITHUB_TOKEN=$(gh auth token)
 ```
 
 Add to shell profile to persist:
 
 ```bash
 # Bash
-echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.bashrc
+echo 'export SHELFCTL_GITHUB_TOKEN=$(gh auth token)' >> ~/.bashrc
 
 # Zsh
-echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.zshrc
+echo 'export SHELFCTL_GITHUB_TOKEN=$(gh auth token)' >> ~/.zshrc
 ```
 
 ### Option B: Manual Token
@@ -48,7 +48,7 @@ echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.zshrc
 4. Copy the token (starts with `ghp_` or `github_pat_`)
 
 ```bash
-export GITHUB_TOKEN=ghp_your_token_here
+export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here
 ```
 
 Add to shell profile to persist (`~/.bashrc` or `~/.zshrc`).
@@ -117,7 +117,7 @@ Edit `~/.config/shelfctl/config.yml`:
 ```yaml
 github:
   owner: "your-github-username"  # Change this!
-  token_env: "GITHUB_TOKEN"      # Environment variable to read token from
+  token_env: "SHELFCTL_GITHUB_TOKEN"      # Environment variable to read token from
 
 defaults:
   release: "library"
@@ -558,10 +558,10 @@ shelfctl works identically with private repos.
 # 1. Authenticate with GitHub (choose one)
 # Option A: Using gh CLI (easier)
 gh auth login
-export GITHUB_TOKEN=$(gh auth token)
+export SHELFCTL_GITHUB_TOKEN=$(gh auth token)
 
 # Option B: Manual token
-# export GITHUB_TOKEN=ghp_your_token_here
+# export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here
 
 # 2. Install
 go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@latest
@@ -571,7 +571,7 @@ mkdir -p ~/.config/shelfctl
 cat > ~/.config/shelfctl/config.yml <<EOF
 github:
   owner: "myusername"
-  token_env: "GITHUB_TOKEN"
+  token_env: "SHELFCTL_GITHUB_TOKEN"
 defaults:
   release: "library"
   cache_dir: "~/.local/share/shelfctl/cache"

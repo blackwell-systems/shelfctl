@@ -150,8 +150,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case hubContextLoadedMsg:
+		// Preserve transient auto-sync display fields that loadHubContextAsync
+		// does not set — they are owned by the hub orchestrator, not the loader.
+		msg.ctx.AutoSyncInProgress = m.hubContext.AutoSyncInProgress
+		msg.ctx.LastAutoSyncAt = m.hubContext.LastAutoSyncAt
+		msg.ctx.LastAutoSyncCount = m.hubContext.LastAutoSyncCount
+		msg.ctx.LastAutoSyncErrors = m.hubContext.LastAutoSyncErrors
+		msg.ctx.LastAutoSyncErrorMsg = m.hubContext.LastAutoSyncErrorMsg
 		m.hubContext = msg.ctx
-		m.hub.UpdateContext(msg.ctx)
+		m.hub.UpdateContext(m.hubContext)
 		// Seed catalog cache so browse/index navigation skips re-fetching
 		for k, v := range msg.catalogs {
 			m.catalogCache[k] = v
@@ -176,6 +183,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.hub.UpdateContext(m.hubContext)
 			if len(msg.pendingAutoSync) > 0 && !m.syncAll.autoMode {
 				m.syncAll = NewSyncAllModelAuto(m.gh, m.cfg, m.cacheMgr, msg.pendingAutoSync)
+				m.hubContext.AutoSyncInProgress = true
+				m.hub.UpdateContext(m.hubContext)
 				return m, m.syncAll.Init()
 			}
 		}
@@ -185,12 +194,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		now := time.Now()
 		m.hubContext.LastAutoSyncAt = &now
 		m.hubContext.LastAutoSyncCount = msg.synced
+		m.hubContext.LastAutoSyncErrors = msg.errors
+		if len(msg.errorMsgs) > 0 {
+			m.hubContext.LastAutoSyncErrorMsg = msg.errorMsgs[0]
+		}
+		m.hubContext.AutoSyncInProgress = false
 		if m.currentView == ViewHub {
 			m.hub.UpdateContext(m.hubContext)
 		}
-		// Re-scan: synced books should no longer appear as modified
-		if len(m.catalogCache) > 0 {
-			return m, m.refreshModifiedStatusCmd()
+		// When books were successfully synced, reload catalog data from GitHub so
+		// the in-memory cache reflects the new SHAs. Without this, HasBeenModified
+		// would still see the old SHA and re-queue the same book, causing a
+		// "nothing to commit" error on the next catalog save.
+		// Failed-only runs skip this — failed books retry on the next 20-second tick.
+		if msg.synced > 0 {
+			return m, m.loadHubContextAsync()
 		}
 		return m, nil
 
@@ -673,6 +691,13 @@ func (m Model) handleNavigation(msg NavigateMsg) (tea.Model, tea.Cmd) {
 			},
 		)
 
+	case "auto-sync":
+		m.cfg.Sync.AutoSync = !m.cfg.Sync.AutoSync
+		_ = config.Save(m.cfg)
+		m.hubContext.AutoSyncEnabled = m.cfg.Sync.AutoSync
+		m.hub.UpdateContext(m.hubContext)
+		return m, nil
+
 	default:
 		// Unknown target, stay on current view
 		return m, nil
@@ -934,8 +959,9 @@ type modifiedStatusRefreshedMsg struct {
 
 // autoSyncDoneMsg is emitted when a background auto-sync run finishes.
 type autoSyncDoneMsg struct {
-	synced int
-	errors int
+	synced       int
+	errors       int
+	errorMsgs    []string
 }
 
 // hubModifiedRefreshTick schedules the next periodic modified-status scan.
@@ -1026,7 +1052,8 @@ func (m Model) refreshModifiedStatusCmd() tea.Cmd {
 // loadHubContextAsync to populate network-dependent fields.
 func BuildContextFast(cfg *config.Config) tui.HubContext {
 	return tui.HubContext{
-		ShelfCount: len(cfg.Shelves),
+		ShelfCount:      len(cfg.Shelves),
+		AutoSyncEnabled: cfg.Sync.AutoSync,
 	}
 }
 
@@ -1041,7 +1068,8 @@ func (m Model) loadHubContextAsync() tea.Cmd {
 	version := m.hubContext.Version // capture: async closure has no access to appVersion
 	return func() tea.Msg {
 		ctx := tui.HubContext{
-			ShelfCount: len(cfg.Shelves),
+			ShelfCount:      len(cfg.Shelves),
+			AutoSyncEnabled: cfg.Sync.AutoSync,
 		}
 		catalogs := make(map[string][]catalog.Book)
 

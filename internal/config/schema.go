@@ -11,40 +11,40 @@ type Config struct {
 
 // GitHubConfig holds GitHub API connection settings.
 type GitHubConfig struct {
-	Owner    string `mapstructure:"owner"`
-	TokenEnv string `mapstructure:"token_env"`
-	APIBase  string `mapstructure:"api_base"`
-	Backend  string `mapstructure:"backend"`
-	Token    string `mapstructure:"-"` // resolved at runtime, never written
+	Owner    string `mapstructure:"owner"     yaml:"owner"`
+	TokenEnv string `mapstructure:"token_env" yaml:"token_env"`
+	APIBase  string `mapstructure:"api_base"  yaml:"api_base"`
+	Backend  string `mapstructure:"backend"   yaml:"backend"`
+	Token    string `mapstructure:"-"         yaml:"-"` // resolved at runtime, never written
 }
 
 // DefaultsConfig holds default values for operations.
 type DefaultsConfig struct {
-	Release     string `mapstructure:"release"`
-	CacheDir    string `mapstructure:"cache_dir"`
-	AssetNaming string `mapstructure:"asset_naming"` // "id" or "original"
+	Release     string `mapstructure:"release"      yaml:"release"`
+	CacheDir    string `mapstructure:"cache_dir"    yaml:"cache_dir"`
+	AssetNaming string `mapstructure:"asset_naming" yaml:"asset_naming"` // "id" or "original"
 }
 
 // ShelfConfig defines a single shelf (topic-based document collection).
 type ShelfConfig struct {
-	Name           string `mapstructure:"name"`
-	Owner          string `mapstructure:"owner"`
-	Repo           string `mapstructure:"repo"`
-	CatalogPath    string `mapstructure:"catalog_path"`
-	DefaultRelease string `mapstructure:"default_release"`
+	Name           string `mapstructure:"name"            yaml:"name"`
+	Owner          string `mapstructure:"owner"           yaml:"owner"`
+	Repo           string `mapstructure:"repo"            yaml:"repo"`
+	CatalogPath    string `mapstructure:"catalog_path"    yaml:"catalog_path"`
+	DefaultRelease string `mapstructure:"default_release" yaml:"default_release"`
 }
 
 // MigrationConfig holds settings for migrating files from other repos.
 type MigrationConfig struct {
-	Sources []MigrationSource `mapstructure:"sources"`
+	Sources []MigrationSource `mapstructure:"sources" yaml:"sources"`
 }
 
 // MigrationSource defines a source repository for migration.
 type MigrationSource struct {
-	Owner   string            `mapstructure:"owner"`
-	Repo    string            `mapstructure:"repo"`
-	Ref     string            `mapstructure:"ref"`
-	Mapping map[string]string `mapstructure:"mapping"`
+	Owner   string            `mapstructure:"owner"   yaml:"owner"`
+	Repo    string            `mapstructure:"repo"    yaml:"repo"`
+	Ref     string            `mapstructure:"ref"     yaml:"ref"`
+	Mapping map[string]string `mapstructure:"mapping" yaml:"mapping"`
 }
 
 // ShelfByName returns the shelf config with the given name, or nil.
@@ -86,6 +86,6 @@ func (s *ShelfConfig) EffectiveCatalogPath() string {
 
 // SyncConfig holds settings for automatic background sync.
 type SyncConfig struct {
-	AutoSync        bool `mapstructure:"auto_sync"`
-	DebounceMinutes int  `mapstructure:"debounce_minutes"`
+	AutoSync        bool `mapstructure:"auto_sync"        yaml:"auto_sync"`
+	DebounceMinutes int  `mapstructure:"debounce_minutes" yaml:"debounce_minutes"`
 }

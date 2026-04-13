@@ -58,7 +58,7 @@ Your library stays portable, backed by normal git repos. Free by default (only p
 
 ```bash
 # 1. Set up authentication (create token at github.com/settings/tokens)
-export GITHUB_TOKEN=ghp_your_token_here
+export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here
 
 # 2. Create your first shelf
 shelfctl init --repo shelf-books --name books --create-repo --owner YOUR_USERNAME
@@ -176,6 +176,19 @@ This keeps repos lightweight and enables per-file on-demand downloads.
 brew install blackwell-systems/tap/shelfctl
 ```
 
+**Windows Package Manager (winget):**
+
+```powershell
+winget install BlackwellSystems.shelfctl
+```
+
+**Scoop (Windows):**
+
+```powershell
+scoop bucket add blackwell-systems https://github.com/blackwell-systems/scoop-bucket
+scoop install shelfctl
+```
+
 **Install script (Linux/macOS):**
 
 ```bash
@@ -213,7 +226,7 @@ make build
 
 ## Authentication
 
-shelfctl authenticates using a GitHub personal access token (PAT). Set `GITHUB_TOKEN` in your environment.
+shelfctl authenticates using a GitHub personal access token (PAT). Set `SHELFCTL_GITHUB_TOKEN` in your environment.
 
 **Classic PAT scopes:**
 - `repo` - for private shelves
@@ -234,7 +247,7 @@ If you already have [GitHub CLI](https://cli.github.com/) installed and authenti
 
 ```bash
 gh auth login
-export GITHUB_TOKEN=$(gh auth token)
+export SHELFCTL_GITHUB_TOKEN=$(gh auth token)
 ```
 
 **Option B: Manual token**
@@ -245,7 +258,7 @@ export GITHUB_TOKEN=$(gh auth token)
 4. Copy the token (starts with `ghp_` or `github_pat_`)
 
 ```bash
-export GITHUB_TOKEN=ghp_your_token_here
+export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here
 ```
 
 Add to shell profile to persist (`~/.bashrc` or `~/.zshrc`).
@@ -277,9 +290,7 @@ Not required - shelfctl works fine without it. Covers are extracted automaticall
 
 ---
 
-## Quick start
-
-**Note**: Complete the [Prerequisites](#prerequisites), [Install](#install), and [Authentication](#authentication) sections first.
+## Usage
 
 shelfctl has two entry points:
 
@@ -335,7 +346,7 @@ shelfctl sync sicp  # Upload annotated version (replaces original, no versioning
 **Already have PDFs committed in a repo?** Reorganize them:
 
 ```bash
-# (Ensure GITHUB_TOKEN is set - see Authentication section above)
+# (Ensure SHELFCTL_GITHUB_TOKEN is set - see Authentication section above)
 
 # Scan your existing repos for files
 shelfctl migrate scan --source you/old-books-repo > queue.txt
@@ -413,7 +424,7 @@ Default config path: `~/.config/shelfctl/config.yml`
 ```yaml
 github:
   owner: "you"
-  token_env: "GITHUB_TOKEN"  # Environment variable to read token from
+  token_env: "SHELFCTL_GITHUB_TOKEN"  # Environment variable to read token from
 
 defaults:
   release: "library"

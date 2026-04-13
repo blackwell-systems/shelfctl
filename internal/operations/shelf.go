@@ -182,7 +182,7 @@ func setConfigDefaults(cfg *config.Config, owner string) {
 		cfg.GitHub.Owner = owner
 	}
 	if cfg.GitHub.TokenEnv == "" {
-		cfg.GitHub.TokenEnv = "GITHUB_TOKEN"
+		cfg.GitHub.TokenEnv = "SHELFCTL_GITHUB_TOKEN"
 	}
 	if cfg.GitHub.APIBase == "" {
 		cfg.GitHub.APIBase = "https://api.github.com"

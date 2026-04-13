@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Auto-sync TUI toggle:** New "Auto-sync: on/off" menu item under the Cache section in the hub. Pressing Enter toggles auto-sync and persists the change to `~/.config/shelfctl/config.yml` immediately, no restart required.
+- **`shelfctl config set` CLI command:** Set config fields from the command line (e.g. `shelfctl config set sync.auto_sync true`, `shelfctl config set sync.debounce_minutes 10`).
+
+### Fixed
+- **Auto-sync catalog cache coherence:** After a successful auto-sync run, the hub now reloads catalog data from GitHub so the in-memory SHA cache reflects the new checksums. Previously, stale cached SHAs caused `HasBeenModified` to re-flag already-synced books, triggering a second sync that failed with "nothing to commit, working tree clean".
+- **Auto-sync headless startup:** `SyncAllModel.Init()` in auto mode now skips the `detectAsync()` phase (which emits a `syncDetectedMsg` that is never forwarded in headless mode) and starts uploading immediately. Previously, auto-sync silently stalled after showing "Auto-syncing…".
+- **Auto-sync tight retry loop:** Failed books were immediately re-queued after every sync attempt. Now, catalog reload only runs when at least one book was successfully synced; failed books are retried on the next natural 20-second hub scan tick.
+- **Auto-sync error visibility:** The `autoSyncDoneMsg` now carries the actual error strings from each failed book. The hub status line shows the first error message (e.g. "↑ Auto-sync failed: <book>: <reason>") instead of a generic "N error(s)" count.
+- **Auto-sync timestamp:** The hub status line now includes the time of the last run (e.g. `↑ Auto-synced 1 book(s) at 3:42 PM`), making it easy to tell how recently auto-sync ran.
+- **Config round-trip:** Multi-word config fields (`auto_sync`, `debounce_minutes`, `cache_dir`, `token_env`, `api_base`, `asset_naming`, `catalog_path`, `default_release`) were being written without underscores when `config.Save()` was called. Added `yaml` struct tags matching the `mapstructure` tags to all config structs.
+
+### Documentation & Discoverability
+- **README install section:** Added winget (`winget install BlackwellSystems.shelfctl`) and Scoop install instructions, which were missing from the Install section entirely.
+- **README structure:** Consolidated duplicate "30-Second Quickstart" / "Quick start" sections into a single "Usage" section — removes reader confusion.
+- **pkg.go.dev:** Added package doc comment to `cmd/shelfctl/main.go` so pkg.go.dev displays a meaningful description for the module instead of a blank page.
+- **GitHub topics:** Replaced `content-management-system` and `ebook-manager` (redundant) with `books`, `reading-list`, `personal-library`, and `document-management` for broader search discoverability.
+
+### Scoop distribution
+- **Scoop distribution:** shelfctl is now available via Scoop (`scoop bucket add blackwell-systems https://github.com/blackwell-systems/scoop-bucket && scoop install shelfctl`). Bucket is auto-updated on each release via GoReleaser.
+- **Automated winget PR submission:** Future releases automatically submit a PR to `microsoft/winget-pkgs` via `winget-releaser` GitHub Action — no manual manifest updates needed.
+
+### Infrastructure
+- GoReleaser now auto-publishes Homebrew formula and Scoop manifest on every tagged release.
+- winget manifest validation runs in a separate CI workflow triggered on changes to `winget/**`.
+
 ## [0.4.5] - 2026-04-11
 
 ### Added

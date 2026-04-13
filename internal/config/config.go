@@ -28,7 +28,7 @@ func Load() (*Config, error) {
 	v := viper.New()
 
 	v.SetDefault("github.api_base", "https://api.github.com")
-	v.SetDefault("github.token_env", "GITHUB_TOKEN")
+	v.SetDefault("github.token_env", "SHELFCTL_GITHUB_TOKEN")
 	v.SetDefault("github.backend", "api")
 	v.SetDefault("defaults.release", "library")
 	v.SetDefault("defaults.asset_naming", "id")
@@ -63,12 +63,9 @@ func Load() (*Config, error) {
 	// Resolve token from env (never stored in file).
 	tokenEnv := cfg.GitHub.TokenEnv
 	if tokenEnv == "" {
-		tokenEnv = "GITHUB_TOKEN"
+		tokenEnv = "SHELFCTL_GITHUB_TOKEN"
 	}
 	cfg.GitHub.Token = os.Getenv(tokenEnv)
-	if cfg.GitHub.Token == "" {
-		cfg.GitHub.Token = os.Getenv("SHELFCTL_GITHUB_TOKEN")
-	}
 
 	// Expand ~ in cache dir.
 	cfg.Defaults.CacheDir = util.ExpandHome(cfg.Defaults.CacheDir)

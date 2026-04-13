@@ -48,6 +48,9 @@ the published release assets and submits a PR to `microsoft/winget-pkgs` using t
 `HOMEBREW_TAP_TOKEN` secret. Local manifests in [`winget/`](../winget/) are validated
 on every push via the `validate-winget` CI job.
 
+**Pending PRs:**
+- [microsoft/winget-pkgs#358438](https://github.com/microsoft/winget-pkgs/pull/358438) — Add BlackwellSystems.shelfctl v0.4.5 (opened 2026-04-11, validation passed, awaiting merge)
+
 ---
 
 ### Install Script (Linux/macOS)

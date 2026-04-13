@@ -270,7 +270,7 @@ func runHub() error {
 		// Show specific next steps based on what's missing
 		if !hasToken {
 			fmt.Println("Next step: Set your GitHub token")
-			fmt.Printf("  %s\n\n", color.CyanString("export GITHUB_TOKEN=ghp_your_token_here"))
+			fmt.Printf("  %s\n\n", color.CyanString("export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here"))
 			fmt.Println("Then run 'shelfctl' again.")
 			fmt.Println()
 			fmt.Println("For more details, see docs/guides/tutorial.md or run 'shelfctl init --help'")

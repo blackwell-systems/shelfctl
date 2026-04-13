@@ -16,31 +16,31 @@ Common issues and solutions for shelfctl.
 
 ```bash
 # If you have gh CLI installed and authenticated
-export GITHUB_TOKEN=$(gh auth token)
+export SHELFCTL_GITHUB_TOKEN=$(gh auth token)
 
 # Or authenticate now
 gh auth login
-export GITHUB_TOKEN=$(gh auth token)
+export SHELFCTL_GITHUB_TOKEN=$(gh auth token)
 ```
 
 **Option B: Manual token**
 
 ```bash
-export GITHUB_TOKEN=ghp_your_token_here
+export SHELFCTL_GITHUB_TOKEN=ghp_your_token_here
 ```
 
 Make it permanent by adding to your shell profile:
 
 ```bash
 # Bash
-echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.bashrc  # if using gh
+echo 'export SHELFCTL_GITHUB_TOKEN=$(gh auth token)' >> ~/.bashrc  # if using gh
 # or
-echo 'export GITHUB_TOKEN=ghp_...' >> ~/.bashrc          # if using manual token
+echo 'export SHELFCTL_GITHUB_TOKEN=ghp_...' >> ~/.bashrc          # if using manual token
 
 # Zsh
-echo 'export GITHUB_TOKEN=$(gh auth token)' >> ~/.zshrc  # if using gh
+echo 'export SHELFCTL_GITHUB_TOKEN=$(gh auth token)' >> ~/.zshrc  # if using gh
 # or
-echo 'export GITHUB_TOKEN=ghp_...' >> ~/.zshrc           # if using manual token
+echo 'export SHELFCTL_GITHUB_TOKEN=ghp_...' >> ~/.zshrc           # if using manual token
 ```
 
 See the [Authentication section](https://github.com/blackwell-systems/shelfctl#authentication) for more details.
@@ -54,7 +54,7 @@ See the [Authentication section](https://github.com/blackwell-systems/shelfctl#a
 1. Go to https://github.com/settings/tokens
 2. Check if your token still exists
 3. If expired, generate a new one with `repo` scope
-4. Update your `GITHUB_TOKEN` environment variable
+4. Update your `SHELFCTL_GITHUB_TOKEN` environment variable
 
 ### "GitHub API error 403: Forbidden"
 
@@ -306,7 +306,7 @@ shelfctl migrate batch queue.txt --continue
 
 **Solution**:
 
-- Check GitHub API rate limit: `curl -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/rate_limit`
+- Check GitHub API rate limit: `curl -H "Authorization: Bearer $SHELFCTL_GITHUB_TOKEN" https://api.github.com/rate_limit`
 - Wait if rate limited (resets hourly)
 - Use `--n` flag for batch operations to limit size
 

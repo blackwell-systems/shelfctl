@@ -73,6 +73,14 @@ type HubContext struct {
 	LastAutoSyncAt *time.Time
 	// LastAutoSyncCount is the number of books synced in the last auto-sync run.
 	LastAutoSyncCount int
+	// LastAutoSyncErrors is the number of books that failed in the last auto-sync run.
+	LastAutoSyncErrors int
+	// LastAutoSyncErrorMsg is the first error message from the last failed auto-sync run.
+	LastAutoSyncErrorMsg string
+	// AutoSyncEnabled reflects cfg.Sync.AutoSync — used to label the toggle menu item.
+	AutoSyncEnabled bool
+	// AutoSyncInProgress is true while a background auto-sync is running.
+	AutoSyncInProgress bool
 }
 
 // menuSection groups related menu items under a title
@@ -107,6 +115,7 @@ var menuSections = []menuSection{
 	{Title: "Cache", Items: []MenuItem{
 		{Key: "cache-info", Icon: "i", Label: "Cache Info", Description: "View cache statistics and disk usage", Available: true},
 		{Key: "sync-modified", Icon: "↑", Label: "Sync Modified", Description: "Upload locally modified books to GitHub", Available: true},
+		{Key: "auto-sync", Icon: "⟳", Label: "Auto-sync: off", Description: "Automatically upload modified books in background", Available: true},
 		{Key: "cache-clear", Icon: "⊗", Label: "Clear Cache", Description: "Remove books from local cache", Available: true},
 	}},
 }
@@ -127,6 +136,14 @@ func BuildFilteredMenuItems(ctx HubContext) []list.Item {
 	for _, section := range menuSections {
 		var sectionItems []list.Item
 		for _, item := range section.Items {
+			// Dynamically label the auto-sync toggle to reflect current state.
+			if item.Key == "auto-sync" {
+				if ctx.AutoSyncEnabled {
+					item.Label = "Auto-sync: on"
+				} else {
+					item.Label = "Auto-sync: off"
+				}
+			}
 			// Hide shelf-dependent actions when no shelves configured
 			if ctx.ShelfCount == 0 {
 				switch item.Key {

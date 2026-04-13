@@ -340,18 +340,14 @@ func processMigrationQueue(f *os.File, ledger *migrate.Ledger, n int, cont, dryR
 		}
 
 		fmt.Printf("[%d] %s …\n", processed+1, line)
-		// TODO(bug9): newMigrateOneCmd() bypasses PersistentPreRunE so cfg/gh
-		// are not re-initialized per migration. Fix by calling migrateOne()
-		// helper directly instead of spawning a cobra subcommand.
-		oneCmd := newMigrateOneCmd()
-		oneArgs := []string{line}
-		if noPush {
-			oneArgs = append(oneArgs, "--no-push")
+		sources := cfg.Migration.Sources
+		if len(sources) == 0 {
+			warn("Failed: no migration sources configured")
+			continue
 		}
-		oneCmd.SetArgs(oneArgs)
-		if err := oneCmd.Execute(); err != nil {
+
+		if err := migrateOneFile(line, sources, ledger, noPush); err != nil {
 			warn("Failed: %v", err)
-			// do NOT increment processed
 			continue
 		}
 		processed++

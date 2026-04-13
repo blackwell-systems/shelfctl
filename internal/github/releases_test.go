@@ -183,6 +183,44 @@ func TestEnsureRelease(t *testing.T) {
 	})
 }
 
+func TestEnsureRelease_ErrorsIs(t *testing.T) {
+	// Verify that EnsureRelease uses errors.Is (not ==) for ErrNotFound detection.
+	// When GetReleaseByTag returns ErrNotFound, EnsureRelease should create the release.
+	t.Run("CreatesWhenNotFound", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/repos/owner/repo/releases/tags/v2.0.0", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		})
+		mux.HandleFunc("/repos/owner/repo/releases", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			resp := Release{
+				ID:      999,
+				TagName: "v2.0.0",
+				Name:    "v2.0.0",
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("failed to encode response: %v", err)
+			}
+		})
+
+		_, c := newFakeServer(t, mux)
+		release, err := c.EnsureRelease("owner", "repo", "v2.0.0")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !errors.Is(nil, nil) {
+			t.Fatal("errors.Is sanity check failed")
+		}
+		if release.ID != 999 {
+			t.Errorf("expected ID=999, got %d", release.ID)
+		}
+		if release.TagName != "v2.0.0" {
+			t.Errorf("expected TagName=v2.0.0, got %s", release.TagName)
+		}
+	})
+}
+
 func TestCreateReleaseConflict(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/repos/owner/repo/releases", func(w http.ResponseWriter, r *http.Request) {

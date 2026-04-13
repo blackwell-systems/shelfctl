@@ -126,7 +126,7 @@ func TestCreateAskpassScript(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create askpass script: %v", err)
 	}
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	// Verify the file exists
 	info, err := os.Stat(path)

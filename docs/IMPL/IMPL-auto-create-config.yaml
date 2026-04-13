@@ -515,6 +515,7 @@ waves:
             - docs/guides/tutorial.md
             - docs/reference/troubleshooting.md
             - README.md
+      base_commit: 2a027d01e8675689da042160fe26137a30751a9f
 quality_gates:
     level: standard
     gates:
@@ -552,5 +553,4 @@ pre_mortem:
           impact: high
           mitigation: Cobra runs PersistentPreRunE synchronously before RunE. No race possible.
 state: REVIEWED
-original_branch: main
 injection_method: hook

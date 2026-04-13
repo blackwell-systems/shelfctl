@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **`SHELFCTL_GITHUB_TOKEN` is now the canonical token env var.** The default `token_env` in config changed from `GITHUB_TOKEN` to `SHELFCTL_GITHUB_TOKEN`. This avoids collision with the GitHub Actions built-in token. The `GITHUB_TOKEN` fallback has been removed — update your shell profile if you were using the old name.
 
+### Fixed
+- **Actionable GitHub API errors:** HTTP 401, 403, 404, 429, and 5xx errors now return user-friendly messages with specific remediation steps instead of raw status codes. Connection timeouts show "Unable to reach GitHub API" instead of Go's net/http error.
+- **Shelf validation names the failing shelf:** `shelfctl shelves` now reports which shelf failed and why (e.g. "Shelf 'programming' failed: repository 'owner/shelf-programming' not found") instead of the generic "one or more shelves have issues".
+- **`errors.Is` for sentinel errors:** Replaced `err.Error() == "not found"` string comparison in `catalog/manager.go` and `err == ErrNotFound` direct comparison in `github/releases.go` and `github/repos.go` with idiomatic `errors.Is()`. Error wrapping no longer silently bypasses sentinel checks.
+- **Secure git credential passing:** GitHub token is no longer embedded in the git clone URL (visible in `/proc/<pid>/cmdline`). Now uses `GIT_ASKPASS` with a temporary script to pass credentials securely.
+- **TODO(bug9) migrate fix:** `processMigrationQueue` no longer spawns a cobra subcommand via `Execute()` which bypassed `PersistentPreRunE`. Now calls `migrateOneFile()` directly.
+- **Deduplicated shared functions:** `humanBytes`, `openFile`, `isPDF`, and `computeFileHash` were copy-pasted between `internal/app/` and `internal/unified/`. Consolidated into `internal/util/file.go` with all call sites updated.
+
 ## [0.4.7] - 2026-04-13
 
 ### Added

@@ -888,6 +888,7 @@ waves:
             - internal/unified/import_repo.go
           dependencies:
             - E
+      base_commit: 142e548e3726daa419243cdbed74c644e2df0aa6
 quality_gates:
     level: standard
     gates:
@@ -1054,5 +1055,4 @@ critic_report:
     reviewed_at: "2026-04-13T21:56:08Z"
     issue_count: 0
 state: REVIEWED
-original_branch: main
 injection_method: hook

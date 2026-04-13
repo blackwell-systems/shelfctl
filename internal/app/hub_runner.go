@@ -6,7 +6,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/blackwell-systems/shelfctl/internal/cache"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	ghclient "github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
 	"github.com/blackwell-systems/shelfctl/internal/unified"
 	"github.com/blackwell-systems/shelfctl/internal/util"
@@ -16,6 +18,23 @@ import (
 
 // runUnifiedTUI launches the unified TUI with seamless view switching
 func runUnifiedTUI() error {
+	// Auto-create config if missing
+	if !configFileExists() {
+		newCfg, err := PromptAndCreateConfig()
+		if err != nil {
+			return fmt.Errorf("setup failed: %w", err)
+		}
+		if newCfg != nil {
+			cfg = newCfg
+			// Initialize GitHub client if token is available
+			if cfg.GitHub.Token != "" {
+				gh = ghclient.New(cfg.GitHub.Token, cfg.GitHub.APIBase)
+				cacheMgr = cache.New(cfg.Defaults.CacheDir)
+			}
+			fmt.Println()
+		}
+	}
+
 	// Check configuration status
 	hasToken := cfg != nil && cfg.GitHub.Token != ""
 	hasShelves := cfg != nil && len(cfg.Shelves) > 0

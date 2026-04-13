@@ -240,7 +240,7 @@ func TestLoadConfigValidation(t *testing.T) {
 	if cfg.GitHub.APIBase != "https://api.github.com" {
 		t.Errorf("GitHub.APIBase = %q, want default", cfg.GitHub.APIBase)
 	}
-	if cfg.GitHub.TokenEnv != "GITHUB_TOKEN" {
+	if cfg.GitHub.TokenEnv != "SHELFCTL_GITHUB_TOKEN" {
 		t.Errorf("GitHub.TokenEnv = %q, want default", cfg.GitHub.TokenEnv)
 	}
 }

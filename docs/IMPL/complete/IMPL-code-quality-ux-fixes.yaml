@@ -1,3 +1,4 @@
+completion_date: "2026-04-13"
 title: High-priority code quality and UX fixes
 feature_slug: code-quality-ux-fixes
 verdict: SUITABLE
@@ -1001,6 +1002,50 @@ completion_reports:
             - TestOpenFile_InvalidCommand
         verification: PASS
         notes: All four exported utility functions implemented with tests. file.go updated from scaffold stubs. file_test.go created new.
+    F:
+        status: complete
+        branch: saw/code-quality-ux-fixes/wave2-agent-F
+        commit: 800599d
+        files_changed:
+            - internal/app/info.go
+            - internal/app/open.go
+            - internal/app/sync.go
+            - internal/app/browse.go
+            - internal/app/cache.go
+            - internal/app/shelve.go
+            - internal/app/status.go
+            - internal/app/sync_test.go
+            - internal/app/info_test.go
+            - internal/app/open_test.go
+            - internal/cache/store.go
+            - internal/cache/cache_internal_test.go
+            - internal/unified/browse.go
+            - internal/unified/model.go
+            - internal/unified/sync_all.go
+            - internal/unified/cache_info.go
+            - internal/unified/cache_clear.go
+            - internal/unified/import_repo.go
+        verification: PASS
+        notes: 'All duplicated function definitions removed. All call sites updated to use util package. Additional files beyond ownership list updated: cache.go, shelve.go, status.go, open_test.go, cache_internal_test.go, cache_info.go, cache_clear.go, import_repo.go (required because they called the deleted functions). Build, vet, tests all pass. All 4 postcondition checks pass.'
+    G:
+        status: complete
+        branch: saw/code-quality-ux-fixes/wave2-agent-G
+        commit: e039446
+        files_changed:
+            - internal/unified/model.go
+            - internal/unified/sync_all.go
+        verification: PASS
+        notes: 'Deleted humanBytes, openFile, syncComputeHash from owned files. Replaced with util.HumanBytes, util.OpenFile, util.ComputeFileHash. Removed unused imports. Out-of-scope: cache_clear.go, cache_info.go, import_repo.go still reference deleted humanBytes (Agent H scope).'
+    H:
+        status: complete
+        branch: saw/code-quality-ux-fixes/wave2-agent-H
+        commit: 3f318d0
+        files_changed:
+            - internal/unified/cache_clear.go
+            - internal/unified/cache_info.go
+            - internal/unified/import_repo.go
+        verification: PASS
+        notes: Replaced humanBytes() with util.HumanBytes() in all three files. Added util import. All quality gates pass.
 pre_mortem:
     overall_risk: low
     rows:
@@ -1054,5 +1099,5 @@ critic_report:
     summary: Skipped by operator (--skip-critic)
     reviewed_at: "2026-04-13T21:56:08Z"
     issue_count: 0
-state: REVIEWED
+state: COMPLETE
 injection_method: hook

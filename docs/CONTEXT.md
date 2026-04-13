@@ -15,3 +15,5 @@
   - IMPL doc: docs/IMPL/complete/IMPL-auto-sync.yaml
 - **auto-create-config**: completed 2026-04-13, 1 waves, 2 agents
   - IMPL doc: docs/IMPL/complete/IMPL-auto-create-config.yaml
+- **code-quality-ux-fixes**: completed 2026-04-13, 2 waves, 8 agents
+  - IMPL doc: docs/IMPL/complete/IMPL-code-quality-ux-fixes.yaml

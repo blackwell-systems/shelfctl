@@ -197,7 +197,7 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 				m.autoMode = false
 				synced, errs := m.synced, len(m.errors)
 				errMsgs := m.errors
-return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
+				return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
 			}
 			return m, nil
 		}
@@ -225,7 +225,7 @@ return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, 
 					m.autoMode = false
 					synced, errs := m.synced, len(m.errors)
 					errMsgs := m.errors
-return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
+					return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
 				}
 				return m, nil
 			}
@@ -248,7 +248,7 @@ return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, 
 				m.autoMode = false
 				synced, errs := m.synced, len(m.errors)
 				errMsgs := m.errors
-return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
+				return m, func() tea.Msg { return autoSyncDoneMsg{synced: synced, errors: errs, errorMsgs: errMsgs} }
 			}
 			return m, nil
 		}

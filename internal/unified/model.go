@@ -959,9 +959,9 @@ type modifiedStatusRefreshedMsg struct {
 
 // autoSyncDoneMsg is emitted when a background auto-sync run finishes.
 type autoSyncDoneMsg struct {
-	synced       int
-	errors       int
-	errorMsgs    []string
+	synced    int
+	errors    int
+	errorMsgs []string
 }
 
 // hubModifiedRefreshTick schedules the next periodic modified-status scan.

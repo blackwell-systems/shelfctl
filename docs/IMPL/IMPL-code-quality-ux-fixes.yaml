@@ -1,0 +1,971 @@
+title: "High-priority code quality and UX fixes"
+feature_slug: code-quality-ux-fixes
+verdict: SUITABLE
+state: REVIEWED
+
+suitability_assessment: |
+  Suitability gate analysis:
+
+  1. File decomposition: 6 independent issues touching distinct file sets across
+     internal/github/, internal/app/, internal/unified/, internal/util/, and
+     internal/catalog/. Only Issue 6 (deduplication) shares files with other
+     issues at call sites, but the actual implementation files are disjoint.
+     Clear decomposition into 5+ agents with disjoint file ownership.
+
+  2. Investigation-first items: None. All issues have known root causes and
+     documented fixes. No debugging or reproduction needed.
+
+  3. Interface discoverability: Yes. The new shared utility functions
+     (humanBytes, openFile, isPDF, computeFileHash) have existing signatures
+     that just need to be moved. The GitHub error types already exist in
+     errors.go. The GIT_ASKPASS pattern is well-documented.
+
+  4. Pre-implementation status: All 6 issues are TODO. No partial implementations.
+
+  5. Parallelization value: High. 5 independent agents in wave 1 touching
+     distinct files. Build/test cycle is ~5s but there are 5 parallel agents
+     with 3-8 files each. Clear speedup over sequential.
+
+  Estimated times:
+  - Scout phase: ~8 min
+  - Agent execution: ~5 min (5 agents in wave 1 parallel, 1 agent in wave 2)
+  - Merge and verification: ~3 min
+  Total SAW time: ~16 min
+
+  Sequential baseline: ~30 min (6 issues x ~5 min avg)
+  Time savings: ~14 min (47% faster)
+
+  Recommendation: Clear speedup. Proceed.
+
+test_command: "GOWORK=off go test ./..."
+lint_command: "GOWORK=off go vet ./..."
+
+quality_gates:
+  level: standard
+  gates:
+    - type: build
+      command: "GOWORK=off go build ./..."
+      required: true
+    - type: lint
+      command: "GOWORK=off go vet ./..."
+      required: true
+    - type: test
+      command: "GOWORK=off go test ./..."
+      required: true
+
+scaffolds:
+  - file_path: internal/util/file.go
+    contents: |
+      package util
+
+      // HumanBytes formats a byte count as a human-readable string (e.g., "1.5 MiB").
+      func HumanBytes(n int64) string {
+          panic("scaffold stub")
+      }
+
+      // OpenFile opens a file with the system default application or a specified app.
+      func OpenFile(path, app string) error {
+          panic("scaffold stub")
+      }
+
+      // IsPDF checks if the filename indicates a PDF file.
+      func IsPDF(filename string) bool {
+          panic("scaffold stub")
+      }
+
+      // ComputeFileHash computes the SHA256 hash and byte size of a file.
+      func ComputeFileHash(path string) (string, int64, error) {
+          panic("scaffold stub")
+      }
+    import_path: "github.com/blackwell-systems/shelfctl/internal/util"
+    status: pending
+
+interface_contracts:
+  - name: "GitHub API error types (enhanced)"
+    description: |
+      Enhance existing sentinel errors in errors.go with user-friendly messages
+      and add new error types for rate limiting, server errors, and connectivity.
+      Add ErrRateLimited and ErrServerError sentinels. Enhance ErrNotFound with
+      a context-aware wrapper function. Add WrapHTTPError for wrapping connection errors.
+    definition: |
+      // Enhanced sentinel errors (replace existing messages):
+      var ErrNotFound = errors.New("not found")
+      var ErrUnauthorized = errors.New("authentication failed: check that SHELFCTL_GITHUB_TOKEN is set and valid")
+      var ErrForbidden = errors.New("permission denied: ensure your token has 'repo' scope for private repos, or 'public_repo' for public")
+      var ErrConflict = errors.New("conflict: resource already exists")
+
+      // New sentinel errors:
+      var ErrRateLimited = errors.New("GitHub API rate limit exceeded: wait and try again, or check usage at api.github.com/rate_limit")
+      var ErrServerError = errors.New("GitHub API error: try again later")
+
+      // checkStatus updated to handle 429 and 500+ ranges
+      // do() updated to wrap connection/timeout errors with user-friendly message
+    location: internal/github/errors.go
+
+  - name: "util.HumanBytes"
+    description: "Exported version of humanBytes for cross-package use"
+    definition: |
+      func HumanBytes(n int64) string
+    location: internal/util/file.go
+
+  - name: "util.OpenFile"
+    description: "Exported version of openFile for cross-package use"
+    definition: |
+      func OpenFile(path, app string) error
+    location: internal/util/file.go
+
+  - name: "util.IsPDF"
+    description: "Exported version of isPDF for cross-package use"
+    definition: |
+      func IsPDF(filename string) bool
+    location: internal/util/file.go
+
+  - name: "util.ComputeFileHash"
+    description: "Exported version of computeFileHash returning hash and size"
+    definition: |
+      func ComputeFileHash(path string) (string, int64, error)
+    location: internal/util/file.go
+
+file_ownership:
+  # Agent A: GitHub client error wrapping (Issue 1)
+  - file: internal/github/errors.go
+    agent: A
+    wave: 1
+    action: modify
+  - file: internal/github/client.go
+    agent: A
+    wave: 1
+    action: modify
+  - file: internal/github/client_test.go
+    agent: A
+    wave: 1
+    action: modify
+
+  # Agent B: Shelf validation specific errors (Issue 2) + errors.Is fixes (Issue 3)
+  - file: internal/app/shelves.go
+    agent: B
+    wave: 1
+    action: modify
+  - file: internal/app/shelves_test.go
+    agent: B
+    wave: 1
+    action: modify
+  - file: internal/catalog/manager.go
+    agent: B
+    wave: 1
+    action: modify
+  - file: internal/github/releases.go
+    agent: B
+    wave: 1
+    action: modify
+  - file: internal/github/repos.go
+    agent: B
+    wave: 1
+    action: modify
+  - file: internal/github/releases_test.go
+    agent: B
+    wave: 1
+    action: modify
+
+  # Agent C: Token in git subprocess (Issue 4)
+  - file: internal/github/gitops.go
+    agent: C
+    wave: 1
+    action: modify
+  - file: internal/github/gitops_test.go
+    agent: C
+    wave: 1
+    action: modify
+
+  # Agent D: TODO(bug9) in migrate.go (Issue 5)
+  - file: internal/app/migrate.go
+    agent: D
+    wave: 1
+    action: modify
+  - file: internal/app/migrate_test.go
+    agent: D
+    wave: 1
+    action: modify
+
+  # Agent E: Deduplication - create shared util functions (Issue 6, part 1)
+  - file: internal/util/file.go
+    agent: E
+    wave: 1
+    action: new
+  - file: internal/util/file_test.go
+    agent: E
+    wave: 1
+    action: new
+
+  # Agent F: Deduplication - update call sites to use shared util (Issue 6, part 2)
+  - file: internal/app/info.go
+    agent: F
+    wave: 2
+    action: modify
+  - file: internal/app/open.go
+    agent: F
+    wave: 2
+    action: modify
+  - file: internal/app/sync.go
+    agent: F
+    wave: 2
+    action: modify
+  - file: internal/app/browse.go
+    agent: F
+    wave: 2
+    action: modify
+  - file: internal/app/sync_test.go
+    agent: F
+    wave: 2
+    action: modify
+  - file: internal/app/info_test.go
+    agent: F
+    wave: 2
+    action: modify
+  - file: internal/unified/model.go
+    agent: G
+    wave: 2
+    action: modify
+  - file: internal/unified/browse.go
+    agent: F
+    wave: 2
+    action: modify
+  - file: internal/unified/sync_all.go
+    agent: G
+    wave: 2
+    action: modify
+  - file: internal/cache/store.go
+    agent: F
+    wave: 2
+    action: modify
+
+waves:
+  - number: 1
+    agents:
+      - id: A
+        task: |
+          ## Agent A: GitHub client error wrapping (Issue 1)
+
+          ### What to implement
+
+          Improve the GitHub HTTP client error handling so users see actionable
+          error messages instead of raw HTTP status codes.
+
+          **File 1: internal/github/errors.go**
+
+          Update the existing sentinel error messages to be user-friendly:
+
+          Replace the current error definitions:
+          ```go
+          // ErrNotFound is returned when a resource does not exist.
+          ErrNotFound = errors.New("not found")
+          // ErrUnauthorized is returned when authentication fails.
+          ErrUnauthorized = errors.New("unauthorized — check your GitHub token")
+          // ErrForbidden is returned when authorization fails.
+          ErrForbidden = errors.New("forbidden — token may lack required scope (needs 'repo')")
+          // ErrConflict is returned when a resource already exists.
+          ErrConflict = errors.New("conflict — resource already exists")
+          ```
+
+          With enhanced messages:
+          ```go
+          ErrNotFound      = errors.New("not found")
+          ErrUnauthorized  = errors.New("authentication failed: check that SHELFCTL_GITHUB_TOKEN is set and valid")
+          ErrForbidden     = errors.New("permission denied: ensure your token has 'repo' scope for private repos, or 'public_repo' for public")
+          ErrConflict      = errors.New("conflict: resource already exists")
+          ErrRateLimited   = errors.New("GitHub API rate limit exceeded: wait and try again, or check usage at api.github.com/rate_limit")
+          ErrServerError   = errors.New("GitHub API error: try again later")
+          ```
+
+          **File 2: internal/github/client.go**
+
+          Update `checkStatus` to handle 429 (rate limit) and 500+ (server errors):
+
+          Replace the current `checkStatus` function. The current default case is:
+          ```go
+          default:
+          	return fmt.Errorf("github API error %d", resp.StatusCode)
+          ```
+
+          Add cases for 429 and a range for 500+:
+          ```go
+          case http.StatusTooManyRequests:
+          	return ErrRateLimited
+          ```
+          And update the default case to return `ErrServerError` for 5xx codes,
+          keeping the generic formatted error for other unexpected codes.
+
+          Update the `do` method to wrap connection/timeout errors:
+          After `c.http.Do(req)`, if err is non-nil, wrap it with a user-friendly
+          message like "unable to reach GitHub API: check your internet connection: %w".
+          Use `errors.Is(err, context.DeadlineExceeded)` or check for `net.Error` timeout
+          to differentiate timeout vs connectivity errors.
+
+          **File 3: internal/github/client_test.go**
+
+          Add tests for:
+          - `checkStatus` returning `ErrRateLimited` for 429
+          - `checkStatus` returning `ErrServerError` for 500, 502, 503
+          - `do` wrapping connection errors with user-friendly message
+          - Existing tests for 401, 403, 404 still pass with new error messages
+            (update expected error strings in TestCheckStatus_Unauthorized etc.)
+
+          ### Interface contracts
+          - ErrRateLimited: new sentinel in errors.go
+          - ErrServerError: new sentinel in errors.go
+          - ErrUnauthorized, ErrForbidden: updated messages (callers use errors.Is, not string match)
+          - ErrNotFound: message unchanged ("not found")
+
+          ### Verification gate
+          ```bash
+          GOWORK=off go build ./internal/github/...
+          GOWORK=off go vet ./internal/github/...
+          GOWORK=off go test ./internal/github/... -run "TestCheckStatus|TestClientDo"
+          ```
+
+          Postconditions:
+          ```bash
+          # ErrRateLimited exists
+          grep -q 'ErrRateLimited' internal/github/errors.go && echo "PASS: ErrRateLimited defined"
+          # ErrServerError exists
+          grep -q 'ErrServerError' internal/github/errors.go && echo "PASS: ErrServerError defined"
+          # 429 handling exists
+          grep -q 'StatusTooManyRequests' internal/github/client.go && echo "PASS: 429 handled"
+          ```
+
+          ### Constraints
+          - Do NOT change the ErrNotFound message string ("not found") — other code
+            currently does string comparison against it (Issue 3 fixes that separately).
+          - Do NOT modify files outside your ownership list.
+          - Do NOT change the function signatures of checkStatus or do — only their
+            internal behavior and error returns.
+        files:
+          - internal/github/errors.go
+          - internal/github/client.go
+          - internal/github/client_test.go
+        dependencies: []
+
+      - id: B
+        task: |
+          ## Agent B: Shelf validation errors + errors.Is fixes (Issues 2 & 3)
+
+          ### What to implement
+
+          **Issue 2: Make shelf validation errors specific**
+
+          In `internal/app/shelves.go`, the error messages at lines 60 and 69 say
+          "one or more shelves have issues" without identifying which shelf failed
+          or what the issue is.
+
+          Update the two error returns to include specific shelf names and errors.
+          Replace:
+          ```go
+          				return fmt.Errorf("one or more shelves have issues (run with --fix to repair)")
+          ```
+          With something like:
+          ```go
+          				var failedShelves []string
+          				for _, s := range statuses {
+          					if s.errorMsg != "" {
+          						failedShelves = append(failedShelves, fmt.Sprintf("shelf '%s': %s", s.name, s.errorMsg))
+          					}
+          				}
+          				return fmt.Errorf("shelf issues:\n  %s\n\nRun with --fix to repair.", strings.Join(failedShelves, "\n  "))
+          ```
+
+          Apply the same pattern to the non-table mode error at line 69:
+          ```go
+          				return fmt.Errorf("one or more shelves have issues")
+          ```
+
+          Also make `collectShelfStatus` error messages more specific. Currently:
+          ```go
+          		status.errorMsg = "repo not found"
+          ```
+          Change to include the full repo path:
+          ```go
+          		status.errorMsg = fmt.Sprintf("repository '%s/%s' not found", owner, shelf.Repo)
+          ```
+
+          **Issue 3: Replace string comparison with errors.Is**
+
+          File `internal/catalog/manager.go` line 38:
+          ```go
+          		if err.Error() == "not found" {
+          ```
+          Replace with:
+          ```go
+          		if errors.Is(err, github.ErrNotFound) {
+          ```
+          This requires adding an import for `github.com/blackwell-systems/shelfctl/internal/github`.
+
+          File `internal/github/releases.go` line 47:
+          ```go
+          	if err == ErrNotFound {
+          ```
+          Replace with:
+          ```go
+          	if errors.Is(err, ErrNotFound) {
+          ```
+
+          File `internal/github/repos.go` line 45:
+          ```go
+          	if err == ErrNotFound {
+          ```
+          Replace with:
+          ```go
+          	if errors.Is(err, ErrNotFound) {
+          ```
+
+          **Update shelves_test.go** to verify the new specific error messages:
+          - Add a test that verifies when a shelf has repo-not-found, the error
+            message contains the shelf name and the specific issue.
+
+          **Update releases_test.go** to add a test for EnsureRelease using errors.Is
+          behavior (ensure it still creates a release when ErrNotFound is returned).
+
+          ### Verification gate
+          ```bash
+          GOWORK=off go build ./internal/app/... ./internal/catalog/... ./internal/github/...
+          GOWORK=off go vet ./internal/app/... ./internal/catalog/... ./internal/github/...
+          GOWORK=off go test ./internal/app/... -run "TestFormatStatus|TestStripAnsi"
+          GOWORK=off go test ./internal/github/... -run "TestEnsureRelease|TestRepoExists"
+          ```
+
+          Postconditions:
+          ```bash
+          # errors.Is used in catalog/manager.go
+          grep -q 'errors.Is' internal/catalog/manager.go && echo "PASS: errors.Is in manager"
+          # errors.Is used in releases.go
+          grep -q 'errors.Is' internal/github/releases.go && echo "PASS: errors.Is in releases"
+          # errors.Is used in repos.go
+          grep -q 'errors.Is' internal/github/repos.go && echo "PASS: errors.Is in repos"
+          # No more string comparison for "not found"
+          ! grep -q 'err.Error() == "not found"' internal/catalog/manager.go && echo "PASS: no string comparison"
+          ```
+
+          ### Constraints
+          - Do NOT modify internal/github/errors.go — Agent A owns that file.
+          - Do NOT modify internal/github/client.go — Agent A owns that file.
+          - The ErrNotFound sentinel value is "not found" (unchanged by Agent A).
+            Your errors.Is fix will work regardless of whether Agent A changes
+            the message, because errors.Is checks identity not string value.
+        files:
+          - internal/app/shelves.go
+          - internal/app/shelves_test.go
+          - internal/catalog/manager.go
+          - internal/github/releases.go
+          - internal/github/repos.go
+          - internal/github/releases_test.go
+        dependencies: []
+
+      - id: C
+        task: |
+          ## Agent C: Secure credential passing for git (Issue 4)
+
+          ### What to implement
+
+          In `internal/github/gitops.go`, the GitHub token is embedded directly
+          in the clone URL passed as a CLI argument to git:
+
+          ```go
+          cloneURL := fmt.Sprintf("https://x-access-token:%s@github.com/%s/%s.git",
+          	c.token, owner, repo)
+          ```
+
+          This is visible in `/proc/<pid>/cmdline` on Linux. Replace with a
+          GIT_ASKPASS approach that passes the token via environment variable
+          to a helper script.
+
+          **Implementation approach:**
+
+          1. Create a temporary GIT_ASKPASS script that echoes the token from
+             an environment variable. The script content:
+             ```
+             #!/bin/sh
+             echo "$SHELFCTL_GIT_PASSWORD"
+             ```
+
+          2. Update `CommitFile` to:
+             - Write the askpass script to a temp file with mode 0700
+             - Use a plain HTTPS clone URL: `https://github.com/{owner}/{repo}.git`
+             - Pass the token via environment variable to `runGit`
+
+          3. Update `runGit` to accept optional environment variables.
+             Change the signature to accept env vars:
+             ```go
+             func runGit(dir string, env []string, args ...string) error
+             ```
+             Or alternatively, create a `runGitWithEnv` variant.
+
+             Set these env vars on the git command:
+             ```go
+             cmd.Env = append(os.Environ(), env...)
+             ```
+
+          4. The askpass env vars needed:
+             ```
+             GIT_ASKPASS=/path/to/temp/askpass-script
+             SHELFCTL_GIT_PASSWORD=<token>
+             GIT_TERMINAL_PROMPT=0
+             ```
+
+          5. Clean up the askpass script in defer after CommitFile completes.
+
+          6. Update the `sanitize` function — it may no longer need the token
+             URL pattern since the token is no longer in the URL. Keep it for
+             backward safety but the primary leak vector is eliminated.
+
+          **Update gitops_test.go:**
+          - Update TestCommitFile_CloneError to work with new clone URL format
+          - Update TestRunGit_TokenSanitization to verify token is NOT in args
+          - Add a test that verifies the askpass script is created and cleaned up
+          - Add a test that verifies the clone URL does NOT contain the token
+
+          ### Verification gate
+          ```bash
+          GOWORK=off go build ./internal/github/...
+          GOWORK=off go vet ./internal/github/...
+          GOWORK=off go test ./internal/github/... -run "TestCommitFile|TestRunGit|TestSanitize"
+          ```
+
+          Postconditions:
+          ```bash
+          # Token no longer in clone URL
+          ! grep -q 'x-access-token:%s@' internal/github/gitops.go && echo "PASS: no token in URL"
+          # GIT_ASKPASS is used
+          grep -q 'GIT_ASKPASS' internal/github/gitops.go && echo "PASS: GIT_ASKPASS used"
+          ```
+
+          ### Constraints
+          - Do NOT modify internal/github/client.go or errors.go — owned by Agent A.
+          - Do NOT modify internal/github/releases.go or repos.go — owned by Agent B.
+          - The runGit function is only called within gitops.go, so changing its
+            signature is safe. But verify no other file calls it.
+        files:
+          - internal/github/gitops.go
+          - internal/github/gitops_test.go
+        dependencies: []
+
+      - id: D
+        task: |
+          ## Agent D: Fix TODO(bug9) in migrate.go (Issue 5)
+
+          ### What to implement
+
+          In `internal/app/migrate.go`, the `processMigrationQueue` function at
+          line 346 spawns a cobra subcommand via `oneCmd.Execute()` which bypasses
+          `PersistentPreRunE`, leaving `cfg`/`gh` potentially nil.
+
+          The current problematic code (lines 343-356):
+          ```go
+          		// TODO(bug9): newMigrateOneCmd() bypasses PersistentPreRunE so cfg/gh
+          		// are not re-initialized per migration. Fix by calling migrateOne()
+          		// helper directly instead of spawning a cobra subcommand.
+          		oneCmd := newMigrateOneCmd()
+          		oneArgs := []string{line}
+          		if noPush {
+          			oneArgs = append(oneArgs, "--no-push")
+          		}
+          		oneCmd.SetArgs(oneArgs)
+          		if err := oneCmd.Execute(); err != nil {
+          			warn("Failed: %v", err)
+          			// do NOT increment processed
+          			continue
+          		}
+          ```
+
+          **Fix:** Replace the cobra subcommand invocation with a direct call to
+          `migrateOneFile`. The `migrateOneFile` function already exists (line 166)
+          and contains the actual migration logic. The batch processor just needs
+          to call it directly.
+
+          Replace the TODO block with:
+          ```go
+          		sources := cfg.Migration.Sources
+          		if len(sources) == 0 {
+          			warn("Failed: no migration sources configured")
+          			continue
+          		}
+
+          		if err := migrateOneFile(line, sources, ledger, noPush); err != nil {
+          			warn("Failed: %v", err)
+          			continue
+          		}
+          ```
+
+          Remove the TODO comment entirely.
+
+          **Update processMigrationQueue signature if needed:**
+          The function currently receives `noPush` as a parameter, which is correct.
+          It also uses `cfg.Migration.Sources` via the package-level `cfg` variable,
+          which is already initialized by `PersistentPreRunE` before `batch` runs
+          (since batch is a subcommand of migrate, which is a subcommand of root).
+
+          **Update migrate_test.go:**
+          - The existing `TestMigrateWorkflow` and `TestProcessMigrationQueueWithErrors`
+            tests use `processMigrationQueue` with `dryRun=true`, so they won't
+            exercise the new code path. Add a test that verifies the non-dry-run
+            path calls `migrateOneFile` instead of spawning a cobra command.
+          - The simplest approach: verify that `processMigrationQueue` with
+            `dryRun=false` and a valid config still handles errors gracefully
+            when migration sources don't match the path (no mapping matches).
+
+          ### Verification gate
+          ```bash
+          GOWORK=off go build ./internal/app/...
+          GOWORK=off go vet ./internal/app/...
+          GOWORK=off go test ./internal/app/... -run "TestMigrate|TestProcess"
+          ```
+
+          Postconditions:
+          ```bash
+          # TODO(bug9) comment removed
+          ! grep -q 'TODO(bug9)' internal/app/migrate.go && echo "PASS: TODO removed"
+          # No more newMigrateOneCmd() in processMigrationQueue
+          ! grep -q 'newMigrateOneCmd()' internal/app/migrate.go && echo "PASS: no cobra spawn"
+          # migrateOneFile is called in processMigrationQueue
+          grep -c 'migrateOneFile' internal/app/migrate.go | grep -q '[2-9]' && echo "PASS: migrateOneFile called"
+          ```
+
+          ### Constraints
+          - Do NOT modify the `migrateOneFile` function signature — it is correct as-is.
+          - Do NOT modify the `newMigrateOneCmd` function — it is still used for
+            the `migrate one` CLI subcommand.
+          - Do NOT modify files outside your ownership list.
+        files:
+          - internal/app/migrate.go
+          - internal/app/migrate_test.go
+        dependencies: []
+
+      - id: E
+        task: |
+          ## Agent E: Create shared utility functions (Issue 6, part 1)
+
+          ### What to implement
+
+          Create `internal/util/file.go` with exported versions of the duplicated
+          helper functions. These will be consumed by Agent F in wave 2 to replace
+          all call sites.
+
+          **File 1: internal/util/file.go**
+
+          Create this new file with the following functions. Use the existing
+          implementations as reference — they are identical across packages.
+
+          ```go
+          package util
+
+          import (
+          	"crypto/sha256"
+          	"fmt"
+          	"io"
+          	"os"
+          	"os/exec"
+          	"path/filepath"
+          	"runtime"
+          	"strings"
+          )
+
+          // HumanBytes formats a byte count as a human-readable string (e.g., "1.5 MiB").
+          func HumanBytes(n int64) string {
+          	const unit = 1024
+          	if n < unit {
+          		return fmt.Sprintf("%d B", n)
+          	}
+          	div, exp := int64(unit), 0
+          	for n := n / unit; n >= unit; n /= unit {
+          		div *= unit
+          		exp++
+          	}
+          	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
+          }
+
+          // OpenFile opens a file with the system default application or a specified app.
+          func OpenFile(path, app string) error {
+          	var cmdName string
+          	var args []string
+
+          	if app != "" {
+          		cmdName = app
+          		args = []string{path}
+          	} else {
+          		switch runtime.GOOS {
+          		case "darwin":
+          			cmdName = "open"
+          			args = []string{path}
+          		case "windows":
+          			cmdName = "cmd"
+          			args = []string{"/c", "start", "", path}
+          		default:
+          			cmdName = "xdg-open"
+          			args = []string{path}
+          		}
+          	}
+
+          	c := exec.Command(cmdName, args...)
+          	if err := c.Start(); err != nil {
+          		return fmt.Errorf("opening file with %q: %w", cmdName, err)
+          	}
+          	return nil
+          }
+
+          // IsPDF checks if the filename indicates a PDF file.
+          func IsPDF(filename string) bool {
+          	return strings.ToLower(filepath.Ext(filename)) == ".pdf"
+          }
+
+          // ComputeFileHash computes the SHA256 hash and byte size of a file at the given path.
+          func ComputeFileHash(path string) (string, int64, error) {
+          	f, err := os.Open(path)
+          	if err != nil {
+          		return "", 0, err
+          	}
+          	defer func() { _ = f.Close() }()
+
+          	h := sha256.New()
+          	size, err := io.Copy(h, f)
+          	if err != nil {
+          		return "", 0, err
+          	}
+
+          	return fmt.Sprintf("%x", h.Sum(nil)), size, nil
+          }
+          ```
+
+          **File 2: internal/util/file_test.go**
+
+          Create tests for all four functions:
+          - TestHumanBytes: test 0, <1024, KiB, MiB, GiB ranges
+          - TestIsPDF: test .pdf, .PDF, .epub, empty string
+          - TestComputeFileHash: create temp file with known content, verify hash and size
+          - TestComputeFileHash_NonExistent: verify error on missing file
+          - TestOpenFile is hard to unit test (spawns process), skip or test error case only
+
+          Port the existing tests from `internal/app/info_test.go` (TestHumanBytes)
+          and `internal/app/sync_test.go` (TestComputeFileHash*) as a starting point.
+
+          ### Verification gate
+          ```bash
+          GOWORK=off go build ./internal/util/...
+          GOWORK=off go vet ./internal/util/...
+          GOWORK=off go test ./internal/util/... -run "TestHumanBytes|TestIsPDF|TestComputeFileHash"
+          ```
+
+          Postconditions:
+          ```bash
+          # New file exists
+          test -f internal/util/file.go && echo "PASS: file.go created"
+          # All four functions exported
+          grep -q 'func HumanBytes' internal/util/file.go && echo "PASS: HumanBytes"
+          grep -q 'func OpenFile' internal/util/file.go && echo "PASS: OpenFile"
+          grep -q 'func IsPDF' internal/util/file.go && echo "PASS: IsPDF"
+          grep -q 'func ComputeFileHash' internal/util/file.go && echo "PASS: ComputeFileHash"
+          ```
+
+          ### Constraints
+          - Do NOT modify any existing files — only create new files.
+          - Do NOT update call sites — Agent F handles that in wave 2.
+          - Match the exact behavior of the existing implementations. The hash
+            format must use `fmt.Sprintf("%x", h.Sum(nil))` not hex.EncodeToString
+            to match existing callers' expectations.
+        files:
+          - internal/util/file.go
+          - internal/util/file_test.go
+        dependencies: []
+
+  - number: 2
+    agents:
+      - id: F
+        task: |
+          ## Agent F: Update call sites to use shared util functions (Issue 6, part 2)
+
+          ### What to implement
+
+          Replace all duplicated function definitions and calls with the shared
+          versions from `internal/util` package (created by Agent E in wave 1).
+
+          **Deduplication targets:**
+
+          1. **`humanBytes`** — replace local definitions with `util.HumanBytes`:
+             - `internal/app/info.go:133` — delete the function definition (lines 133-144)
+             - `internal/unified/model.go:881` — delete the function definition (lines 881-892)
+             - Update all call sites in `internal/app/` to use `util.HumanBytes(`
+               (files: info.go, browse.go, open.go, cache.go, shelve.go, status.go)
+             - Update all call sites in `internal/unified/` to use `util.HumanBytes(`
+               (files: model.go, cache_clear.go, cache_info.go, import_repo.go)
+             - Note: `internal/app/cache.go` and other app files not in your ownership
+               list also call `humanBytes` — since they are in the same package as
+               `info.go`, deleting the definition from `info.go` will break them.
+               You must update ALL callers in `internal/app/` to use `util.HumanBytes`.
+
+          2. **`openFile`** — replace local definitions with `util.OpenFile`:
+             - `internal/app/open.go:127` — delete the function definition (lines 127-153)
+             - `internal/unified/model.go:894` — delete the function definition (lines 894-921)
+             - Update call sites: `app/browse.go:513`, `unified/model.go` PerformPendingAction
+
+          3. **`isPDF`** — replace local definitions with `util.IsPDF`:
+             - `internal/app/open.go:184` — delete the function definition (lines 184-186)
+             - `internal/cache/store.go:56` — delete the function definition (lines 56-59)
+             - Update call sites: `app/open.go:158` (showPopplerHintIfNeeded),
+               `cache/store.go:48`
+
+          4. **`computeFileHash` / `syncComputeHash`** — replace with `util.ComputeFileHash`:
+             - `internal/app/sync.go:279` — delete the function definition (lines 279-293)
+             - `internal/unified/browse.go:173` — delete the function definition (lines 173-188)
+             - `internal/unified/sync_all.go:514` — delete the `syncComputeHash` function
+             - Update call sites:
+               - `app/sync.go:99` — `computeFileHash(cachedPath)` → `util.ComputeFileHash(cachedPath)`
+               - `app/browse.go:90` — `computeFileHash(cachedPath)` → `util.ComputeFileHash(cachedPath)`
+               - `unified/browse.go:90` — `computeFileHash(cachedPath)` → `util.ComputeFileHash(cachedPath)`
+               - `unified/sync_all.go:300` — `syncComputeHash(cachedPath)` → `util.ComputeFileHash(cachedPath)`
+               - `unified/model.go:1029` — `syncComputeHash(cachedPath)` → `util.ComputeFileHash(cachedPath)`
+
+          **Import updates:**
+          - Add `"github.com/blackwell-systems/shelfctl/internal/util"` to every
+            file that gains a `util.` call.
+          - Remove `"crypto/sha256"` imports from files that only used it for the
+            deleted hash functions (app/sync.go, unified/browse.go, unified/sync_all.go).
+          - Remove `"os/exec"` and `"runtime"` from files that only used them for
+            openFile (app/open.go, unified/model.go).
+          - Remove `"path/filepath"` from files that only used it for isPDF, if no
+            other usage remains.
+
+          **Test file updates:**
+          - `internal/app/sync_test.go` — update `computeFileHash` calls to
+            `util.ComputeFileHash`. Add util import.
+          - `internal/app/info_test.go` — update `humanBytes` calls to
+            `util.HumanBytes`. Add util import.
+
+          ### Verification gate
+          ```bash
+          GOWORK=off go build ./...
+          GOWORK=off go vet ./...
+          GOWORK=off go test ./internal/app/... ./internal/unified/... ./internal/cache/... ./internal/util/...
+          ```
+
+          Postconditions:
+          ```bash
+          # No more local humanBytes definitions (except util)
+          test "$(grep -rn 'func humanBytes' internal/ | grep -v util/ | wc -l)" -eq 0 && echo "PASS: no local humanBytes"
+          # No more local openFile definitions (except util)
+          test "$(grep -rn 'func openFile' internal/ | grep -v util/ | wc -l)" -eq 0 && echo "PASS: no local openFile"
+          # No more local computeFileHash definitions (except util)
+          test "$(grep -rn 'func computeFileHash\|func syncComputeHash' internal/ | grep -v util/ | wc -l)" -eq 0 && echo "PASS: no local hash"
+          # No more local isPDF in app/open.go or cache/store.go
+          test "$(grep -rn 'func isPDF' internal/app/open.go internal/cache/store.go 2>/dev/null | wc -l)" -eq 0 && echo "PASS: no local isPDF"
+          ```
+
+          ### Constraints
+          - Do NOT modify internal/util/file.go — Agent E created it in wave 1.
+          - Do NOT modify internal/github/ files — owned by Agents A, B, C.
+          - Do NOT modify internal/app/migrate.go or migrate_test.go — owned by Agent D.
+          - Be careful with import cleanup: only remove imports that have NO remaining
+            usage in the file. Use `go vet` to catch unused imports.
+          - The `internal/app/cache.go`, `internal/app/shelve.go`, `internal/app/status.go`
+            files are NOT in your ownership list but they call `humanBytes` which is
+            defined in `internal/app/info.go`. Since you are deleting the definition
+            from info.go, these files will break. You MUST update those call sites too.
+            Add those files to your ownership or update them inline — since they are
+            in the same package, just changing `humanBytes(` to `util.HumanBytes(` and
+            adding the import is sufficient.
+
+            IMPORTANT: The following additional files in internal/app/ also call
+            humanBytes and need import updates:
+            - internal/app/cache.go (10+ calls)
+            - internal/app/shelve.go (1 call)
+            - internal/app/status.go (1 call)
+
+            And in internal/unified/:
+            - internal/unified/cache_clear.go (1 call)
+            - internal/unified/cache_info.go (2 calls)
+            - internal/unified/import_repo.go (1 call)
+        files:
+          - internal/app/info.go
+          - internal/app/open.go
+          - internal/app/sync.go
+          - internal/app/browse.go
+          - internal/app/sync_test.go
+          - internal/app/info_test.go
+          - internal/cache/store.go
+          - internal/unified/browse.go
+        dependencies:
+          - E
+      - id: G
+        task: |
+          Replace duplicated function calls with shared util functions in `internal/unified/` files.
+
+          Same deduplication work as Agent F but scoped to the unified package:
+
+          1. **`humanBytes`** in `unified/model.go` — delete the local definition, replace calls with `util.HumanBytes`.
+             Also update callers in `unified/cache_clear.go`, `unified/cache_info.go`, `unified/import_repo.go`.
+          2. **`openFile`** in `unified/model.go` — delete the local definition, replace calls with `util.OpenFile`.
+          3. **`syncComputeHash`** in `unified/sync_all.go` — delete, replace with `util.ComputeFileHash`.
+          4. Update imports: add `util` import, remove unused `crypto/sha256`, `os/exec`, `runtime` imports.
+
+          ### Verification gate
+          ```bash
+          GOWORK=off go build ./...
+          GOWORK=off go vet ./...
+          GOWORK=off go test ./internal/unified/...
+          ```
+
+          ### Constraints
+          - Do NOT modify internal/util/file.go — Agent E created it in wave 1.
+          - Do NOT modify internal/app/ files — owned by Agent F.
+          - Do NOT modify internal/unified/browse.go — owned by Agent F.
+        files:
+          - internal/unified/model.go
+          - internal/unified/sync_all.go
+        dependencies:
+          - E
+
+pre_mortem:
+  overall_risk: low
+  rows:
+    - scenario: "Agent A changes ErrNotFound message, breaking Agent B's string comparison fix"
+      likelihood: low
+      impact: low
+      mitigation: |
+        Agent A is explicitly constrained NOT to change ErrNotFound message.
+        Agent B's fix uses errors.Is which checks identity, not string value.
+        These are independent and safe.
+    - scenario: "Agent F misses a call site for humanBytes, causing build failure"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        The task lists all known call sites from grep analysis. The postcondition
+        check verifies no local definitions remain. Build gate catches any missed
+        call sites as undefined function errors.
+    - scenario: "Agent C's GIT_ASKPASS approach fails on Windows"
+      likelihood: medium
+      impact: low
+      mitigation: |
+        The current code already uses git subprocess. GIT_ASKPASS is supported
+        on all platforms. Windows uses sh.exe from git-for-windows. Document
+        the approach and ensure tests cover the script creation path.
+    - scenario: "Agent F touches files not in ownership list (cache.go, shelve.go, status.go)"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Agent F's task explicitly calls out these additional files that need
+        import updates. Since humanBytes is deleted from info.go, all callers
+        in the same package must be updated. The build gate will catch any
+        missed files. Agent F's constraint section documents this.
+    - scenario: "Wave 2 Agent F conflicts with wave 1 agents on browse.go"
+      likelihood: low
+      impact: low
+      mitigation: |
+        Agent F is in wave 2, so wave 1 merges first. Agent F's changes to
+        browse.go are import additions and function call renames, which are
+        independent of any wave 1 changes (no wave 1 agent touches browse.go).
+
+known_issues:
+  - title: "Agent F I1 relaxation for wave 2 solo agent"
+    description: |
+      Agent F's file ownership list does not include internal/app/cache.go,
+      internal/app/shelve.go, internal/app/status.go, internal/unified/cache_clear.go,
+      internal/unified/cache_info.go, or internal/unified/import_repo.go, but these
+      files call humanBytes() which will be deleted. Agent F must update these files
+      too. Since they are not listed in file_ownership, this is a known I1 relaxation
+      — Agent F is the only agent in wave 2, so there is no conflict risk.

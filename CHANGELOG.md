@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Auto-create config on first run:** Running `shelfctl` or `shelfctl init` without a config file now prompts inline for GitHub owner and token env var name, then creates `~/.config/shelfctl/config.yml` automatically. Eliminates the chicken-and-egg problem where `init` required a config that didn't exist yet. Non-TTY environments (CI, piped stdin) skip the prompt and show the existing error message.
+
+### Changed
+- **`SHELFCTL_GITHUB_TOKEN` is now the canonical token env var.** The default `token_env` in config changed from `GITHUB_TOKEN` to `SHELFCTL_GITHUB_TOKEN`. This avoids collision with the GitHub Actions built-in token. The `GITHUB_TOKEN` fallback has been removed — update your shell profile if you were using the old name.
+
 ## [0.4.7] - 2026-04-13
 
 ### Added

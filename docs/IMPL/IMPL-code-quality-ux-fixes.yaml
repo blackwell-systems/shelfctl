@@ -715,6 +715,7 @@ waves:
           files:
             - internal/util/file.go
             - internal/util/file_test.go
+      base_commit: 5cd51458915013e7e7552f2494899dbcd382a4d3
     - number: 2
       agents:
         - id: F
@@ -979,5 +980,4 @@ critic_report:
     reviewed_at: "2026-04-13T21:56:08Z"
     issue_count: 0
 state: REVIEWED
-original_branch: main
 injection_method: hook

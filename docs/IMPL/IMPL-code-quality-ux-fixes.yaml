@@ -133,6 +133,18 @@ file_ownership:
       agent: G
       wave: 2
       action: modify
+    - file: internal/unified/cache_clear.go
+      agent: H
+      wave: 2
+      action: modify
+    - file: internal/unified/cache_info.go
+      agent: H
+      wave: 2
+      action: modify
+    - file: internal/unified/import_repo.go
+      agent: H
+      wave: 2
+      action: modify
     - file: internal/cache/store.go
       agent: F
       wave: 2
@@ -848,6 +860,33 @@ waves:
             - internal/unified/sync_all.go
           dependencies:
             - E
+        - id: H
+          task: |
+            Update `humanBytes()` callers in three unified/ files to use `util.HumanBytes`.
+
+            For each file:
+            1. Replace `humanBytes(` with `util.HumanBytes(`
+            2. Add `"github.com/blackwell-systems/shelfctl/internal/util"` import
+
+            Files:
+            - `internal/unified/cache_clear.go`
+            - `internal/unified/cache_info.go`
+            - `internal/unified/import_repo.go`
+
+            ### Verification gate
+            ```bash
+            GOWORK=off go build ./...
+            GOWORK=off go vet ./...
+            ```
+
+            ### Constraints
+            - Do NOT modify any files outside the 3 listed above.
+          files:
+            - internal/unified/cache_clear.go
+            - internal/unified/cache_info.go
+            - internal/unified/import_repo.go
+          dependencies:
+            - E
 quality_gates:
     level: standard
     gates:
@@ -926,14 +965,13 @@ pre_mortem:
             browse.go are import additions and function call renames, which are
             independent of any wave 1 changes (no wave 1 agent touches browse.go).
 known_issues:
-    - title: Agent F I1 relaxation for wave 2 solo agent
+    - title: Agent F I1 relaxation for app/ callers of humanBytes
       description: |
         Agent F's file ownership list does not include internal/app/cache.go,
-        internal/app/shelve.go, internal/app/status.go, internal/unified/cache_clear.go,
-        internal/unified/cache_info.go, or internal/unified/import_repo.go, but these
-        files call humanBytes() which will be deleted. Agent F must update these files
-        too. Since they are not listed in file_ownership, this is a known I1 relaxation
-        — Agent F is the only agent in wave 2, so there is no conflict risk.
+        internal/app/shelve.go, or internal/app/status.go, but these files call
+        humanBytes() which will be deleted from info.go. Agent F must update those
+        call sites too. The unified/ callers (cache_clear.go, cache_info.go,
+        import_repo.go) are now properly owned by Agent G.
 critic_report:
     verdict: ISSUES
     agent_reviews:

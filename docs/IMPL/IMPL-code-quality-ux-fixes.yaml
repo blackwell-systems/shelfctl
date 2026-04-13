@@ -926,6 +926,80 @@ scaffolds:
         }
       import_path: github.com/blackwell-systems/shelfctl/internal/util
       status: committed (31bb395)
+completion_reports:
+    A:
+        status: complete
+        branch: saw/code-quality-ux-fixes/wave1-agent-A
+        commit: 4c010f5
+        files_changed:
+            - internal/github/errors.go
+            - internal/github/client.go
+            - internal/github/client_test.go
+        tests_added:
+            - TestCheckStatus_RateLimited
+            - TestCheckStatus_ServerError
+            - TestClientDo_WrapsConnectionError
+        verification: PASS
+        notes: Enhanced sentinel errors with user-friendly messages. Added ErrRateLimited and ErrServerError. Updated checkStatus for 429 and 5xx. Wrapped connection/timeout errors in do(). All 16 tests pass.
+    B:
+        status: complete
+        branch: saw/code-quality-ux-fixes/wave1-agent-B
+        commit: 4a5bca4
+        files_changed:
+            - internal/app/shelves.go
+            - internal/catalog/manager.go
+            - internal/github/releases.go
+            - internal/github/repos.go
+            - internal/app/shelves_test.go
+            - internal/github/releases_test.go
+        tests_added:
+            - TestFormatStatus_RepoNotFound_IncludesShelfName
+            - TestEnsureRelease_ErrorsIs
+        verification: PASS
+        notes: 'Issue 2: Shelf validation errors now include specific shelf names and error details. Issue 3: All err == ErrNotFound and err.Error() == not found replaced with errors.Is. All tests passing.'
+    C:
+        status: complete
+        branch: saw/code-quality-ux-fixes/wave1-agent-C
+        commit: d77ce4b
+        files_changed:
+            - internal/github/gitops.go
+            - internal/github/gitops_test.go
+        tests_added:
+            - TestCommitFile_CloneURL_NoToken
+            - TestRunGit_WithEnv
+            - TestRunGit_TokenNotInArgs
+            - TestCreateAskpassScript
+            - TestCreateAskpassScript_Cleanup
+        verification: PASS
+        notes: Replaced token-in-URL with GIT_ASKPASS approach. runGit signature changed to accept env []string param. sanitize() simplified to scan output only (no longer needs args). All 10 tests pass, postconditions verified.
+    D:
+        status: complete
+        branch: saw/code-quality-ux-fixes/wave1-agent-D
+        commit: 0163f10
+        files_changed:
+            - internal/app/migrate.go
+            - internal/app/migrate_test.go
+        tests_added:
+            - TestProcessMigrationQueueNonDryRun
+        verification: PASS
+        notes: 'Removed TODO(bug9): replaced cobra subcommand spawn with direct migrateOneFile() call in processMigrationQueue. Added test covering non-dry-run path with empty sources and non-matching routes.'
+    E:
+        status: complete
+        branch: saw/code-quality-ux-fixes/wave1-agent-E
+        commit: c333dfb
+        files_changed:
+            - internal/util/file.go
+            - internal/util/file_test.go
+        files_created:
+            - internal/util/file_test.go
+        tests_added:
+            - TestHumanBytes
+            - TestIsPDF
+            - TestComputeFileHash
+            - TestComputeFileHash_NonExistent
+            - TestOpenFile_InvalidCommand
+        verification: PASS
+        notes: All four exported utility functions implemented with tests. file.go updated from scaffold stubs. file_test.go created new.
 pre_mortem:
     overall_risk: low
     rows:
@@ -980,4 +1054,5 @@ critic_report:
     reviewed_at: "2026-04-13T21:56:08Z"
     issue_count: 0
 state: REVIEWED
+original_branch: main
 injection_method: hook

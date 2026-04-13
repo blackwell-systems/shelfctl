@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
+	"github.com/blackwell-systems/shelfctl/internal/github"
 )
 
 type mockGitHubClient struct {
@@ -54,7 +55,7 @@ func TestLoad_Happy(t *testing.T) {
 }
 
 func TestLoad_NotFound(t *testing.T) {
-	mock := &mockGitHubClient{contentErr: errors.New("not found")}
+	mock := &mockGitHubClient{contentErr: github.ErrNotFound}
 	books, err := newMgr(mock).Load()
 	if err != nil {
 		t.Fatalf("not-found should return empty slice, got error: %v", err)

@@ -1,7 +1,10 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
+
+	"github.com/blackwell-systems/shelfctl/internal/github"
 )
 
 // GitHubClient is the subset of github.Client that Manager needs.
@@ -35,7 +38,7 @@ func NewManager(gh GitHubClient, owner, repo, catalogPath string) *Manager {
 func (m *Manager) Load() ([]Book, error) {
 	data, _, err := m.gh.GetFileContent(m.owner, m.repo, m.catalogPath, "")
 	if err != nil {
-		if err.Error() == "not found" {
+		if errors.Is(err, github.ErrNotFound) {
 			return []Book{}, nil
 		}
 		return nil, fmt.Errorf("reading catalog: %w", err)

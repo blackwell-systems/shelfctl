@@ -57,7 +57,13 @@ func newShelvesCmd() *cobra.Command {
 
 				if anyFailed {
 					fmt.Println()
-					return fmt.Errorf("one or more shelves have issues (run with --fix to repair)")
+					var failedShelves []string
+					for _, s := range statuses {
+						if s.errorMsg != "" {
+							failedShelves = append(failedShelves, fmt.Sprintf("shelf '%s': %s", s.name, s.errorMsg))
+						}
+					}
+					return fmt.Errorf("shelf issues:\n  %s\n\nRun with --fix to repair.", strings.Join(failedShelves, "\n  "))
 				}
 				fmt.Println()
 				ok("All shelves healthy")
@@ -66,7 +72,13 @@ func newShelvesCmd() *cobra.Command {
 				renderShelfList(statuses)
 
 				if anyFailed {
-					return fmt.Errorf("one or more shelves have issues")
+					var failedShelves []string
+					for _, s := range statuses {
+						if s.errorMsg != "" {
+							failedShelves = append(failedShelves, fmt.Sprintf("shelf '%s': %s", s.name, s.errorMsg))
+						}
+					}
+					return fmt.Errorf("shelf issues: %s", strings.Join(failedShelves, "; "))
 				}
 			}
 			return nil
@@ -97,7 +109,7 @@ func collectShelfStatus(shelf config.ShelfConfig, fix bool) shelfStatus {
 		return status
 	}
 	if !exists {
-		status.errorMsg = "repo not found"
+		status.errorMsg = fmt.Sprintf("repository '%s/%s' not found", owner, shelf.Repo)
 		return status
 	}
 	status.repoOK = true

@@ -1,6 +1,7 @@
 package github
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -42,7 +43,7 @@ func (c *Client) CreateRepo(name string, private bool) (*Repo, error) {
 // RepoExists returns true if the repo exists and is accessible.
 func (c *Client) RepoExists(owner, repo string) (bool, error) {
 	_, err := c.GetRepo(owner, repo)
-	if err == ErrNotFound {
+	if errors.Is(err, ErrNotFound) {
 		return false, nil
 	}
 	return err == nil, err

@@ -22,13 +22,13 @@ func newFakeGitHubServer(t *testing.T, login, scopes string, repoOwner, repoName
 	mux.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-OAuth-Scopes", scopes)
-		fmt.Fprintf(w, `{"login":%q}`, login)
+		_, _ = fmt.Fprintf(w, `{"login":%q}`, login)
 	})
 	if repoOwner != "" && repoName != "" {
 		path := fmt.Sprintf("/repos/%s/%s", repoOwner, repoName)
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"id":1,"full_name":%q}`, repoOwner+"/"+repoName)
+			_, _ = fmt.Fprintf(w, `{"id":1,"full_name":%q}`, repoOwner+"/"+repoName)
 		})
 	}
 	srv := httptest.NewServer(mux)

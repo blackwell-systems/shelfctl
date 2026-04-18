@@ -356,8 +356,8 @@ func printCheckResult(w io.Writer, r CheckResult) {
 		icon = color.HiBlackString("-")
 	}
 	label := fmt.Sprintf("%-20s", r.Label)
-	fmt.Fprintf(w, "  %s %s %s\n", icon, color.CyanString(label), r.Message)
+	_, _ = fmt.Fprintf(w, "  %s %s %s\n", icon, color.CyanString(label), r.Message)
 	if r.Detail != "" {
-		fmt.Fprintf(w, "    %s\n", color.YellowString("hint: "+r.Detail))
+		_, _ = fmt.Fprintf(w, "    %s\n", color.YellowString("hint: "+r.Detail))
 	}
 }

@@ -26,7 +26,8 @@
     }
   ],
   "lint": {
-    "command": "GOWORK=off go vet ./..."
+    "command": "GOWORK=off go vet ./...",
+    "detected": true
   },
   "test": {
     "command": "GOWORK=off go test ./...",

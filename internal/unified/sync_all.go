@@ -42,6 +42,9 @@ type syncDetectedMsg struct {
 	books []syncEntry
 }
 
+// syncDetectErrorMsg carries a fatal error encountered during catalog detection.
+type syncDetectErrorMsg struct{ err error }
+
 // syncUploadReadyMsg signals that the upload goroutine has started and progress
 // can be read from ch.
 type syncUploadReadyMsg struct {
@@ -204,6 +207,11 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 		m.phase = syncAllConfirming
 		return m, nil
 
+	case syncDetectErrorMsg:
+		m.errors = append(m.errors, msg.err.Error())
+		m.phase = syncAllDone
+		return m, nil
+
 	case syncUploadReadyMsg:
 		m.uploadCurrent = 0
 		m.uploadTotal = msg.total
@@ -288,7 +296,8 @@ func (m SyncAllModel) detectAsync() tea.Cmd {
 			}
 			parsed, err := catalog.Parse(data)
 			if err != nil {
-				continue
+				// Surface catalog parse errors so users know their catalog.yml is malformed
+				return syncDetectErrorMsg{err: fmt.Errorf("shelf %q: parse catalog: %w", shelf.Name, err)}
 			}
 
 			for _, b := range parsed {

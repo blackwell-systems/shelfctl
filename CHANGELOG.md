@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-04-18
+
 ### Added
 - **`shelfctl doctor` command:** Runs health checks on the user's setup — config file, GitHub token, API connectivity, token scopes, shelf accessibility, and cache integrity. Reports pass/fail/warn/skip with remediation hints. Exits 0 if all pass/warn, non-zero if any fail.
 - **Tests for `internal/unified` package:** The `SyncAllModel`, `PerformPendingAction`, and `refreshModifiedStatusCmd` functions now have test coverage. Previously the entire `unified` package had zero test files.

@@ -125,6 +125,31 @@ func (c *Client) ListDirContents(owner, repo, dirPath, ref string) ([]DirEntry, 
 	return entries, nil
 }
 
+// GetUser fetches the authenticated user's login and OAuth scopes.
+// Returns (login, scopes, error). scopes is the raw X-OAuth-Scopes header
+// value (e.g. "repo, gist"). Returns ErrUnauthorized if the token is invalid.
+func (c *Client) GetUser() (login string, scopes string, err error) {
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.url("user"), nil)
+	if err != nil {
+		return "", "", err
+	}
+	resp, err := c.do(req)
+	if err != nil {
+		return "", "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if err := checkStatus(resp); err != nil {
+		return "", "", err
+	}
+	var u struct {
+		Login string `json:"login"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&u); err != nil {
+		return "", "", err
+	}
+	return u.Login, resp.Header.Get("X-OAuth-Scopes"), nil
+}
+
 // url builds an API URL from path segments.
 func (c *Client) url(parts ...string) string {
 	return c.apiBase + "/" + strings.Join(parts, "/")

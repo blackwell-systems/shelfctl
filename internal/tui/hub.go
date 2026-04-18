@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"

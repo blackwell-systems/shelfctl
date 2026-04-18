@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	ghclient "github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/config"
+	ghclient "github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/migrate"
 )
 

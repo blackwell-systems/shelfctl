@@ -7,8 +7,8 @@ import (
 
 	"github.com/blackwell-systems/bubbletea-commandpalette"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
-	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"

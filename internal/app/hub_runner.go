@@ -263,7 +263,6 @@ func runImportFromRepo() error {
 	return err
 }
 
-
 func buildHubContext() tui.HubContext {
 	ctx := unified.BuildContextFast(cfg)
 	ctx.Version = appVersion

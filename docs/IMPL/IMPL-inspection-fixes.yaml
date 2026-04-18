@@ -108,6 +108,14 @@ file_ownership:
       agent: J
       wave: 3
       action: modify
+    - file: test/scenarios/browse_test.go
+      agent: J
+      wave: 3
+      action: modify
+    - file: test/scenarios/cache_test.go
+      agent: J
+      wave: 3
+      action: modify
     - file: internal/ingest/resolver.go
       agent: K
       wave: 3
@@ -121,6 +129,10 @@ file_ownership:
       wave: 3
       action: modify
     - file: internal/migrate/scan_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/migrate/migrate_test.go
       agent: K
       wave: 3
       action: modify
@@ -145,6 +157,22 @@ file_ownership:
       wave: 3
       action: modify
     - file: internal/github/releases_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/app/add_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/app/delete_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/app/shelves_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/app/setup_prompt_test.go
       agent: K
       wave: 3
       action: modify
@@ -753,6 +781,7 @@ waves:
             - Do NOT modify internal/unified/model.go — that is owned by Agent B (Wave 1).
             - Your owned files are: internal/app/cache.go and internal/unified/cache_info.go only.
           files: []
+      base_commit: 90bed78132820d5e9c61ddde136880de92ad8644
     - number: 3
       agents:
         - id: I
@@ -1244,6 +1273,41 @@ completion_reports:
             - internal/operations/readme.go
         verification: PASS
         notes: Removed dead foundNextSection boolean (declaration, conditional wrapper, unreachable break). Build, vet, and tests all pass.
+    E:
+        status: complete
+        branch: saw/inspection-fixes/wave2-agent-E
+        commit: 24053ca
+        files_changed:
+            - internal/unified/browse.go
+        verification: PASS
+        notes: Fixed silent error discard in browserDownloader.Download. Build, vet, and tests all pass.
+    F:
+        status: complete
+        branch: saw/inspection-fixes/wave2-agent-F
+        commit: bfd5888
+        files_changed:
+            - internal/cache/paths.go
+            - internal/cache/html_index.go
+            - internal/cache/cache_test.go
+        verification: PASS
+        notes: 'M1: Path and EnsureDir now include owner segment (<baseDir>/<owner>/<repo>/...). M2: html index file permissions changed from 0644 to 0600. Also updated TestPath_Layout expected value in cache_test.go (pre-existing test had wrong expected value for the buggy layout). Agent N (Wave 4) will add full regression tests for the new layout.'
+    G:
+        status: complete
+        branch: saw/inspection-fixes/wave2-agent-G
+        commit: 7496bc4
+        files_changed:
+            - internal/unified/sync_all.go
+        verification: PASS
+        notes: Added syncDetectErrorMsg type and wired it in detectAsync and Update. catalog.Parse errors now surface to the user instead of being silently swallowed.
+    H:
+        status: complete
+        branch: saw/inspection-fixes/wave2-agent-H
+        commit: c851fb6
+        files_changed:
+            - internal/app/cache.go
+            - internal/unified/cache_info.go
+        verification: PASS
+        notes: Replaced 3 cacheMgr.Path("","","","") calls with cacheMgr.BaseDir(). Removed stale filepath.Dir workaround in cache_info.go and dropped unused filepath import. Build, vet, and tests all pass.
 pre_mortem:
     overall_risk: medium
     rows:
@@ -1393,5 +1457,4 @@ critic_report:
     reviewed_at: "2026-04-18T16:04:55Z"
     issue_count: 1
 state: REVIEWED
-original_branch: main
 injection_method: hook

@@ -17,3 +17,5 @@
   - IMPL doc: docs/IMPL/complete/IMPL-auto-create-config.yaml
 - **code-quality-ux-fixes**: completed 2026-04-13, 2 waves, 8 agents
   - IMPL doc: docs/IMPL/complete/IMPL-code-quality-ux-fixes.yaml
+- **inspection-fixes**: completed 2026-04-18, 4 waves, 14 agents
+  - IMPL doc: docs/IMPL/complete/IMPL-inspection-fixes.yaml

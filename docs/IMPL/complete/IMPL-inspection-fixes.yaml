@@ -1,3 +1,4 @@
+completion_date: "2026-04-18"
 title: Code Inspection Fixes
 feature_slug: inspection-fixes
 verdict: SUITABLE
@@ -1225,6 +1226,7 @@ waves:
             - Do NOT modify internal/cache/paths.go — it is owned by Wave 2 Agent F.
             - Your one owned file: internal/cache/paths_test.go.
           files: []
+      base_commit: 3224cddcb1c33f580978e5b03627dd55117415e2
 quality_gates:
     level: standard
     gates:
@@ -1356,6 +1358,40 @@ completion_reports:
             - internal/app/hub_runner.go
         verification: PASS
         notes: Replaced return runHub() with inline messaging in runUnifiedTUI. runHub() deleted (zero callers). Removed unused config and util imports. All tests pass.
+    M:
+        status: complete
+        branch: saw/inspection-fixes/wave4-agent-M
+        commit: d4a7935
+        files_created:
+            - internal/unified/sync_all_test.go
+            - internal/unified/model_test.go
+        tests_added:
+            - TestSyncAllModel_NewSyncAllModel
+            - TestSyncAllModel_DetectAsync_ParseError
+            - TestSyncAllModel_Update_Confirm
+            - TestSyncAllModel_Update_DetectedMsg_EmptyBooks
+            - TestPerformPendingAction_UnknownAction
+            - TestPerformPendingAction_OpenBook_NilItem
+            - TestPerformPendingAction_OpenBook_CachedNoNetwork
+            - TestRefreshModifiedStatusCmd_NoShelves
+            - TestRefreshModifiedStatusCmd_ModifiedBook
+            - TestRefreshModifiedStatusCmd_UnmodifiedBook
+        verification: PASS
+        notes: 10 tests passing. Used httptest.Server to provide a real *github.Client to detectAsync (concrete type, not interfaced). fakeBook helper shared between both test files in package scope.
+    "N":
+        status: complete
+        branch: saw/inspection-fixes/wave4-agent-N
+        commit: 396da34
+        files_changed:
+            - internal/cache/paths_test.go
+        files_created:
+            - internal/cache/paths_test.go
+        tests_added:
+            - TestPath_IncludesOwner
+            - TestPath_DifferentOwnersSeparated
+            - TestEnsureDir_CreatesOwnerSubdir
+            - TestBaseDir_ReturnsCacheRoot
+        verification: PASS
 pre_mortem:
     overall_risk: medium
     rows:
@@ -1504,6 +1540,5 @@ critic_report:
     summary: 'All three previously flagged errors have been resolved. Agent G now correctly instructs defining a new syncDetectErrorMsg type (verified: syncDetectedMsg in sync_all.go has no err field, so the new type approach is sound). Agent H now owns internal/unified/model.go in Wave 2 with depends_on: [B], enabling it to fix the cacheMgr.Path call at line 1089 in loadHubContextAsync (verified: that call exists). Agent K''s task now carries a CRITICAL CONSTRAINT prohibiting Resolve signature changes, and ingest_test.go has been added to K''s ownership (verified: ingest_test.go calls Resolve with the unchanged 3-arg signature; shelve.go and shelve_ops.go callers remain safe). Caller exhaustiveness check for ScanRepo: all 3 non-test callers (import_repo_ops.go, app/migrate.go, migrate/scan_test.go) are in K''s ownership; migrate_test.go contains only a comment mentioning ScanRepo, not an actual call. Agent K''s complexity warning (12 files, exceeds 8-file advisory) remains but is advisory only and does not block execution. All other agents (A, B, C, D, E, F, I, J, L, M, N) have accurate briefs with verified symbols, correct file existence, and sound patterns.'
     reviewed_at: "2026-04-18T16:04:55Z"
     issue_count: 1
-state: REVIEWED
-original_branch: main
+state: COMPLETE
 injection_method: hook

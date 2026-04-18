@@ -7,8 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Tests for `internal/unified` package:** The `SyncAllModel`, `PerformPendingAction`, and `refreshModifiedStatusCmd` functions now have test coverage. Previously the entire `unified` package had zero test files.
+- **Cache path layout regression tests:** Four new tests in `internal/cache/paths_test.go` verify the owner-scoped path layout (`<baseDir>/<owner>/<repo>/<asset>`), catching future regressions like the cross-owner collision that prompted the change.
+- **`github.Client` context-aware variants:** New `GetFileContentCtx` and `DownloadAssetCtx` methods expose context propagation for callers that need request cancellation. `doJSON` now accepts a `context.Context` and uses `http.NewRequestWithContext` throughout; existing callers receive `context.Background()`.
+- **`github.Client.ListDirContents`:** New method wrapping the GitHub Contents API for directory listings, replacing the raw `http.NewRequest` calls previously embedded in `internal/migrate/scan.go`.
+- **`github.Client.APIBase()` and `Token()` accessors:** Expose the client's configured API base URL and token for callers that previously had to pass `token`/`apiBase` strings separately alongside a `*Client`.
+
+### Changed
+- **`migrate.ScanRepo` signature:** Changed from `ScanRepo(token, apiBase, owner, repo, ref string, exts []string)` to `ScanRepo(gh *github.Client, owner, repo, ref string, exts []string)`. Raw HTTP logic replaced with `gh.ListDirContents`. Update call sites in `internal/app/migrate.go` and `internal/unified/import_repo_ops.go`.
+- **`ingest/resolver.go` GitHub path:** `resolveGitHub` now constructs a `*github.Client` via `github.New` and calls `gh.GetFileContent` instead of issuing raw `http.NewRequest` calls directly. The public `Resolve` signature is unchanged.
+- **Cache directory layout is now owner-scoped:** Cached assets are stored at `<cacheDir>/<owner>/<repo>/<asset>` instead of `<cacheDir>/<repo>/<asset>`. Prevents collisions when two owners have a shelf with the same repo name. Existing caches will be treated as orphaned on next run.
+- **`browserDownloader` consolidated:** The duplicate `browserDownloader` struct that existed in both `internal/app/browse.go` and `internal/unified/browse.go` is now a single implementation in `internal/unified` exported via `NewBrowserDownloader`. Removes ~160 lines of duplicate code.
+
 ### Fixed
 - **Sync progress spinner now animates:** The braille spinner shown next to the current book during sync processing was static. The spinner tick chain was broken during the confirmation phase transition; restarting it on confirm resumes animation.
+- **Silent download failure surfaced:** `Download` in `internal/unified/browse.go` was always returning `nil` on error instead of propagating the actual error. Download failures are now visible in the TUI.
+- **Catalog parse errors surfaced in sync detect phase:** A `catalog.Parse` failure during shelf detection was silently skipped via `continue`. Now emits a `syncDetectErrorMsg` that the TUI can display.
+- **Orphan detection with owner-scoped paths:** `cache.DetectOrphans` was parsing paths as `<repo>/<asset>` (2-level) after the layout changed to `<owner>/<repo>/<asset>` (3-level). Every cached file was being misclassified as an orphan. Fixed to parse the owner segment and key the known-assets map by `owner/repo`.
+
+### Removed
+- **Legacy `runHub()` deleted (~195 lines):** `internal/app/hub_runner.go` was calling the old `runHub()` implementation as a fallback for unconfigured states. These two paths (no-token, no-shelves) are now handled inline with user-friendly messages. `runHub()` and its unused imports are gone.
+- **Dead `updateCatalog` function removed:** `internal/app/shelve.go` contained an unreachable `updateCatalog` function (28 lines) that was superseded by the catalog manager. Deleted.
+- **Dead `BuildContext` export removed:** `internal/unified/model.go` exported `BuildContext` which had no external callers. Deleted. The `cacheMgr.Path("","","","")` workaround call it contained is replaced with `cacheMgr.BaseDir()`.
+- **Dead `foundNextSection` boolean removed:** `internal/operations/readme.go`'s `AppendToShelfREADME` tracked a `foundNextSection` flag that was written but never read. Removed.
+- **Duplicate `formatBytes` removed:** `internal/app/book_item.go` and `internal/unified/hub.go` both defined local `formatBytes` wrappers around `util.HumanBytes`. Removed; all call sites now use `util.HumanBytes` directly.
 
 ## [0.4.8] - 2026-04-13
 

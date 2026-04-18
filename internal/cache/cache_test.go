@@ -14,7 +14,7 @@ import (
 func TestPath_Layout(t *testing.T) {
 	m := cache.New("/base")
 	got := m.Path("alice", "shelf-prog", "sicp", "sicp.pdf")
-	want := filepath.Join("/base", "shelf-prog", "sicp.pdf")
+	want := filepath.Join("/base", "alice", "shelf-prog", "sicp.pdf")
 	if got != want {
 		t.Errorf("Path() = %q, want %q", got, want)
 	}

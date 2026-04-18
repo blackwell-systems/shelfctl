@@ -2,6 +2,18 @@
 
 Common issues and solutions for shelfctl.
 
+## First step: run `shelfctl doctor`
+
+Before diving into specific issues, run the built-in health check:
+
+```bash
+shelfctl doctor
+```
+
+This checks your config file, GitHub token, API connectivity, token scopes, shelf accessibility, and cache integrity. Each check reports pass/fail/warn/skip with remediation hints. Start here — it catches most common problems in one command.
+
+---
+
 ## Authentication issues
 
 ### "no GitHub token found"

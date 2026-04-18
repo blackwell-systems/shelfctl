@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`shelfctl doctor` command:** Runs health checks on the user's setup — config file, GitHub token, API connectivity, token scopes, shelf accessibility, and cache integrity. Reports pass/fail/warn/skip with remediation hints. Exits 0 if all pass/warn, non-zero if any fail.
 - **Tests for `internal/unified` package:** The `SyncAllModel`, `PerformPendingAction`, and `refreshModifiedStatusCmd` functions now have test coverage. Previously the entire `unified` package had zero test files.
 - **Cache path layout regression tests:** Four new tests in `internal/cache/paths_test.go` verify the owner-scoped path layout (`<baseDir>/<owner>/<repo>/<asset>`), catching future regressions like the cross-owner collision that prompted the change.
 - **`github.Client` context-aware variants:** New `GetFileContentCtx` and `DownloadAssetCtx` methods expose context propagation for callers that need request cancellation. `doJSON` now accepts a `context.Context` and uses `http.NewRequestWithContext` throughout; existing callers receive `context.Background()`.

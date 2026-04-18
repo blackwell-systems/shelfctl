@@ -159,6 +159,8 @@ Output:
   catalog: catalog.yml (0 books)
 ```
 
+You can also run `shelfctl doctor` at any time to verify your entire setup (config, token, API connectivity, shelf access, cache).
+
 ## Step 5: Add your first book
 
 ### Interactive mode (easiest)

@@ -1360,6 +1360,66 @@ shelfctl completion zsh > _shelfctl
 
 ---
 
+## doctor
+
+Run health checks on your shelfctl setup.
+
+```bash
+shelfctl doctor
+```
+
+### What it checks
+
+1. **Config file** — exists and is valid YAML
+2. **GitHub token** — `SHELFCTL_GITHUB_TOKEN` is set and non-empty
+3. **API connectivity** — can reach the GitHub API
+4. **Token scopes** — token has the required `repo` scope
+5. **Shelf accessibility** — each configured shelf's repo and release exist
+6. **Cache integrity** — cache directory exists and contains no orphaned files
+
+### Output
+
+Each check reports one of:
+
+| Status | Meaning |
+|--------|---------|
+| `pass` | Check succeeded |
+| `warn` | Non-fatal issue, with remediation hint |
+| `fail` | Fatal issue, with remediation hint |
+| `skip` | Check was not applicable |
+
+### Exit code
+
+- `0` if all checks pass or warn
+- Non-zero if any check fails
+
+### Examples
+
+```bash
+# Run all health checks
+shelfctl doctor
+```
+
+### Example output
+
+```
+Config file:       pass  (~/.config/shelfctl/config.yml)
+GitHub token:      pass
+API connectivity:  pass
+Token scopes:      pass  (repo)
+Shelf: programming pass  (user/shelf-programming)
+Shelf: history     warn  (release 'library' missing — run shelfctl shelves --fix)
+Cache integrity:   pass  (32 files, 2.3 GB)
+```
+
+### When to use
+
+- After initial installation to verify everything is set up correctly
+- When commands fail unexpectedly
+- After changing your GitHub token or config file
+
+---
+
 ## Configuration
 
 ### Config file location

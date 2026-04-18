@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -23,13 +24,21 @@ type FileContent struct {
 // GetFileContent fetches a file's content via the Contents API.
 // Returns (content, blobSHA, error). blobSHA is needed for PUT updates.
 // For files > 1 MB it falls back to the Git Blobs API.
+// Existing public signature preserved for all callers.
 func (c *Client) GetFileContent(owner, repo, path, ref string) ([]byte, string, error) {
+	return c.GetFileContentCtx(context.Background(), owner, repo, path, ref)
+}
+
+// GetFileContentCtx is the context-aware variant of GetFileContent.
+// Returns (content, blobSHA, error). blobSHA is needed for PUT updates.
+// For files > 1 MB it falls back to the Git Blobs API.
+func (c *Client) GetFileContentCtx(ctx context.Context, owner, repo, path, ref string) ([]byte, string, error) {
 	url := c.url("repos", owner, repo, "contents", path)
 	if ref != "" {
 		url += "?ref=" + ref
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, "", err
 	}
@@ -50,7 +59,7 @@ func (c *Client) GetFileContent(owner, repo, path, ref string) ([]byte, string, 
 
 	if fc.Encoding == "none" && fc.Size > 1*1024*1024 {
 		// File too large for the Contents API — use the Blobs API for raw bytes.
-		data, err := c.getRawBlob(owner, repo, fc.SHA)
+		data, err := c.getRawBlob(ctx, owner, repo, fc.SHA)
 		return data, fc.SHA, err
 	}
 
@@ -65,19 +74,15 @@ func (c *Client) GetFileContent(owner, repo, path, ref string) ([]byte, string, 
 
 // getRawBlob downloads a blob by its SHA using the raw accept header.
 // This bypasses the 1 MB base64 limit of the Contents API.
-func (c *Client) getRawBlob(owner, repo, sha string) ([]byte, error) {
+func (c *Client) getRawBlob(ctx context.Context, owner, repo, sha string) ([]byte, error) {
 	url := c.url("repos", owner, repo, "git", "blobs", sha)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	// Set Accept header BEFORE calling do() - but do() will overwrite it
-	// So we need to set it after do() prepares the request
-	// Actually, we need to call do() which will set the default headers,
-	// but we want the raw format. Let's set it before and check in do()
+	// Set Accept header for raw blob format.
+	// The do() method checks if Accept is already set and preserves custom values.
 	req.Header.Set("Accept", "application/vnd.github.raw")
-	// Call do() which will add auth and other headers
-	// The do() method checks if Accept is already set and preserves custom values
 	resp, err := c.do(req)
 	if err != nil {
 		return nil, err

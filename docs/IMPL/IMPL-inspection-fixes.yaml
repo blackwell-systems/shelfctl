@@ -78,12 +78,6 @@ file_ownership:
       agent: H
       wave: 2
       action: modify
-    - file: internal/unified/model.go
-      agent: H
-      wave: 2
-      action: modify
-      depends_on:
-        - B
     - file: internal/app/browse.go
       agent: I
       wave: 3
@@ -155,13 +149,17 @@ file_ownership:
       wave: 3
       action: modify
     - file: test/e2e/edge_cases_test.go
-      agent: K
-      wave: 3
+      agent: "N"
+      wave: 4
       action: modify
+      depends_on:
+        - K
     - file: test/mockserver/server_test.go
-      agent: K
-      wave: 3
+      agent: "N"
+      wave: 4
       action: modify
+      depends_on:
+        - K
     - file: internal/app/hub_runner.go
       agent: L
       wave: 3
@@ -328,16 +326,27 @@ waves:
             After deletion, run `go build ./internal/unified/...` to ensure no imports
             became unused; remove any orphaned imports if so.
 
+            ### Additional task — Fix cacheMgr.Path("","","","") in model.go (L3)
+            Also in `internal/unified/model.go`, replace:
+            - Line ~1089 inside `loadHubContextAsync`: `cacheMgr.Path("", "", "", "")` → `cacheMgr.BaseDir()`
+
+            Note: There is also a call inside `BuildContext` (~line 1196) — that will be deleted
+            by the first part of this task, so no need to fix it separately.
+
+            Run `grep -n 'cacheMgr.Path("", "", "", "")' internal/unified/model.go` after your
+            changes — must return no matches.
+
             ### Verification gate
             1. `go build ./internal/unified/...` — must compile cleanly
             2. `go vet ./internal/unified/...` — no warnings
             3. `grep -n "func BuildContext" internal/unified/model.go` — must return no matches
             4. `grep -rn "BuildContext" internal/ --include="*.go"` — must return no matches
-            5. `go test ./internal/unified/...` — all tests pass
+            5. `grep -n 'cacheMgr.Path("", "", "", "")' internal/unified/model.go` — must return no matches
+            6. `go test ./internal/unified/...` — all tests pass
 
             ### Constraints
             - Do NOT remove `loadHubContextAsync` — it is actively used.
-            - Do NOT modify any other function in model.go.
+            - Do NOT modify any other function in model.go beyond the two tasks above.
             - Do NOT modify files outside internal/unified/model.go.
           files: []
         - id: C
@@ -496,6 +505,7 @@ waves:
             - Do NOT modify any function other than `AppendToShelfREADME`.
             - Do NOT modify files outside internal/operations/readme.go.
           files: []
+      base_commit: 916ab2908a07cc72402a0f4e8f6550933153c8bc
     - number: 2
       agents:
         - id: E
@@ -712,17 +722,9 @@ waves:
             - `internal/app/cache.go:110` — `cacheDir := cacheMgr.Path("", "", "", "")`
             - `internal/app/cache.go:452` — `cacheMgr.Path("", "", "", "")`
             - `internal/unified/cache_info.go:95` — `m.cacheDir = cacheMgr.Path("", "", "", "")`
-            - `internal/unified/model.go:1089` — `ctx.CacheDir = cacheMgr.Path("", "", "", "")`
-            - `internal/unified/model.go:1196` — `ctx.CacheDir = cacheMgr.Path("", "", "", "")`
 
-            NOTE: The model.go:1196 call is inside the `BuildContext` function, which Wave 1
-            Agent B is deleting. That line will be gone after Wave 1 merges. But you are
-            working in an isolated worktree and Wave 1 may not be merged yet. Check whether
-            BuildContext still exists in your worktree:
-            - If BuildContext still exists: update the call inside it too.
-            - If it has been deleted (Agent B merged before your worktree was created): skip it.
-
-            The model.go:1089 call is inside `loadHubContextAsync` and must always be updated.
+            NOTE: The model.go fixes are handled by Wave 1 Agent B (which already owns model.go).
+            Do NOT touch internal/unified/model.go.
 
             ### Task
             Replace each `cacheMgr.Path("", "", "", "")` with `cacheMgr.BaseDir()` in:
@@ -739,21 +741,17 @@ waves:
                // NEW:
                m.cacheDir = cacheMgr.BaseDir()
                ```
-            3. `internal/unified/model.go` — `loadHubContextAsync` occurrence at ~line 1089.
-               Similarly, remove any filepath.Dir wrapper around the BaseDir call.
-
             ### Verification gate
             1. `go build ./internal/app/... ./internal/unified/...` — must compile cleanly
             2. `go vet ./internal/app/... ./internal/unified/...` — no warnings
-            3. `grep -rn 'cacheMgr.Path("", "", "", "")' internal/` — must return no matches
-            4. `grep -rn 'BaseDir()' internal/app/cache.go internal/unified/cache_info.go internal/unified/model.go` — must show replacements
+            3. `grep -rn 'cacheMgr.Path("", "", "", "")' internal/app/cache.go internal/unified/cache_info.go` — must return no matches
+            4. `grep -rn 'BaseDir()' internal/app/cache.go internal/unified/cache_info.go` — must show replacements
             5. `go test ./internal/app/... ./internal/unified/...` — all tests pass
 
             ### Constraints
             - Do NOT modify internal/cache/paths.go — that is owned by Agent F.
-            - Your owned files are: internal/app/cache.go, internal/unified/cache_info.go,
-              and internal/unified/model.go (only the cacheMgr.Path call sites).
-            - Do NOT make other changes to model.go; only replace the Path("","","","") calls.
+            - Do NOT modify internal/unified/model.go — that is owned by Agent B (Wave 1).
+            - Your owned files are: internal/app/cache.go and internal/unified/cache_info.go only.
           files: []
     - number: 3
       agents:

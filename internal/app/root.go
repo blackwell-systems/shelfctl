@@ -76,8 +76,8 @@ func init() {
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		util.InitColor(flagNoColor)
 
-		// version needs no config at all.
-		if cmd.Name() == "version" {
+		// version and doctor need no config or token.
+		if cmd.Name() == "version" || cmd.Name() == "doctor" {
 			return nil
 		}
 
@@ -147,6 +147,7 @@ func init() {
 		newTagsCmd(),
 		newCompletionCmd(),
 		newConfigCmd(),
+		newDoctorCmd(),
 	)
 
 	// Set up colored help template after commands are added

@@ -26,7 +26,8 @@ type browserDownloader struct {
 }
 
 func (d *browserDownloader) Download(owner, repo, bookID, release, asset, sha256 string) (bool, error) {
-	return d.DownloadWithProgress(owner, repo, bookID, release, asset, sha256, nil) == nil, nil
+	err := d.DownloadWithProgress(owner, repo, bookID, release, asset, sha256, nil)
+	return err == nil, err
 }
 
 func (d *browserDownloader) DownloadWithProgress(owner, repo, bookID, release, asset, sha256 string, progressCh chan<- float64) error {

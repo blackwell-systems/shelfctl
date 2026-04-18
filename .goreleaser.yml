@@ -60,6 +60,23 @@ scoops:
     description: "Personal library manager for PDFs using GitHub Release assets"
     license: MIT
 
+nfpms:
+  - id: shelfctl
+    package_name: shelfctl
+    vendor: Blackwell Systems
+    homepage: https://github.com/blackwell-systems/shelfctl
+    maintainer: Dayna Blackwell <dayna@blackwellsystems.com>
+    description: "Personal library manager for PDFs using GitHub Release assets"
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: README.md
+        dst: /usr/share/doc/shelfctl/README.md
+      - src: LICENSE
+        dst: /usr/share/doc/shelfctl/LICENSE
+
 changelog:
   sort: asc
   filters:
@@ -109,6 +126,9 @@ release:
     ```powershell
     winget install BlackwellSystems.shelfctl
     ```
+
+    **APT / RPM (Debian, Ubuntu, Fedora, RHEL)**:
+    Download the `.deb` or `.rpm` package from the assets below and install with `dpkg -i` or `rpm -i`.
 
     **Download binary**:
     Download the appropriate binary for your platform below.

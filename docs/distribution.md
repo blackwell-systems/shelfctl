@@ -48,9 +48,6 @@ the published release assets and submits a PR to `microsoft/winget-pkgs` using t
 `HOMEBREW_TAP_TOKEN` secret. Local manifests in [`winget/`](../winget/) are validated
 on every push via the `validate-winget` CI job.
 
-**Pending PRs:**
-- [microsoft/winget-pkgs#358438](https://github.com/microsoft/winget-pkgs/pull/358438) — Add BlackwellSystems.shelfctl v0.4.5 (opened 2026-04-11, validation passed, awaiting merge)
-
 ---
 
 ### Install Script (Linux/macOS)
@@ -71,14 +68,41 @@ Script at [`install.sh`](../install.sh). Features:
 
 ---
 
-### Go Install
+### Go Install / pkg.go.dev
 **Status:** Active — available since initial release
 
 ```bash
 go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@latest
 ```
 
-Works for any Go user. Documented in release headers and README.
+Works for any Go user. Documented in release headers and README. The module is also
+automatically indexed at [pkg.go.dev/github.com/blackwell-systems/shelfctl](https://pkg.go.dev/github.com/blackwell-systems/shelfctl)
+via the Go module proxy — no action needed on release.
+
+---
+
+### APT / RPM Packages (Debian, Ubuntu, Fedora, RHEL)
+**Status:** Active — automated via GoReleaser nFPM on every release
+
+`.deb` and `.rpm` packages are published as GitHub Release assets alongside the tarballs.
+
+```bash
+# Debian/Ubuntu
+curl -LO https://github.com/blackwell-systems/shelfctl/releases/latest/download/shelfctl_0.X.Y_linux_amd64.deb
+sudo dpkg -i shelfctl_0.X.Y_linux_amd64.deb
+
+# Fedora/RHEL
+curl -LO https://github.com/blackwell-systems/shelfctl/releases/latest/download/shelfctl_0.X.Y_linux_amd64.rpm
+sudo rpm -i shelfctl_0.X.Y_linux_amd64.rpm
+```
+
+GoReleaser's [`nfpms`](https://goreleaser.com/customization/nfpm/) section builds the packages
+using nFPM — no `dpkg-deb` or `rpmbuild` required on the CI runner. The binary is installed to
+`/usr/bin/shelfctl`; docs and license go to `/usr/share/doc/shelfctl/`.
+
+> **Note:** These are standalone packages downloaded from GitHub Releases, not a hosted APT/RPM
+> repository. Users download and install manually rather than using `apt install shelfctl`.
+> Hosting a proper repo (via Packagecloud, Cloudsmith, etc.) is a possible future enhancement.
 
 ---
 
@@ -98,6 +122,21 @@ Binaries published for all six targets:
 
 SHA256 checksums published as `checksums.txt` alongside binaries.
 
+Each archive includes `README.md`, `LICENSE`, and the user-facing docs (`docs/guides/`,
+`docs/reference/`). The `.goreleaser.yml` `archives.files` glob controls what's bundled.
+
+**GoReleaser release notes** are auto-generated from commit messages since the previous
+tag, with `docs:`, `test:`, `ci:`, `chore:`, and `typo` commits filtered out. This is
+separate from `CHANGELOG.md` — the GitHub Release shows the commit-derived notes; the
+release footer links to `CHANGELOG.md` for the full human-written entry.
+
+**`prerelease: auto`** — tags containing a `-` (e.g. `v0.5.0-beta.1`) are automatically
+marked as pre-releases on GitHub. Use a clean `vMAJOR.MINOR.PATCH` tag for a stable release.
+
+**`mode: replace`** — re-pushing an existing tag (e.g. to fix a bad binary) replaces the
+GitHub Release and re-publishes updated Homebrew/Scoop manifests. winget will submit a
+new PR for the same version.
+
 ---
 
 ## Proposed Channels
@@ -111,9 +150,6 @@ maintenance. Low priority until Arch user demand is confirmed.
 A `flake.nix` would make shelfctl installable via `nix profile install`. Moderate effort.
 Low priority unless Nix users request it.
 
-### Chocolatey (Windows)
-An older but widely-used Windows package manager, particularly in enterprise environments.
-Low priority given winget and Scoop coverage.
 
 ---
 
@@ -121,14 +157,17 @@ Low priority given winget and Scoop coverage.
 
 Each release involves only:
 
-1. Tag pushed to `main` → GoReleaser builds all 6 targets and publishes GitHub Release
-2. GoReleaser automatically pushes updated formula to `homebrew-tap`
-3. GoReleaser automatically pushes updated manifest to `scoop-bucket`
-4. `winget-releaser` action automatically submits PR to `microsoft/winget-pkgs`
-5. `validate-winget` CI job validates `winget/` manifests on Windows runner
-6. Binary rebuilt locally with `make install` to stamp the new version
+1. Update `CHANGELOG.md` with the release entry, commit to `main`
+2. Push a version tag: `git tag v0.X.Y && git push origin v0.X.Y`
+3. GoReleaser builds all 6 targets, `.deb`/`.rpm` packages, and publishes the GitHub Release
+4. GoReleaser pushes updated formula to `homebrew-tap`
+5. GoReleaser pushes updated manifest to `scoop-bucket`
+6. `winget-releaser` action submits PR to `microsoft/winget-pkgs` (requires Microsoft reviewer approval — typically takes a few days)
+7. `validate-winget` CI job validates `winget/` manifests on Windows runner
 
-The release process is fully automated — tag + push is all that's needed.
+Steps 3–7 are fully automated. The only manual steps are updating the changelog and pushing the tag.
+
+> **Local install (optional):** Run `make install` after releasing to update the binary on your own machine. This is a developer convenience — it has no effect on the published release.
 
 ---
 
@@ -140,4 +179,5 @@ The release process is fully automated — tag + push is all that's needed.
 | Scoop manifest | `github.com/blackwell-systems/scoop-bucket/bucket/shelfctl.json` | Automated |
 | winget manifests | `winget/` in this repo | Automated via winget-releaser |
 | Install script | `install.sh` in this repo | Rarely (URL convention stable) |
+| nFPM (deb/rpm) | `.goreleaser.yml` `nfpms` section | Automated |
 | GoReleaser config | `.goreleaser.yml` | Rarely |

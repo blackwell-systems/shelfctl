@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -472,7 +473,7 @@ func (m hubModel) renderCacheDetails() string {
 	if m.context.CacheSize > 0 {
 		s.WriteString("\n")
 		s.WriteString(StyleHighlight.Render("Disk Usage: "))
-		fmt.Fprintf(&s, "%s\n", formatBytes(m.context.CacheSize))
+		fmt.Fprintf(&s, "%s\n", util.HumanBytes(m.context.CacheSize))
 	}
 
 	// Cache directory

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -96,7 +97,7 @@ func (m BrowserModel) renderDetailsPane() string {
 	// Size
 	if bookItem.Book.SizeBytes > 0 {
 		s.WriteString(StyleHighlight.Render("Size: "))
-		s.WriteString(formatBytes(bookItem.Book.SizeBytes))
+		s.WriteString(util.HumanBytes(bookItem.Book.SizeBytes))
 		s.WriteString("\n\n")
 	}
 

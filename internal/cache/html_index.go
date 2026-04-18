@@ -27,7 +27,7 @@ func (m *Manager) GenerateHTMLIndex(books []IndexBook) error {
 
 	html := m.generateHTML(books)
 
-	if err := os.WriteFile(indexPath, []byte(html), 0644); err != nil {
+	if err := os.WriteFile(indexPath, []byte(html), 0600); err != nil {
 		return fmt.Errorf("writing index.html: %w", err)
 	}
 

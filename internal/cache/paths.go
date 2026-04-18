@@ -21,9 +21,9 @@ func (m *Manager) BaseDir() string {
 }
 
 // Path returns the full cache path for a given shelf repo and book.
-// Layout: <baseDir>/<repo>/<assetFilename>
+// Layout: <baseDir>/<owner>/<repo>/<assetFilename>
 func (m *Manager) Path(owner, repo, bookID, assetFilename string) string {
-	return filepath.Join(m.baseDir, repo, assetFilename)
+	return filepath.Join(m.baseDir, owner, repo, assetFilename)
 }
 
 // Exists reports whether the cached file exists.
@@ -34,7 +34,7 @@ func (m *Manager) Exists(owner, repo, bookID, assetFilename string) bool {
 
 // EnsureDir creates all intermediate directories for a cache path.
 func (m *Manager) EnsureDir(owner, repo, bookID string) error {
-	dir := filepath.Join(m.baseDir, repo)
+	dir := filepath.Join(m.baseDir, owner, repo)
 	return os.MkdirAll(dir, 0750)
 }
 

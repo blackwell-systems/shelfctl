@@ -1,0 +1,822 @@
+title: shelfctl doctor command
+feature_slug: doctor-command
+verdict: SUITABLE
+suitability_assessment: |-
+    File decomposition: 3 files change — internal/app/doctor.go (new), internal/app/doctor_test.go
+    (new), internal/app/root.go (one-line AddCommand call). The implementation and tests are
+    independent in that tests only need the exported runDoctor function signature (satisfied by
+    scaffold). This gives two agents with disjoint file ownership across two waves.
+
+    Investigation-first: No root-cause analysis needed. Feature is additive.
+
+    Interface discoverability: The runDoctor function signature and the new github.Client.GetUser
+    method can be fully defined before implementation starts. Both are straightforward.
+
+    Pre-implementation check: Feature is entirely new code — nothing pre-existing to audit.
+
+    Parallelization value: Agent A owns ~150-200 LoC of implementation logic plus a 1-line
+    registration. Agent B owns ~100-150 LoC of test code. Build/test cycle is moderate (go test
+    ./...). Parallelization gives modest speedup; the coordination artifact also serves as a
+    spec for the new command's behaviour.
+
+    Estimated times:
+    - Scout phase: ~10 min
+    - Agent execution: ~15 min (Wave 1: Agent A ~12 min, Wave 2: Agent B ~8 min)
+    - Merge and verification: ~3 min
+    Total SAW time: ~28 min
+
+    Sequential baseline: ~25 min
+    Time savings: marginal; value is coordination and specification.
+
+    Recommendation: Proceed. The IMPL doc is worth having as a spec.
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: internal/app/doctor.go
+      agent: A
+      wave: 1
+      action: new
+    - file: internal/app/root.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/github/client.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/app/doctor_test.go
+      agent: B
+      wave: 2
+      action: new
+      depends_on:
+        - A
+interface_contracts:
+    - name: CheckResult
+      description: |-
+        Struct capturing the outcome of a single doctor check. Defined in
+        internal/app/doctor.go and referenced by doctor_test.go assertions.
+      definition: |-
+        type CheckResult struct {
+            Label   string
+            Status  string // "pass", "fail", "warn", "skip"
+            Message string
+            Detail  string
+        }
+      location: internal/app/doctor.go
+    - name: runDoctor
+      description: |-
+        Core function that runs all checks sequentially and writes formatted output
+        to w. Returns (allOK bool, err error). allOK is false if any check has
+        Status "fail". Called by the Cobra RunE; w is os.Stdout in production,
+        a *bytes.Buffer in tests.
+      definition: func runDoctor(w io.Writer) (bool, error)
+      location: internal/app/doctor.go
+    - name: github.Client.GetUser
+      description: |-
+        New method on *github.Client that calls GET /user and returns the
+        authenticated user's login plus the X-OAuth-Scopes response header.
+        Used by doctor to check token validity and scope.
+      definition: |-
+        // GetUser fetches the authenticated user's login and OAuth scopes.
+        // Returns (login, scopes, error). scopes is the raw X-OAuth-Scopes header
+        // value (e.g. "repo, gist"). Returns ErrUnauthorized if the token is invalid.
+        func (c *Client) GetUser() (login string, scopes string, err error)
+      location: internal/github/client.go
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |-
+            ## Agent A — Doctor Command Implementation
+
+            Implement the `shelfctl doctor` health-check command.
+
+            ### Files to create / modify
+            - `internal/github/client.go` — add `GetUser` method
+            - `internal/app/doctor.go` — new file, full implementation (replaces scaffold stub)
+            - `internal/app/root.go` — register command and skip token check for doctor
+
+            ---
+
+            ### 1. Add `GetUser` to `internal/github/client.go`
+
+            Insert the following method before `// url builds an API URL from path segments.`
+            (the exact anchor text in the file):
+
+            Insert after this exact text:
+            ```
+            	return entries, nil
+            }
+
+            // url builds an API URL from path segments.
+            ```
+
+            The text to insert (before the `// url` comment):
+            ```go
+            // GetUser fetches the authenticated user's login and OAuth scopes.
+            // Returns (login, scopes, error). scopes is the raw X-OAuth-Scopes header
+            // value (e.g. "repo, gist"). Returns ErrUnauthorized if the token is invalid.
+            func (c *Client) GetUser() (login string, scopes string, err error) {
+            	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, c.url("user"), nil)
+            	if err != nil {
+            		return "", "", err
+            	}
+            	resp, err := c.do(req)
+            	if err != nil {
+            		return "", "", err
+            	}
+            	defer func() { _ = resp.Body.Close() }()
+            	if err := checkStatus(resp); err != nil {
+            		return "", "", err
+            	}
+            	var u struct {
+            		Login string `json:"login"`
+            	}
+            	if err := json.NewDecoder(resp.Body).Decode(&u); err != nil {
+            		return "", "", err
+            	}
+            	return u.Login, resp.Header.Get("X-OAuth-Scopes"), nil
+            }
+
+            ```
+
+            Note: `context`, `encoding/json`, and `net/http` are already imported in client.go.
+            No new imports needed.
+
+            ---
+
+            ### 2. Create `internal/app/doctor.go`
+
+            Replace the scaffold stub entirely with the full implementation below.
+
+            ```go
+            package app
+
+            import (
+            	"errors"
+            	"fmt"
+            	"io"
+            	"os"
+            	"strings"
+            	"time"
+
+            	"github.com/blackwell-systems/shelfctl/internal/cache"
+            	"github.com/blackwell-systems/shelfctl/internal/catalog"
+            	"github.com/blackwell-systems/shelfctl/internal/config"
+            	ghclient "github.com/blackwell-systems/shelfctl/internal/github"
+            	"github.com/blackwell-systems/shelfctl/internal/util"
+            	"github.com/fatih/color"
+            	"github.com/spf13/cobra"
+            )
+
+            // CheckResult holds the outcome of a single doctor check.
+            type CheckResult struct {
+            	Label   string
+            	Status  string // "pass", "fail", "warn", "skip"
+            	Message string
+            	Detail  string // optional remediation hint
+            }
+
+            func newDoctorCmd() *cobra.Command {
+            	return &cobra.Command{
+            		Use:   "doctor",
+            		Short: "Check shelfctl setup health",
+            		Long: `Run a series of health checks and report issues with remediation hints.
+
+            Checks run in order; later checks are skipped if an earlier prerequisite fails.
+
+            Exit code 0 if all checks pass or warn; non-zero if any check fails.`,
+            		RunE: func(cmd *cobra.Command, args []string) error {
+            			allOK, err := runDoctor(os.Stdout)
+            			if err != nil {
+            				return err
+            			}
+            			if !allOK {
+            				os.Exit(1)
+            			}
+            			return nil
+            		},
+            	}
+            }
+
+            // runDoctor executes all health checks sequentially and writes formatted output to w.
+            // Returns (allOK bool, err error). allOK is false if any check has Status "fail".
+            func runDoctor(w io.Writer) (bool, error) {
+            	fmt.Fprintln(w, "shelfctl doctor")
+            	fmt.Fprintln(w)
+
+            	var results []CheckResult
+
+            	// Check 1: Config file
+            	cfgPath := config.DefaultPath()
+            	if envPath := os.Getenv("SHELFCTL_CONFIG"); envPath != "" {
+            		cfgPath = envPath
+            	}
+            	cfgResult, loadedCfg := checkConfig(cfgPath)
+            	results = append(results, cfgResult)
+
+            	// Check 2: GitHub token
+            	var tokenResult CheckResult
+            	if loadedCfg != nil {
+            		tokenResult = checkToken(loadedCfg)
+            	} else {
+            		tokenResult = CheckResult{
+            			Label:   "GitHub token",
+            			Status:  "skip",
+            			Message: "skipped (config not loaded)",
+            		}
+            	}
+            	results = append(results, tokenResult)
+
+            	// Checks 3-5 require a working token
+            	var ghClient *ghclient.Client
+            	if loadedCfg != nil && loadedCfg.GitHub.Token != "" {
+            		ghClient = ghclient.New(loadedCfg.GitHub.Token, loadedCfg.GitHub.APIBase)
+            	}
+
+            	var connResult, scopeResult CheckResult
+            	if ghClient == nil {
+            		connResult = CheckResult{Label: "API connectivity", Status: "skip", Message: "skipped (no token)"}
+            		scopeResult = CheckResult{Label: "Token scopes", Status: "skip", Message: "skipped (no token)"}
+            	} else {
+            		apiBase := loadedCfg.GitHub.APIBase
+            		if apiBase == "" {
+            			apiBase = "https://api.github.com"
+            		}
+            		connResult, scopeResult = checkAPIAndScopes(ghClient, apiBase)
+            	}
+            	results = append(results, connResult, scopeResult)
+
+            	// Shelf accessibility checks
+            	if ghClient == nil || loadedCfg == nil {
+            		results = append(results, CheckResult{
+            			Label:   "Shelf accessibility",
+            			Status:  "skip",
+            			Message: "skipped (no token)",
+            		})
+            	} else if len(loadedCfg.Shelves) == 0 {
+            		results = append(results, CheckResult{
+            			Label:   "Shelf accessibility",
+            			Status:  "warn",
+            			Message: "no shelves configured",
+            			Detail:  "run: shelfctl init --repo shelf-<name> --name <name> --create-repo",
+            		})
+            	} else {
+            		for i := range loadedCfg.Shelves {
+            			shelf := &loadedCfg.Shelves[i]
+            			owner := shelf.EffectiveOwner(loadedCfg.GitHub.Owner)
+            			r := checkShelf(ghClient, shelf.Name, owner, shelf.Repo)
+            			results = append(results, r)
+            		}
+            	}
+
+            	// Cache integrity
+            	var cacheResult CheckResult
+            	if loadedCfg == nil {
+            		cacheResult = CheckResult{Label: "Cache integrity", Status: "skip", Message: "skipped (config not loaded)"}
+            	} else {
+            		cacheResult = checkCache(loadedCfg, ghClient)
+            	}
+            	results = append(results, cacheResult)
+
+            	// Print results and summary
+            	failCount := 0
+            	warnCount := 0
+            	for _, r := range results {
+            		printCheckResult(w, r)
+            		if r.Status == "fail" {
+            			failCount++
+            		} else if r.Status == "warn" {
+            			warnCount++
+            		}
+            	}
+            	fmt.Fprintln(w)
+            	if failCount > 0 {
+            		fmt.Fprintf(w, "%s\n", color.RedString("Doctor found %d failure(s). Fix issues above and re-run.", failCount))
+            		return false, nil
+            	}
+            	if warnCount > 0 {
+            		fmt.Fprintf(w, "%s\n", color.YellowString("All checks passed (%d warning(s)).", warnCount))
+            	} else {
+            		fmt.Fprintf(w, "%s\n", color.GreenString("All checks passed."))
+            	}
+            	return true, nil
+            }
+
+            // checkConfig verifies the config file exists and parses cleanly.
+            func checkConfig(cfgPath string) (CheckResult, *config.Config) {
+            	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+            		return CheckResult{
+            			Label:   "Config file",
+            			Status:  "fail",
+            			Message: cfgPath + " not found",
+            			Detail:  "run: shelfctl init --repo shelf-<name> --name <name> --create-repo",
+            		}, nil
+            	}
+            	cfg, err := config.Load()
+            	if err != nil {
+            		return CheckResult{
+            			Label:   "Config file",
+            			Status:  "fail",
+            			Message: "parse error: " + err.Error(),
+            			Detail:  "check YAML syntax or delete and re-run: shelfctl init",
+            		}, nil
+            	}
+            	if cfg.GitHub.Owner == "" {
+            		return CheckResult{
+            			Label:   "Config file",
+            			Status:  "warn",
+            			Message: cfgPath + " — owner not set",
+            			Detail:  "add 'github.owner' to config or pass --owner to init",
+            		}, cfg
+            	}
+            	return CheckResult{
+            		Label:   "Config file",
+            		Status:  "pass",
+            		Message: cfgPath,
+            	}, cfg
+            }
+
+            // checkToken verifies the GitHub token env var is set and non-empty.
+            func checkToken(cfg *config.Config) CheckResult {
+            	tokenEnv := cfg.GitHub.TokenEnv
+            	if tokenEnv == "" {
+            		tokenEnv = "SHELFCTL_GITHUB_TOKEN"
+            	}
+            	if cfg.GitHub.Token == "" {
+            		return CheckResult{
+            			Label:   "GitHub token",
+            			Status:  "fail",
+            			Message: tokenEnv + " is not set",
+            			Detail:  fmt.Sprintf("run: export %s=<your-token>", tokenEnv),
+            		}
+            	}
+            	return CheckResult{
+            		Label:   "GitHub token",
+            		Status:  "pass",
+            		Message: tokenEnv + " is set",
+            	}
+            }
+
+            // checkAPIAndScopes checks connectivity to the GitHub API and inspects token scopes.
+            func checkAPIAndScopes(gh *ghclient.Client, apiBase string) (connResult, scopeResult CheckResult) {
+            	start := time.Now()
+            	login, scopes, err := gh.GetUser()
+            	elapsed := time.Since(start)
+
+            	if err != nil {
+            		var connMsg string
+            		if errors.Is(err, ghclient.ErrUnauthorized) {
+            			connMsg = "token rejected (401 Unauthorized)"
+            		} else if errors.Is(err, ghclient.ErrForbidden) {
+            			connMsg = "token forbidden (403)"
+            		} else {
+            			connMsg = "unreachable: " + err.Error()
+            		}
+            		connResult = CheckResult{
+            			Label:   "API connectivity",
+            			Status:  "fail",
+            			Message: apiBase + " — " + connMsg,
+            			Detail:  "check network, token, and api_base in config",
+            		}
+            		scopeResult = CheckResult{
+            			Label:   "Token scopes",
+            			Status:  "skip",
+            			Message: "skipped (API unreachable)",
+            		}
+            		return
+            	}
+
+            	connResult = CheckResult{
+            		Label:   "API connectivity",
+            		Status:  "pass",
+            		Message: fmt.Sprintf("%s reachable (%dms) — logged in as %s", apiBase, elapsed.Milliseconds(), login),
+            	}
+
+            	scopeList := strings.Split(scopes, ",")
+            	hasRepo := false
+            	for _, s := range scopeList {
+            		s = strings.TrimSpace(s)
+            		if s == "repo" || s == "public_repo" {
+            			hasRepo = true
+            			break
+            		}
+            	}
+            	if !hasRepo {
+            		scopeResult = CheckResult{
+            			Label:   "Token scopes",
+            			Status:  "warn",
+            			Message: fmt.Sprintf("repo scope missing (have: %s)", strings.TrimSpace(scopes)),
+            			Detail:  "generate a new token with 'repo' scope at https://github.com/settings/tokens",
+            		}
+            	} else {
+            		scopeResult = CheckResult{
+            			Label:  "Token scopes",
+            			Status: "pass",
+            			Message: "repo " + color.GreenString("v"),
+            		}
+            	}
+            	return
+            }
+
+            // checkShelf verifies that a shelf's GitHub repo is accessible.
+            func checkShelf(gh *ghclient.Client, shelfName, owner, repo string) CheckResult {
+            	label := "Shelf: " + shelfName
+            	r, err := gh.GetRepo(owner, repo)
+            	if err != nil {
+            		if errors.Is(err, ghclient.ErrNotFound) {
+            			return CheckResult{
+            				Label:   label,
+            				Status:  "fail",
+            				Message: fmt.Sprintf("%s/%s not found", owner, repo),
+            				Detail:  "check that the repo exists and the token has access",
+            			}
+            		}
+            		return CheckResult{
+            			Label:   label,
+            			Status:  "fail",
+            			Message: fmt.Sprintf("%s/%s — %v", owner, repo, err),
+            		}
+            	}
+            	return CheckResult{
+            		Label:   label,
+            		Status:  "pass",
+            		Message: r.FullName,
+            	}
+            }
+
+            // checkCache runs orphan detection and reports count/size.
+            func checkCache(cfg *config.Config, gh *ghclient.Client) CheckResult {
+            	mgr := cache.New(cfg.Defaults.CacheDir)
+
+            	var shelves []cache.ShelfCatalog
+            	if gh != nil {
+            		for i := range cfg.Shelves {
+            			shelf := &cfg.Shelves[i]
+            			owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+            			data, _, err := gh.GetFileContent(owner, shelf.Repo, shelf.EffectiveCatalogPath(), "")
+            			if err != nil {
+            				continue
+            			}
+            			books, err := catalog.Parse(data)
+            			if err != nil {
+            				continue
+            			}
+            			shelves = append(shelves, cache.ShelfCatalog{
+            				Owner: owner,
+            				Repo:  shelf.Repo,
+            				Books: books,
+            			})
+            		}
+            	}
+
+            	report, err := mgr.DetectOrphans(shelves)
+            	if err != nil {
+            		return CheckResult{
+            			Label:   "Cache integrity",
+            			Status:  "warn",
+            			Message: "orphan detection error: " + err.Error(),
+            		}
+            	}
+            	if report.TotalCount == 0 {
+            		return CheckResult{
+            			Label:   "Cache integrity",
+            			Status:  "pass",
+            			Message: "no orphaned files",
+            		}
+            	}
+            	return CheckResult{
+            		Label:   "Cache integrity",
+            		Status:  "warn",
+            		Message: fmt.Sprintf("%d orphaned file(s) (%s)", report.TotalCount, util.HumanBytes(report.TotalSize)),
+            		Detail:  "run: shelfctl cache clear --orphans",
+            	}
+            }
+
+            // printCheckResult writes one formatted check line to w.
+            func printCheckResult(w io.Writer, r CheckResult) {
+            	var icon string
+            	switch r.Status {
+            	case "pass":
+            		icon = color.GreenString("v")
+            	case "fail":
+            		icon = color.RedString("x")
+            	case "warn":
+            		icon = color.YellowString("!")
+            	default:
+            		icon = color.HiBlackString("-")
+            	}
+            	label := fmt.Sprintf("%-20s", r.Label)
+            	fmt.Fprintf(w, "  %s %s %s\n", icon, color.CyanString(label), r.Message)
+            	if r.Detail != "" {
+            		fmt.Fprintf(w, "    %s\n", color.YellowString("hint: "+r.Detail))
+            	}
+            }
+            ```
+
+            Note on icons: The feature description uses unicode symbols (checkmark, cross, warning).
+            The code above uses ASCII placeholders for YAML safety. In the actual implementation,
+            replace "v" with the unicode checkmark (U+2713), "x" with the unicode cross (U+2717),
+            and "!" with the unicode warning sign (U+26A0). These are the same characters used in
+            existing commands (ok(), warn(), fail() in root.go).
+
+            ### 3. Register the command and bypass PersistentPreRunE
+
+            In `internal/app/root.go`, two changes are needed:
+
+            **3a. Skip doctor in PersistentPreRunE.**
+
+            Find this exact text in PersistentPreRunE:
+            ```go
+            		// version needs no config at all.
+            		if cmd.Name() == "version" {
+            			return nil
+            		}
+            ```
+
+            Replace with:
+            ```go
+            		// version and doctor need no config or token.
+            		if cmd.Name() == "version" || cmd.Name() == "doctor" {
+            			return nil
+            		}
+            ```
+
+            **3b. Register the command.**
+
+            Find this exact text in the AddCommand block:
+            ```go
+            		newConfigCmd(),
+            	)
+            ```
+
+            Replace with:
+            ```go
+            		newConfigCmd(),
+            		newDoctorCmd(),
+            	)
+            ```
+
+            ### Constraints
+            - Do NOT modify files outside your ownership list (internal/app/doctor.go,
+              internal/app/root.go, internal/github/client.go).
+            - Do NOT define CheckResult or runDoctor in any file other than doctor.go.
+            - Do NOT add test functions; tests are owned by Agent B in Wave 2.
+            - The doctor command MUST bypass PersistentPreRunE token enforcement (change 3a above).
+              Without this, running `shelfctl doctor` when no token is set will print an error before
+              doctor gets to report its findings gracefully.
+
+            ### Verification gate
+            ```bash
+            go build ./...
+            go vet ./...
+            grep -n "newDoctorCmd" /Users/dayna.blackwell/code/shelfctl/internal/app/root.go
+            # Expected: at least 2 matches (declaration + AddCommand call)
+            grep -n "func.*GetUser" /Users/dayna.blackwell/code/shelfctl/internal/github/client.go
+            # Expected: 1 match
+            grep -n "func runDoctor" /Users/dayna.blackwell/code/shelfctl/internal/app/doctor.go
+            # Expected: 1 match with signature (w io.Writer) (bool, error)
+            grep -n "doctor" /Users/dayna.blackwell/code/shelfctl/internal/app/root.go
+            # Expected: doctor appears in both the PersistentPreRunE bypass and AddCommand
+            ```
+          files:
+            - internal/app/doctor.go
+            - internal/app/root.go
+            - internal/github/client.go
+          context_source: prepared-brief
+    - number: 2
+      agents:
+        - id: B
+          task: |-
+            ## Agent B — Doctor Command Tests
+
+            Write tests for the `shelfctl doctor` command.
+
+            ### Prerequisite
+            Wave 1 Agent A has implemented:
+            - `internal/app/doctor.go` — `runDoctor(w io.Writer) (bool, error)`, `CheckResult` struct,
+              `checkConfig`, `checkToken`, `checkAPIAndScopes`, `checkShelf`, `checkCache`.
+            - `internal/github/client.go` — `GetUser() (login, scopes string, err error)` method.
+            - `internal/app/root.go` — `newDoctorCmd()` registered, doctor bypasses PersistentPreRunE.
+
+            ### File to create
+            `internal/app/doctor_test.go`
+
+            ### Testing strategy
+
+            The test file is in `package app` (same package as production code), giving access to
+            unexported helpers. Tests use `bytes.Buffer` for capturing output and temp directories
+            plus `t.Setenv` for environment variable isolation.
+
+            For API-dependent checks, use `net/http/httptest` directly — do NOT use the `mockserver`
+            package (it doesn't serve `/user`).
+
+            ### Tests to implement
+
+            **TestCheckConfig_Missing** — checkConfig returns fail when file does not exist.
+            ```go
+            cfgPath := filepath.Join(t.TempDir(), "config.yml")
+            result, cfg := checkConfig(cfgPath)
+            // assert result.Status == "fail"
+            // assert cfg == nil
+            ```
+
+            **TestCheckConfig_Valid** — checkConfig returns pass for a valid minimal config.
+            Write config YAML with github.owner and github.token_env set, point SHELFCTL_CONFIG at it.
+            Assert result.Status == "pass".
+
+            **TestCheckConfig_MissingOwner** — checkConfig returns warn when owner is blank.
+            Write YAML without owner field. Assert result.Status == "warn".
+
+            **TestCheckToken_Missing** — checkToken returns fail when Token field is empty.
+            ```go
+            cfg := &config.Config{GitHub: config.GitHubConfig{TokenEnv: "TEST_TOKEN"}}
+            result := checkToken(cfg)
+            // assert result.Status == "fail"
+            // assert strings.Contains(result.Message, "TEST_TOKEN")
+            ```
+
+            **TestCheckToken_Set** — checkToken returns pass when Token is non-empty.
+            ```go
+            cfg := &config.Config{GitHub: config.GitHubConfig{TokenEnv: "TEST_TOKEN", Token: "tok123"}}
+            result := checkToken(cfg)
+            // assert result.Status == "pass"
+            ```
+
+            **TestCheckAPIAndScopes_Success** — httptest.Server returns 200 on GET /user with
+            X-OAuth-Scopes: repo, gist header. Assert connResult.Status == "pass",
+            scopeResult.Status == "pass".
+
+            **TestCheckAPIAndScopes_NoScope** — Same server but X-OAuth-Scopes: gist only.
+            Assert scopeResult.Status == "warn".
+
+            **TestCheckAPIAndScopes_Unauthorized** — Server returns 401 on GET /user.
+            Assert connResult.Status == "fail", scopeResult.Status == "skip".
+
+            **TestCheckShelf_Found** — httptest.Server returning JSON repo object for
+            GET /repos/testowner/shelf-test. Assert result.Status == "pass".
+
+            **TestCheckShelf_NotFound** — Server returns 404 for the repo endpoint.
+            Assert result.Status == "fail".
+
+            **TestRunDoctor_AllPass** — End-to-end test: write valid config YAML, set SHELFCTL_CONFIG,
+            start a minimal httptest.Server serving /user and /repos/testowner/shelf-test.
+            Set the token env var. Call runDoctor(&buf). Assert returns (true, nil),
+            output contains "All checks passed".
+
+            **TestRunDoctor_NoConfig** — Set SHELFCTL_CONFIG to a nonexistent path.
+            Call runDoctor(&buf). Assert returns (false, nil), output contains "not found".
+
+            **TestRunDoctor_NoToken** — Valid config file but token env var unset (use t.Setenv
+            to blank it). Assert returns (false, nil), output contains "is not set".
+
+            ### httptest.Server helper
+
+            Define this helper in the test file:
+
+            ```go
+            func newFakeGitHubServer(t *testing.T, login, scopes string, repoOwner, repoName string) *httptest.Server {
+                t.Helper()
+                mux := http.NewServeMux()
+                mux.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
+                    w.Header().Set("Content-Type", "application/json")
+                    w.Header().Set("X-OAuth-Scopes", scopes)
+                    fmt.Fprintf(w, `{"login":%q}`, login)
+                })
+                if repoOwner != "" && repoName != "" {
+                    path := fmt.Sprintf("/repos/%s/%s", repoOwner, repoName)
+                    mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+                        w.Header().Set("Content-Type", "application/json")
+                        fmt.Fprintf(w, `{"id":1,"full_name":%q}`, repoOwner+"/"+repoName)
+                    })
+                }
+                srv := httptest.NewServer(mux)
+                t.Cleanup(srv.Close)
+                return srv
+            }
+            ```
+
+            ### Required imports
+            ```go
+            import (
+                "bytes"
+                "fmt"
+                "net/http"
+                "net/http/httptest"
+                "os"
+                "path/filepath"
+                "strings"
+                "testing"
+
+                "github.com/blackwell-systems/shelfctl/internal/config"
+                ghclient "github.com/blackwell-systems/shelfctl/internal/github"
+            )
+            ```
+
+            ### Constraints
+            - Do NOT modify any file other than `internal/app/doctor_test.go`.
+            - Do NOT import the mockserver package.
+            - Do NOT define CheckResult or runDoctor in the test file — they live in doctor.go
+              (same package).
+            - Use t.Setenv for all env var mutations — never os.Setenv without cleanup.
+            - For tests calling checkConfig or runDoctor, always set SHELFCTL_CONFIG via t.Setenv
+              to a temp path, or the test will read the real config from disk.
+            - For TestRunDoctor_AllPass, the config YAML must include a shelf entry pointing at
+              the httptest.Server repo so the shelf check can succeed.
+
+            ### Verification gate
+            ```bash
+            go build ./...
+            go vet ./internal/app/...
+            go test ./internal/app/... -run TestCheckConfig -v
+            go test ./internal/app/... -run TestCheckToken -v
+            go test ./internal/app/... -run TestCheckAPIAndScopes -v
+            go test ./internal/app/... -run TestCheckShelf -v
+            go test ./internal/app/... -run TestRunDoctor -v
+            grep -c "^func Test" /Users/dayna.blackwell/code/shelfctl/internal/app/doctor_test.go
+            # Expected: >= 11
+            ```
+          files:
+            - internal/app/doctor_test.go
+          dependencies:
+            - A
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: go build ./...
+          required: false
+        - type: lint
+          command: go vet ./...
+          required: false
+        - type: test
+          command: go test ./...
+          required: false
+scaffolds:
+    - file_path: internal/app/doctor.go
+      contents: |-
+        package app
+
+        import (
+          "io"
+          "time"
+        )
+
+        // CheckResult holds the outcome of a single doctor check.
+        type CheckResult struct {
+          Label   string
+          Status  string
+          Message string
+          Detail  string
+        }
+
+        // runDoctor executes all health checks and writes results to w.
+        // Returns true if all non-skipped checks passed (exit 0).
+        func runDoctor(w io.Writer) (bool, error) {
+          _ = time.Now()
+          return false, nil
+        }
+      import_path: github.com/blackwell-systems/shelfctl/internal/app
+      status: committed (c5dacab)
+pre_mortem:
+    overall_risk: low
+    rows:
+        - scenario: |-
+            PersistentPreRunE rejects the doctor command before runDoctor runs, because
+            PersistentPreRunE enforces token presence for all commands except "version" and "init".
+            Without a bypass, running shelfctl doctor with no token prints "no GitHub token found"
+            rather than doctor's own diagnostic output.
+          likelihood: high
+          impact: high
+          mitigation: |-
+            Agent A must add cmd.Name() == "doctor" to the PersistentPreRunE bypass in root.go,
+            matching the existing pattern for "version". This is explicitly required in the task
+            under change 3a. The pre-mortem scenario is mitigated by the explicit instruction.
+        - scenario: |-
+            Agent B's worktree fails to compile because the scaffold stub was not created before
+            Wave 1, leaving doctor_test.go unable to reference CheckResult or runDoctor.
+          likelihood: medium
+          impact: medium
+          mitigation: |-
+            The scaffold in the scaffolds section provides a compilable stub for doctor.go.
+            The Scaffold Agent must apply it before worktrees are created. Agent B in Wave 2
+            runs after Wave 1 merges, so by then the stub is replaced by the full implementation.
+        - scenario: |-
+            GetUser in client.go causes import errors because context or encoding/json appear
+            to need adding. In practice they are already imported, but Agent A should verify.
+          likelihood: low
+          impact: low
+          mitigation: |-
+            Agent A runs go build ./... after adding GetUser, before touching doctor.go,
+            to catch any compile error early.
+        - scenario: |-
+            TestRunDoctor_AllPass fails because the test config YAML does not include a shelf
+            entry, causing the shelf check to emit a warning rather than pass.
+          likelihood: medium
+          impact: low
+          mitigation: |-
+            Agent B's task explicitly states the config YAML for the all-pass test must include
+            a shelf entry pointing at the httptest.Server. Agent B must write config like:
+            github.owner, github.token_env, and shelves with owner/repo matching the httptest.Server.
+state: "REVIEWED"
+injection_method: hook

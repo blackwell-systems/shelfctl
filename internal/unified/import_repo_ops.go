@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/blackwell-systems/shelfctl/internal/catalog"
+	"github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/migrate"
 	"github.com/blackwell-systems/shelfctl/internal/operations"
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,7 +30,8 @@ func (m ImportRepoModel) scanAsync() tea.Cmd {
 		// Scan source repo for book files
 		token := os.Getenv(cfg.GitHub.TokenEnv)
 		apiBase := cfg.GitHub.APIBase
-		files, err := migrate.ScanRepo(token, apiBase, srcOwner, srcRepo, "main", []string{"pdf", "epub", "mobi", "djvu", "azw3", "cbz", "cbr"})
+		scanGH := github.New(token, apiBase)
+		files, err := migrate.ScanRepo(scanGH, srcOwner, srcRepo, "main", []string{"pdf", "epub", "mobi", "djvu", "azw3", "cbz", "cbr"})
 		if err != nil {
 			return importRepoScanCompleteMsg{err: fmt.Errorf("scanning source repo: %w", err)}
 		}

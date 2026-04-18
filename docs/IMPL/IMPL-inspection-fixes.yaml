@@ -1129,6 +1129,7 @@ waves:
             - Do NOT modify the unified TUI model or views.
             - Only modify internal/app/hub_runner.go.
           files: []
+      base_commit: 4faf2a95ef1ac55314b6dc00b92b09bc35600ee5
     - number: 4
       agents:
         - id: M
@@ -1308,6 +1309,53 @@ completion_reports:
             - internal/unified/cache_info.go
         verification: PASS
         notes: Replaced 3 cacheMgr.Path("","","","") calls with cacheMgr.BaseDir(). Removed stale filepath.Dir workaround in cache_info.go and dropped unused filepath import. Build, vet, and tests all pass.
+    I:
+        status: complete
+        branch: saw/inspection-fixes/wave3-agent-I
+        commit: 5cc5803
+        files_changed:
+            - internal/app/browse.go
+            - internal/unified/browse.go
+        verification: PASS
+        notes: Removed duplicate browserDownloader and progressReader from internal/app/browse.go (160 lines deleted). Added NewBrowserDownloader constructor to internal/unified/browse.go. Updated newBrowseCmd to use unified.NewBrowserDownloader. Removed now-unused cache and github imports from app/browse.go. All tests pass.
+    J:
+        status: complete
+        branch: saw/inspection-fixes/wave3-agent-J
+        commit: 7acccb3
+        files_changed:
+            - internal/github/client.go
+            - internal/github/contents.go
+            - internal/github/assets.go
+            - internal/github/repos.go
+            - internal/github/releases.go
+            - internal/github/client_test.go
+        verification: PASS
+        notes: Context threading complete. doJSON gains ctx param; all internal callers (repos.go, releases.go, assets.go, client_test.go) updated to pass context.Background(). GetFileContent public signature unchanged — delegates to new GetFileContentCtx. DownloadAsset delegates to DownloadAssetCtx. getRawBlob gains ctx. All 17 test packages pass.
+    K:
+        status: complete
+        branch: saw/inspection-fixes/wave3-agent-K
+        commit: 707863b
+        files_changed:
+            - internal/github/client.go
+            - internal/migrate/scan.go
+            - internal/migrate/scan_test.go
+            - internal/ingest/resolver.go
+            - internal/app/migrate.go
+            - internal/unified/import_repo_ops.go
+        tests_added:
+            - TestScanDir_RequestError
+            - TestScanRepo_Timeout
+            - TestRouteSource_EmptyMapping
+        verification: PASS
+        notes: 'Added APIBase(), Token(), DirEntry, ListDirContents() to github.Client. Refactored ScanRepo to accept *github.Client, eliminating http.NewRequest from scan.go. Routed resolveGitHub through gh.GetFileContent, eliminating http.NewRequest from resolver.go. Updated all callers (app/migrate.go, unified/import_repo_ops.go). All tests pass: go test ./... clean.'
+    L:
+        status: complete
+        branch: saw/inspection-fixes/wave3-agent-L
+        commit: 402d8c2
+        files_changed:
+            - internal/app/hub_runner.go
+        verification: PASS
+        notes: Replaced return runHub() with inline messaging in runUnifiedTUI. runHub() deleted (zero callers). Removed unused config and util imports. All tests pass.
 pre_mortem:
     overall_risk: medium
     rows:
@@ -1457,5 +1505,4 @@ critic_report:
     reviewed_at: "2026-04-18T16:04:55Z"
     issue_count: 1
 state: REVIEWED
-original_branch: main
 injection_method: hook

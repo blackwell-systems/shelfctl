@@ -380,7 +380,7 @@ func scanMigrationSources(sourceSpec string, sources []config.MigrationSource, e
 		if ref == "" {
 			ref = "main"
 		}
-		f, err := migrate.ScanRepo(cfg.GitHub.Token, cfg.GitHub.APIBase, src.Owner, src.Repo, ref, exts)
+		f, err := migrate.ScanRepo(gh, src.Owner, src.Repo, ref, exts)
 		if err != nil {
 			warn("Scan %s/%s: %v", src.Owner, src.Repo, err)
 			continue
@@ -404,7 +404,7 @@ func scanSingleSource(sourceSpec string, sources []config.MigrationSource, exts 
 		}
 	}
 
-	return migrate.ScanRepo(cfg.GitHub.Token, cfg.GitHub.APIBase, parts[0], parts[1], ref, exts)
+	return migrate.ScanRepo(gh, parts[0], parts[1], ref, exts)
 }
 
 func writeFileList(files []migrate.FileEntry, outFile string) error {

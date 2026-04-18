@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/blackwell-systems/shelfctl/internal/github"
 )
 
 // Source holds a resolved input ready for reading.
@@ -84,32 +86,17 @@ func resolveGitHub(input, token, apiBase string) (*Source, error) {
 	owner, repo, ref, path := m[1], m[2], m[3], m[4]
 	name := filepath.Base(path)
 
-	if apiBase == "" {
-		apiBase = "https://api.github.com"
-	}
-	contentURL := fmt.Sprintf("%s/repos/%s/%s/contents/%s?ref=%s", apiBase, owner, repo, path, ref)
+	gh := github.New(token, apiBase)
 
 	return &Source{
 		Name: name,
 		Size: -1,
 		Open: func() (io.ReadCloser, error) {
-			req, err := http.NewRequest(http.MethodGet, contentURL, nil)
+			data, _, err := gh.GetFileContent(owner, repo, path, ref)
 			if err != nil {
-				return nil, fmt.Errorf("building request: %w", err)
+				return nil, fmt.Errorf("github contents %s: %w", path, err)
 			}
-			req.Header.Set("Authorization", "Bearer "+token)
-			req.Header.Set("Accept", "application/vnd.github.raw")
-			req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-			client := &http.Client{Timeout: 5 * time.Minute}
-			resp, err := client.Do(req)
-			if err != nil {
-				return nil, err
-			}
-			if resp.StatusCode != http.StatusOK {
-				_ = resp.Body.Close()
-				return nil, fmt.Errorf("github contents %s: status %d", path, resp.StatusCode)
-			}
-			return resp.Body, nil
+			return io.NopCloser(strings.NewReader(string(data))), nil
 		},
 	}, nil
 }

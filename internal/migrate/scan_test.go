@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	ghclient "github.com/blackwell-systems/shelfctl/internal/github"
 	"github.com/blackwell-systems/shelfctl/internal/config"
 	"github.com/blackwell-systems/shelfctl/internal/migrate"
 )
@@ -33,7 +34,8 @@ func TestScanDir_RequestError(t *testing.T) {
 	// We'll create a test that calls ScanRepo and verifies it doesn't panic.
 
 	// Simple smoke test: ScanRepo should not panic even with unusual input.
-	_, err := migrate.ScanRepo("token", ts.URL, "owner", "repo", "ref", nil)
+	gh := ghclient.New("token", ts.URL)
+	_, err := migrate.ScanRepo(gh, "owner", "repo", "ref", nil)
 	// We expect an error because the test server doesn't return valid GitHub API JSON,
 	// but it should not panic.
 	if err == nil {
@@ -56,7 +58,8 @@ func TestScanRepo_Timeout(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	_, err := migrate.ScanRepo("token", ts.URL, "owner", "repo", "main", []string{"pdf"})
+	gh := ghclient.New("token", ts.URL)
+	_, err := migrate.ScanRepo(gh, "owner", "repo", "main", []string{"pdf"})
 	if err != nil {
 		t.Logf("ScanRepo returned error: %v", err)
 	}

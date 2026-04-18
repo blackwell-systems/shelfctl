@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -18,7 +19,7 @@ type Repo struct {
 func (c *Client) GetRepo(owner, repo string) (*Repo, error) {
 	url := c.url("repos", owner, repo)
 	var r Repo
-	if err := c.doJSON(http.MethodGet, url, nil, &r); err != nil {
+	if err := c.doJSON(context.Background(), http.MethodGet, url, nil, &r); err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -34,7 +35,7 @@ func (c *Client) CreateRepo(name string, private bool) (*Repo, error) {
 		"description": "shelfctl shelf",
 	}
 	var r Repo
-	if err := c.doJSON(http.MethodPost, url, body, &r); err != nil {
+	if err := c.doJSON(context.Background(), http.MethodPost, url, body, &r); err != nil {
 		return nil, fmt.Errorf("create repo %q: %w", name, err)
 	}
 	return &r, nil
@@ -58,7 +59,7 @@ func (c *Client) RenameRepo(owner, oldRepo, newName string) (*Repo, error) {
 		"name": newName,
 	}
 	var r Repo
-	if err := c.doJSON(http.MethodPatch, url, body, &r); err != nil {
+	if err := c.doJSON(context.Background(), http.MethodPatch, url, body, &r); err != nil {
 		return nil, fmt.Errorf("rename repo %s/%s → %s: %w", owner, oldRepo, newName, err)
 	}
 	return &r, nil
@@ -68,7 +69,7 @@ func (c *Client) RenameRepo(owner, oldRepo, newName string) (*Repo, error) {
 // This is a destructive operation that cannot be undone.
 func (c *Client) DeleteRepo(owner, repo string) error {
 	url := c.url("repos", owner, repo)
-	if err := c.doJSON(http.MethodDelete, url, nil, nil); err != nil {
+	if err := c.doJSON(context.Background(), http.MethodDelete, url, nil, nil); err != nil {
 		return fmt.Errorf("delete repo %s/%s: %w", owner, repo, err)
 	}
 	return nil

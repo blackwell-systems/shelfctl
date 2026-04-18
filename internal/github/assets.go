@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,7 +22,7 @@ type Asset struct {
 func (c *Client) ListReleaseAssets(owner, repo string, releaseID int64) ([]Asset, error) {
 	url := c.url("repos", owner, repo, "releases", fmt.Sprintf("%d", releaseID), "assets")
 	var assets []Asset
-	if err := c.doJSON(http.MethodGet, url, nil, &assets); err != nil {
+	if err := c.doJSON(context.Background(), http.MethodGet, url, nil, &assets); err != nil {
 		return nil, err
 	}
 	return assets, nil
@@ -44,12 +45,18 @@ func (c *Client) FindAsset(owner, repo string, releaseID int64, name string) (*A
 // DownloadAsset streams the content of a release asset.
 // Caller is responsible for closing the returned ReadCloser.
 func (c *Client) DownloadAsset(owner, repo string, assetID int64) (io.ReadCloser, error) {
+	return c.DownloadAssetCtx(context.Background(), owner, repo, assetID)
+}
+
+// DownloadAssetCtx is the context-aware variant of DownloadAsset.
+// Caller is responsible for closing the returned ReadCloser.
+func (c *Client) DownloadAssetCtx(ctx context.Context, owner, repo string, assetID int64) (io.ReadCloser, error) {
 	apiURL := c.url("repos", owner, repo, "releases", "assets", fmt.Sprintf("%d", assetID))
 
 	// Use a client that strips auth on redirect away from github.com.
 	client := newHTTPClientNoRedirect()
 
-	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, err
 	}

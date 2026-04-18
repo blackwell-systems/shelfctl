@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -203,7 +204,7 @@ func TestDoJSON_DecodeResponse(t *testing.T) {
 	var result struct {
 		Message string `json:"message"`
 	}
-	err := c.doJSON(http.MethodGet, c.url("test"), nil, &result)
+	err := c.doJSON(context.Background(), http.MethodGet, c.url("test"), nil, &result)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -221,7 +222,7 @@ func TestDoJSON_NilBody(t *testing.T) {
 	})
 	_, c := newFakeServer(t, mux)
 
-	err := c.doJSON(http.MethodGet, c.url("test"), nil, nil)
+	err := c.doJSON(context.Background(), http.MethodGet, c.url("test"), nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -243,7 +244,7 @@ func TestDoJSON_ErrorOnBadJSON(t *testing.T) {
 	var result struct {
 		Message string `json:"message"`
 	}
-	err := c.doJSON(http.MethodGet, c.url("test"), nil, &result)
+	err := c.doJSON(context.Background(), http.MethodGet, c.url("test"), nil, &result)
 	if err == nil {
 		t.Fatal("expected error on invalid JSON, got nil")
 	}

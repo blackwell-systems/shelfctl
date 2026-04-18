@@ -66,7 +66,7 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 }
 
 // doJSON sends a request and decodes the JSON response into out.
-func (c *Client) doJSON(method, url string, body, out interface{}) error {
+func (c *Client) doJSON(ctx context.Context, method, url string, body, out interface{}) error {
 	var bodyReader io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -75,7 +75,7 @@ func (c *Client) doJSON(method, url string, body, out interface{}) error {
 		}
 		bodyReader = bytes.NewReader(b)
 	}
-	req, err := http.NewRequest(method, url, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
 	if err != nil {
 		return err
 	}

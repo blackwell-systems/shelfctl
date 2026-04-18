@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -19,7 +20,7 @@ type Release struct {
 func (c *Client) GetReleaseByTag(owner, repo, tag string) (*Release, error) {
 	url := c.url("repos", owner, repo, "releases", "tags", tag)
 	var r Release
-	if err := c.doJSON(http.MethodGet, url, nil, &r); err != nil {
+	if err := c.doJSON(context.Background(), http.MethodGet, url, nil, &r); err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -36,7 +37,7 @@ func (c *Client) CreateRelease(owner, repo, tag, name string) (*Release, error) 
 		"generate_release_notes": false,
 	}
 	var r Release
-	if err := c.doJSON(http.MethodPost, url, body, &r); err != nil {
+	if err := c.doJSON(context.Background(), http.MethodPost, url, body, &r); err != nil {
 		return nil, fmt.Errorf("create release %q: %w", tag, err)
 	}
 	return &r, nil

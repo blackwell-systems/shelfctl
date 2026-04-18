@@ -93,6 +93,38 @@ func (c *Client) doJSON(ctx context.Context, method, url string, body, out inter
 	return nil
 }
 
+// APIBase returns the API base URL for this client.
+func (c *Client) APIBase() string {
+	return c.apiBase
+}
+
+// Token returns the authentication token for this client.
+func (c *Client) Token() string {
+	return c.token
+}
+
+// DirEntry is a single item returned by the GitHub Contents API for a directory.
+type DirEntry struct {
+	Type string `json:"type"`
+	Path string `json:"path"`
+	SHA  string `json:"sha"`
+	Size int    `json:"size"`
+}
+
+// ListDirContents returns the Contents API response for a directory path.
+// Pass ref="" to use the default branch.
+func (c *Client) ListDirContents(owner, repo, dirPath, ref string) ([]DirEntry, error) {
+	u := c.url("repos", owner, repo, "contents", dirPath)
+	if ref != "" {
+		u += "?ref=" + ref
+	}
+	var entries []DirEntry
+	if err := c.doJSON(context.Background(), http.MethodGet, u, nil, &entries); err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
 // url builds an API URL from path segments.
 func (c *Client) url(parts ...string) string {
 	return c.apiBase + "/" + strings.Join(parts, "/")

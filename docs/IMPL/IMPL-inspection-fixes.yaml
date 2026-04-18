@@ -78,6 +78,12 @@ file_ownership:
       agent: H
       wave: 2
       action: modify
+    - file: internal/unified/model.go
+      agent: H
+      wave: 2
+      action: modify
+      depends_on:
+        - B
     - file: internal/app/browse.go
       agent: I
       wave: 3
@@ -109,6 +115,10 @@ file_ownership:
       wave: 3
       action: modify
     - file: internal/ingest/resolver.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/ingest/ingest_test.go
       agent: K
       wave: 3
       action: modify
@@ -651,10 +661,27 @@ waves:
             			}
             ```
 
-            Check `syncDetectedMsg` definition in the file — confirm it has an `err` field
-            (or equivalent error field). If not, check how other errors are surfaced in
-            SyncAllModel.Update and match that pattern. Look for the Update handler for
-            syncDetectedMsg to understand how to propagate the error to the user.
+            IMPORTANT: `syncDetectedMsg` is defined as `struct{ books []syncEntry }` — it has
+            no `err` field. Do NOT use `syncDetectedMsg{err: ...}`. Instead, define a new
+            message type for detection errors:
+
+            ```go
+            // Add near the other message types:
+            type syncDetectErrorMsg struct{ err error }
+            ```
+
+            Return it on parse failure:
+            ```go
+            return syncDetectErrorMsg{err: fmt.Errorf("shelf %q: parse catalog: %w", shelf.Name, err)}
+            ```
+
+            Handle it in `SyncAllModel.Update` — add a case for `syncDetectErrorMsg`:
+            ```go
+            case syncDetectErrorMsg:
+                m.errors = append(m.errors, msg.err.Error())
+                m.phase = syncAllDone
+                return m, nil
+            ```
 
             Read internal/unified/sync_all.go fully before editing to understand the
             message types and error reporting pattern.
@@ -956,15 +983,18 @@ waves:
                Update each to pass a `*github.Client` instead of `token, apiBase`.
 
             ### Task — internal/ingest/resolver.go
-            The function at ~line 96 builds its own request. Examine the function signature
-            and context — it likely takes `token, apiBase` as string params. Route through
-            the github client:
+            The public function `Resolve(input string, ghToken, ghAPIBase string) (*Source, error)`
+            builds its own raw HTTP requests. Route through the github client internally.
+
+            CRITICAL CONSTRAINT: Do NOT change `Resolve`'s public signature.
+            Callers in `internal/app/shelve.go` and `internal/unified/shelve_ops.go` are NOT
+            in your file ownership — changing the signature would break them with no agent to fix them.
+
             1. Read the full file to understand the function context.
-            2. If the enclosing function receives a `*github.Client`, use `gh.GetFileContent`
-               instead of building raw requests.
-            3. If it only has `token, apiBase string`, add a `*github.Client` parameter and
-               update callers.
-            4. Remove the `"net/http"` import if it becomes unused.
+            2. Inside `Resolve`, construct a `github.New(ghToken, ghAPIBase)` client and call
+               `gh.GetFileContent` (or equivalent) instead of building raw `http.NewRequest` calls.
+            3. Keep `Resolve(input string, ghToken, ghAPIBase string) (*Source, error)` unchanged.
+            4. Remove the `"net/http"` import if it becomes unused after the refactor.
 
             ### Owned test files — verify and update as needed
             You own the following test files. After changing signatures, ensure these tests
@@ -1279,7 +1309,7 @@ known_issues:
         inside a different function. The two symbols share only a name; there is no actual
         dependency, import relationship, or shared type between them. No action required.
 critic_report:
-    verdict: ISSUES
+    verdict: PASS
     agent_reviews:
         A:
             agent_id: A
@@ -1301,22 +1331,10 @@ critic_report:
             verdict: PASS
         G:
             agent_id: G
-            verdict: ISSUES
-            issues:
-                - check: symbol_accuracy
-                  severity: error
-                  description: 'The task code sample instructs Agent G to return syncDetectedMsg{err: fmt.Errorf("shelf %q: parse catalog: %w", shelf.Name, err)} but syncDetectedMsg in internal/unified/sync_all.go has no err field — the struct is defined as struct{ books []syncEntry }. This code will not compile. The brief contains fallback guidance ("If not, check how other errors are surfaced") but the code snippet is the authoritative guidance the agent will use first. The agent must add an err field to syncDetectedMsg and handle it in the Update case, or use a different message type (e.g. a new syncDetectErrorMsg). The Update handler for syncDetectedMsg at line 192 also needs updating to surface the error if an err field is added.'
-                  file: internal/unified/sync_all.go
-                  symbol: syncDetectedMsg
+            verdict: PASS
         H:
             agent_id: H
-            verdict: ISSUES
-            issues:
-                - check: file_existence
-                  severity: error
-                  description: Agent H task brief instructs modifying internal/unified/model.go at line 1089 (cacheMgr.Path("","","","") call inside loadHubContextAsync), but internal/unified/model.go is NOT in Agent H file_ownership — H owns only internal/app/cache.go and internal/unified/cache_info.go. Agent B (Wave 1) owns model.go. The cacheMgr.Path call at model.go:1089 will remain unfixed unless model.go is added to H ownership or the fix is reassigned.
-                  file: internal/unified/model.go
-                  symbol: loadHubContextAsync
+            verdict: PASS
         I:
             agent_id: I
             verdict: PASS
@@ -1325,16 +1343,11 @@ critic_report:
             verdict: PASS
         K:
             agent_id: K
-            verdict: ISSUES
+            verdict: PASS
             issues:
-                - check: caller_exhaustiveness
-                  severity: error
-                  description: 'Agent K task instructs potentially changing ingest.Resolve signature (internal/ingest/resolver.go) by adding a *github.Client parameter. Two callers of ingest.Resolve are NOT in K file_ownership: internal/app/shelve.go (line 182) and internal/unified/shelve_ops.go (line 57). If the Resolve signature changes, those files will fail to compile and are not assigned to any agent. internal/ingest/ingest_test.go (which also calls ingest.Resolve) is likewise not in K ownership. These missed callers must be added to K ownership or the signature-change approach for resolver.go must be scoped to not change Resolve signature.'
-                  file: internal/ingest/resolver.go
-                  symbol: Resolve
                 - check: complexity_balance
                   severity: warning
-                  description: Agent K owns 11 files — exceeds 8-file threshold; consider splitting
+                  description: Agent K owns 12 files — exceeds 8-file threshold; consider splitting
         L:
             agent_id: L
             verdict: PASS
@@ -1344,7 +1357,8 @@ critic_report:
         "N":
             agent_id: "N"
             verdict: PASS
-    summary: 'Four errors found across agents G, H, and K. Agent G''s task code snippet references syncDetectedMsg{err: ...} but syncDetectedMsg has no err field — the struct only has books []syncEntry. The brief''s fallback guidance says to check the struct first, but the code sample is incorrect and will confuse the agent. Agent H''s task requires modifying internal/unified/model.go (line 1089) but that file is not in H''s file_ownership list — H owns only internal/app/cache.go and internal/unified/cache_info.go. Agent K''s task instructs it to potentially change ingest.Resolve''s signature and update callers, but internal/app/shelve.go and internal/unified/shelve_ops.go (both call ingest.Resolve) are not in K''s file_ownership and would break if the signature changes. Agent K also owns 11 files, exceeding the 8-file advisory threshold. All other agents (A, B, C, D, E, F, I, J, L, M, N) have accurate briefs with verified symbols, correct file existence, and sound patterns.'
-    reviewed_at: "2026-04-18T16:00:45Z"
-    issue_count: 4
+    summary: 'All three previously flagged errors have been resolved. Agent G now correctly instructs defining a new syncDetectErrorMsg type (verified: syncDetectedMsg in sync_all.go has no err field, so the new type approach is sound). Agent H now owns internal/unified/model.go in Wave 2 with depends_on: [B], enabling it to fix the cacheMgr.Path call at line 1089 in loadHubContextAsync (verified: that call exists). Agent K''s task now carries a CRITICAL CONSTRAINT prohibiting Resolve signature changes, and ingest_test.go has been added to K''s ownership (verified: ingest_test.go calls Resolve with the unchanged 3-arg signature; shelve.go and shelve_ops.go callers remain safe). Caller exhaustiveness check for ScanRepo: all 3 non-test callers (import_repo_ops.go, app/migrate.go, migrate/scan_test.go) are in K''s ownership; migrate_test.go contains only a comment mentioning ScanRepo, not an actual call. Agent K''s complexity warning (12 files, exceeds 8-file advisory) remains but is advisory only and does not block execution. All other agents (A, B, C, D, E, F, I, J, L, M, N) have accurate briefs with verified symbols, correct file existence, and sound patterns.'
+    reviewed_at: "2026-04-18T16:04:55Z"
+    issue_count: 1
 state: REVIEWED
+injection_method: hook

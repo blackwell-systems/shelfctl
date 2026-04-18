@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Sync progress spinner now animates:** The braille spinner shown next to the current book during sync processing was static. The spinner tick chain was broken during the confirmation phase transition; restarting it on confirm resumes animation.
+
 ## [0.4.8] - 2026-04-13
 
 ### Added

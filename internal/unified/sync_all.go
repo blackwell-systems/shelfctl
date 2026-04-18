@@ -170,7 +170,7 @@ func (m SyncAllModel) Update(msg tea.Msg) (SyncAllModel, tea.Cmd) {
 				m.phase = syncAllProcessing
 				m.current = 0
 				m.activeCmd = "enter"
-				return m, tea.Batch(m.syncBookSetupCmd(0), tui.HighlightCmd())
+				return m, tea.Batch(m.syncBookSetupCmd(0), tui.HighlightCmd(), m.spinner.Tick)
 			}
 		case syncAllProcessing:
 			if msg.String() == "ctrl+c" {

@@ -171,6 +171,11 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// NewBrowserDownloader creates a Downloader for use outside the unified package.
+func NewBrowserDownloader(gh *github.Client, cacheMgr *cache.Manager) tui.Downloader {
+	return &browserDownloader{gh: gh, cache: cacheMgr}
+}
+
 // NewBrowseModel creates a new browse model with the full browser
 func NewBrowseModel(books []tui.BookItem, gh *github.Client, cacheMgr *cache.Manager) BrowseModel {
 	// Create downloader

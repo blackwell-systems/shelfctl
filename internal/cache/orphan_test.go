@@ -36,8 +36,8 @@ func TestDetectOrphans_NoOrphans(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := New(tmpDir)
 
-	// Create cache structure
-	repoDir := filepath.Join(tmpDir, "shelf-tech")
+	// Create cache structure: <baseDir>/<owner>/<repo>/<asset>
+	repoDir := filepath.Join(tmpDir, "user", "shelf-tech")
 	if err := os.MkdirAll(repoDir, 0750); err != nil {
 		t.Fatal(err)
 	}
@@ -72,8 +72,8 @@ func TestDetectOrphans_FindsOrphans(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := New(tmpDir)
 
-	// Create cache structure with two files
-	repoDir := filepath.Join(tmpDir, "shelf-tech")
+	// Create cache structure with two files: <baseDir>/<owner>/<repo>/<asset>
+	repoDir := filepath.Join(tmpDir, "user", "shelf-tech")
 	if err := os.MkdirAll(repoDir, 0750); err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestDetectOrphans_SkipsTempFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := New(tmpDir)
 
-	repoDir := filepath.Join(tmpDir, "shelf-tech")
+	repoDir := filepath.Join(tmpDir, "user", "shelf-tech")
 	if err := os.MkdirAll(repoDir, 0750); err != nil {
 		t.Fatal(err)
 	}
@@ -159,9 +159,9 @@ func TestDetectOrphans_MultipleRepos(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := New(tmpDir)
 
-	// Create two repos with orphans in each
-	repo1Dir := filepath.Join(tmpDir, "shelf-tech")
-	repo2Dir := filepath.Join(tmpDir, "shelf-fiction")
+	// Create two repos with orphans in each: <baseDir>/<owner>/<repo>/<asset>
+	repo1Dir := filepath.Join(tmpDir, "user", "shelf-tech")
+	repo2Dir := filepath.Join(tmpDir, "user", "shelf-fiction")
 	if err := os.MkdirAll(repo1Dir, 0750); err != nil {
 		t.Fatal(err)
 	}

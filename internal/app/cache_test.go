@@ -148,7 +148,7 @@ func TestCacheOrphanDetection(t *testing.T) {
 	// Store an orphaned book (not in catalog)
 	orphanedAsset := "orphaned-book.pdf"
 	orphanedContent := []byte("orphaned content")
-	repoDir := filepath.Join(tmpDir, techShelf.Repo)
+	repoDir := filepath.Join(tmpDir, techShelf.Owner, techShelf.Repo)
 	if err := os.MkdirAll(repoDir, 0750); err != nil {
 		t.Fatalf("failed to create repo dir: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestCacheOrphanCleanup(t *testing.T) {
 	mgr := cache.New(tmpDir)
 
 	// Store orphaned files
-	repoDir := filepath.Join(tmpDir, techShelf.Repo)
+	repoDir := filepath.Join(tmpDir, techShelf.Owner, techShelf.Repo)
 	if err := os.MkdirAll(repoDir, 0750); err != nil {
 		t.Fatalf("failed to create repo dir: %v", err)
 	}

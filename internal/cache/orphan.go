@@ -37,15 +37,16 @@ func (m *Manager) DetectOrphans(shelves []ShelfCatalog) (OrphanReport, error) {
 		Entries: []OrphanEntry{},
 	}
 
-	// Build a map of all known assets: repo -> {assetFilename -> true}
+	// Build a map of all known assets: "owner/repo" -> {assetFilename -> true}
 	knownAssets := make(map[string]map[string]bool)
 	for _, shelf := range shelves {
-		if _, exists := knownAssets[shelf.Repo]; !exists {
-			knownAssets[shelf.Repo] = make(map[string]bool)
+		key := shelf.Owner + string(filepath.Separator) + shelf.Repo
+		if _, exists := knownAssets[key]; !exists {
+			knownAssets[key] = make(map[string]bool)
 		}
 		for _, book := range shelf.Books {
 			if book.Source.Asset != "" {
-				knownAssets[shelf.Repo][book.Source.Asset] = true
+				knownAssets[key][book.Source.Asset] = true
 			}
 		}
 	}
@@ -77,23 +78,24 @@ func (m *Manager) DetectOrphans(shelves []ShelfCatalog) (OrphanReport, error) {
 			return nil
 		}
 
-		// Determine repo and filename from path
-		// Path structure: <baseDir>/<repo>/<assetFilename>
+		// Determine owner, repo, and filename from path
+		// Path structure: <baseDir>/<owner>/<repo>/<assetFilename>
 		relPath, err := filepath.Rel(baseDir, path)
 		if err != nil {
 			return nil // Skip files we can't parse
 		}
 
-		parts := strings.SplitN(relPath, string(filepath.Separator), 2)
-		if len(parts) != 2 {
+		parts := strings.SplitN(relPath, string(filepath.Separator), 3)
+		if len(parts) != 3 {
 			return nil // Skip files not in expected structure
 		}
 
-		repo := parts[0]
-		filename := parts[1]
+		ownerRepoKey := parts[0] + string(filepath.Separator) + parts[1]
+		repo := parts[1]
+		filename := parts[2]
 
 		// Check if this asset is known in any catalog
-		if repoAssets, exists := knownAssets[repo]; exists {
+		if repoAssets, exists := knownAssets[ownerRepoKey]; exists {
 			if repoAssets[filename] {
 				return nil // Asset is referenced, not an orphan
 			}

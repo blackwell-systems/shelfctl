@@ -3,7 +3,6 @@ package unified
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/blackwell-systems/shelfctl/internal/cache"
@@ -92,10 +91,7 @@ func NewCacheInfoModel(books []tui.BookItem, cacheMgr *cache.Manager) CacheInfoM
 		m.shelfStats = append(m.shelfStats, *shelfMap[key])
 	}
 
-	m.cacheDir = cacheMgr.Path("", "", "", "")
-	if m.cacheDir != "" {
-		m.cacheDir = filepath.Dir(m.cacheDir)
-	}
+	m.cacheDir = cacheMgr.BaseDir()
 
 	return m
 }

@@ -567,35 +567,6 @@ func buildCatalogEntry(metadata *bookMetadata, ingested *ingestedFile, owner, re
 	}
 }
 
-func updateCatalog(cmd *cobra.Command, owner, repo, catalogPath string, existingBooks []catalog.Book, book catalog.Book, noPush bool) error {
-	books := catalog.Append(existingBooks, book)
-	newCatalog, err := catalog.Marshal(books)
-	if err != nil {
-		return err
-	}
-
-	if noPush {
-		if err := os.WriteFile(catalogPath, newCatalog, 0600); err != nil {
-			return err
-		}
-		if tui.ShouldUseTUI(cmd) {
-			ok("Catalog updated locally (not pushed)")
-		}
-		return nil
-	}
-
-	msg := fmt.Sprintf("add: %s — %s", book.ID, book.Title)
-	if err := gh.CommitFile(owner, repo, catalogPath, newCatalog, msg); err != nil {
-		return fmt.Errorf("committing catalog: %w", err)
-	}
-	if tui.ShouldUseTUI(cmd) {
-		ok("Catalog committed and pushed")
-	}
-
-	updateREADME(cmd, owner, repo, books, book)
-	return nil
-}
-
 func updateREADME(cmd *cobra.Command, owner, repo string, books []catalog.Book, book catalog.Book) {
 	readmeData, _, readmeErr := gh.GetFileContent(owner, repo, "README.md", "")
 	if readmeErr != nil {

@@ -41,20 +41,6 @@ func truncateText(s string, maxWidth int) string {
 	return string(runes[:maxWidth-1]) + "…"
 }
 
-// formatBytes formats bytes as human-readable size
-func formatBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
-	}
-	div, exp := int64(unit), 0
-	for n := n / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
-}
-
 // IsSelected implements multiselect.SelectableItem
 func (b BookItem) IsSelected() bool {
 	return b.selected

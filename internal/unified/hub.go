@@ -7,6 +7,7 @@ import (
 
 	"github.com/blackwell-systems/bubbletea-commandpalette"
 	"github.com/blackwell-systems/shelfctl/internal/tui"
+	"github.com/blackwell-systems/shelfctl/internal/util"
 	"github.com/blackwell-systems/shelfctl/internal/tui/delegate"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -608,7 +609,7 @@ func (m HubModel) renderCacheDetailsRaw() string {
 	if m.context.CacheSize > 0 {
 		s.WriteString("\n")
 		s.WriteString(tui.StyleHighlight.Render("Disk Usage: "))
-		fmt.Fprintf(&s, "%s\n", formatBytes(m.context.CacheSize))
+		fmt.Fprintf(&s, "%s\n", util.HumanBytes(m.context.CacheSize))
 	}
 
 	// Cache directory
@@ -620,19 +621,6 @@ func (m HubModel) renderCacheDetailsRaw() string {
 	}
 
 	return s.String()
-}
-
-func formatBytes(b int64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
 }
 
 // buildHubPalette creates a command palette pre-populated with actions from the hub menu.

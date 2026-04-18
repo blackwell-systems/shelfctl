@@ -1,3 +1,4 @@
+completion_date: "2026-04-18"
 title: shelfctl doctor command
 feature_slug: doctor-command
 verdict: SUITABLE
@@ -740,6 +741,7 @@ waves:
             - internal/app/doctor_test.go
           dependencies:
             - A
+          context_source: prepared-brief
 quality_gates:
     level: standard
     gates:
@@ -778,6 +780,43 @@ scaffolds:
         }
       import_path: github.com/blackwell-systems/shelfctl/internal/app
       status: committed (c5dacab)
+completion_reports:
+    A:
+        status: complete
+        branch: main
+        commit: 1157b32
+        files_changed:
+            - internal/github/client.go
+            - internal/app/doctor.go
+            - internal/app/root.go
+        files_created:
+            - internal/app/doctor.go
+        verification: PASS
+        notes: 'Doctor command fully implemented: GetUser method added to GitHub client, doctor.go created with all health checks (config, token, API connectivity, scopes, shelf accessibility, cache integrity), root.go updated with command registration and PersistentPreRunE bypass. All verification gates pass (build, vet, grep checks).'
+    B:
+        status: complete
+        branch: main
+        commit: d84a6bb
+        files_changed:
+            - internal/app/doctor_test.go
+        files_created:
+            - internal/app/doctor_test.go
+        tests_added:
+            - TestCheckConfig_Missing
+            - TestCheckConfig_Valid
+            - TestCheckConfig_MissingOwner
+            - TestCheckToken_Missing
+            - TestCheckToken_Set
+            - TestCheckAPIAndScopes_Success
+            - TestCheckAPIAndScopes_NoScope
+            - TestCheckAPIAndScopes_Unauthorized
+            - TestCheckShelf_Found
+            - TestCheckShelf_NotFound
+            - TestRunDoctor_AllPass
+            - TestRunDoctor_NoConfig
+            - TestRunDoctor_NoToken
+        verification: PASS
+        notes: 13 tests covering all doctor check functions and 3 runDoctor integration scenarios. All pass. Uses httptest servers, no mockserver dependency.
 pre_mortem:
     overall_risk: low
     rows:
@@ -818,5 +857,5 @@ pre_mortem:
             Agent B's task explicitly states the config YAML for the all-pass test must include
             a shelf entry pointing at the httptest.Server. Agent B must write config like:
             github.owner, github.token_env, and shelves with owner/repo matching the httptest.Server.
-state: "REVIEWED"
+state: COMPLETE
 injection_method: hook

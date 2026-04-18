@@ -19,3 +19,5 @@
   - IMPL doc: docs/IMPL/complete/IMPL-code-quality-ux-fixes.yaml
 - **inspection-fixes**: completed 2026-04-18, 4 waves, 14 agents
   - IMPL doc: docs/IMPL/complete/IMPL-inspection-fixes.yaml
+- **doctor-command**: completed 2026-04-18, 2 waves, 2 agents
+  - IMPL doc: docs/IMPL/complete/IMPL-doctor-command.yaml

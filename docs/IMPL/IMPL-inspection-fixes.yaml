@@ -1,0 +1,1350 @@
+title: Code Inspection Fixes
+feature_slug: inspection-fixes
+verdict: SUITABLE
+suitability_assessment: |-
+    17 findings (H1–H5, M1–M8, L1–L6) across 14+ files. Naturally groups into four
+    waves by risk: safe deletions (Wave 1), targeted bug fixes (Wave 2), structural
+    changes (Wave 3), and new tests (Wave 4). All interfaces are discoverable now.
+    File ownership is disjoint within each wave. Parallelization value is high: build
+    and test cycles are non-trivial (Go compilation + test suite), and agents average
+    3-5 files each.
+
+    Estimated times:
+    - Scout phase: ~10 min
+    - Agent execution: ~12 agents x ~8 min avg, accounting for parallelism = ~20 min
+    - Merge and verification: ~5 min
+    Total SAW time: ~35 min
+
+    Sequential baseline: ~12 agents x 10 min = ~120 min
+    Time savings: ~85 min (~70% faster)
+
+    Recommendation: Clear speedup. Proceed.
+test_command: go test ./...
+lint_command: go vet ./...
+file_ownership:
+    - file: internal/app/shelve.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/app/migrate_test.go
+      agent: A
+      wave: 1
+      action: modify
+    - file: internal/unified/model.go
+      agent: B
+      wave: 1
+      action: modify
+    - file: internal/tui/book_item.go
+      agent: C
+      wave: 1
+      action: modify
+    - file: internal/unified/hub.go
+      agent: C
+      wave: 1
+      action: modify
+    - file: internal/tui/book_picker_test.go
+      agent: C
+      wave: 1
+      action: modify
+    - file: internal/tui/list_browser_test.go
+      agent: C
+      wave: 1
+      action: modify
+    - file: internal/operations/readme.go
+      agent: D
+      wave: 1
+      action: modify
+    - file: internal/unified/browse.go
+      agent: E
+      wave: 2
+      action: modify
+    - file: internal/cache/paths.go
+      agent: F
+      wave: 2
+      action: modify
+    - file: internal/cache/html_index.go
+      agent: F
+      wave: 2
+      action: modify
+    - file: internal/unified/sync_all.go
+      agent: G
+      wave: 2
+      action: modify
+    - file: internal/app/cache.go
+      agent: H
+      wave: 2
+      action: modify
+    - file: internal/unified/cache_info.go
+      agent: H
+      wave: 2
+      action: modify
+    - file: internal/app/browse.go
+      agent: I
+      wave: 3
+      action: modify
+      depends_on:
+        - F
+    - file: internal/github/contents.go
+      agent: J
+      wave: 3
+      action: modify
+    - file: internal/catalog/manager_test.go
+      agent: J
+      wave: 3
+      action: modify
+    - file: internal/github/client.go
+      agent: J
+      wave: 3
+      action: modify
+    - file: internal/github/assets.go
+      agent: J
+      wave: 3
+      action: modify
+    - file: internal/app/browse_test.go
+      agent: J
+      wave: 3
+      action: modify
+    - file: internal/app/verify_e2e_test.go
+      agent: J
+      wave: 3
+      action: modify
+    - file: internal/ingest/resolver.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/migrate/scan.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/migrate/scan_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/app/migrate.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/unified/import_repo_ops.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/github/client_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/github/contents_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/github/gitops_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/github/releases_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: test/e2e/edge_cases_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: test/mockserver/server_test.go
+      agent: K
+      wave: 3
+      action: modify
+    - file: internal/app/hub_runner.go
+      agent: L
+      wave: 3
+      action: modify
+    - file: internal/unified/model_test.go
+      agent: M
+      wave: 4
+      action: new
+      depends_on:
+        - E
+        - G
+        - L
+    - file: internal/unified/sync_all_test.go
+      agent: M
+      wave: 4
+      action: new
+      depends_on:
+        - G
+    - file: internal/cache/paths_test.go
+      agent: "N"
+      wave: 4
+      action: new
+      depends_on:
+        - F
+interface_contracts:
+    - name: cache.Manager.Path
+      description: |-
+        After M1 fix, Path includes owner segment to prevent cross-owner collisions.
+        Callers that passed empty strings to get baseDir must switch to BaseDir().
+      definition: |-
+        // Path returns <baseDir>/<owner>/<repo>/<assetFilename>
+        func (m *Manager) Path(owner, repo, bookID, assetFilename string) string
+      location: internal/cache/paths.go
+    - name: cache.Manager.EnsureDir
+      description: EnsureDir must be updated to match the new owner-scoped directory structure.
+      definition: |-
+        // EnsureDir creates <baseDir>/<owner>/<repo>/
+        func (m *Manager) EnsureDir(owner, repo, bookID string) error
+      location: internal/cache/paths.go
+    - name: browserDownloader (consolidated)
+      description: |-
+        After H3 consolidation, internal/app/browse.go's browserDownloader is deleted.
+        internal/unified/browse.go remains the canonical implementation.
+        internal/app/browse.go creates a unified.BrowserDownloader directly (cross-package
+        access requires the type to be exported, or app creates its own thin wrapper that
+        delegates). Preferred approach: keep unexported in each package but extract the
+        shared Download/DownloadWithProgress/Sync logic into a shared helper in
+        internal/app/download.go (see M5 below).
+      definition: |-
+        // Both browserDownloader implementations are identical.
+        // The fix removes the copy in internal/app/browse.go and has it construct
+        // a unified.BrowserDownloader{gh, cache} directly via a constructor.
+        // unified.browserDownloader remains unexported; NewBrowseModel is the entry point.
+        // internal/app/browse.go passes gh and cacheMgr to unified.NewBrowseModel.
+      location: internal/unified/browse.go
+    - name: Download-then-open shared helper
+      description: |-
+        M5 extraction target. The pattern of (get release -> find asset -> download rc ->
+        show progress -> store in cache) is repeated in open.go, browse.go (handleBrowserAction),
+        and unified/model.go (handleOpenBook). Extract to internal/app/download.go.
+      definition: |-
+        // DownloadBook downloads a book asset to the local cache, showing a progress bar
+        // if a TTY is available. Returns the local cache path on success.
+        // Defined in internal/app/download.go (package app).
+        func DownloadBook(
+            gh *github.Client,
+            cacheMgr *cache.Manager,
+            owner, repo string,
+            book *catalog.Book,
+            useTUI bool,
+        ) (string, error)
+      location: internal/app/download.go
+    - name: github.Client context-aware methods
+      description: |-
+        M3 (partial): HTTP calls in internal/github need context propagation for cancellation.
+        The primary do() helper and doJSON gain context parameters internally. IMPORTANT:
+        GetFileContent keeps its existing public signature unchanged to avoid a wave-ordering
+        cascade. Context is threaded at the HTTP layer internally via backward-compat wrappers.
+        The new ctx-aware variant is exposed as GetFileContentCtx for callers that already
+        hold a context; existing callers continue to use GetFileContent with no changes needed.
+      definition: |-
+        // doJSON gains a ctx parameter; existing callers pass context.Background() as default.
+        func (c *Client) doJSON(ctx context.Context, method, url string, body, out interface{}) error
+
+        // GetFileContent keeps its existing signature — no change to public API.
+        func (c *Client) GetFileContent(owner, repo, path, ref string) ([]byte, string, error)
+
+        // GetFileContentCtx is the new context-aware variant for callers that hold a context.
+        func (c *Client) GetFileContentCtx(ctx context.Context, owner, repo, path, ref string) ([]byte, string, error)
+
+        // getRawBlob gains ctx internally; not a public API change.
+        func (c *Client) getRawBlob(ctx context.Context, owner, repo, sha string) ([]byte, error)
+      location: internal/github/client.go
+waves:
+    - number: 1
+      agents:
+        - id: A
+          task: |-
+            ## Wave 1 / Agent A — Delete dead symbol `updateCatalog`
+
+            ### Context
+            `internal/app/shelve.go` contains `updateCatalog` (line 570), which is never
+            called anywhere in the codebase (verified: only definition, no call sites). The
+            codebase migrated to `batchCommitCatalog`. It also has a latent bug where
+            `noPush=true` hardcodes `catalog.yml` instead of using the passed `catalogPath`.
+
+            ### Task
+            Delete the function `updateCatalog` (lines 570–597 in `internal/app/shelve.go`).
+            The function body spans from `func updateCatalog(` through `}` on the line after
+            `updateREADME(cmd, owner, repo, books, book)`.
+
+            Locate the exact text to delete:
+            ```go
+            func updateCatalog(cmd *cobra.Command, owner, repo, catalogPath string, existingBooks []catalog.Book, book catalog.Book, noPush bool) error {
+            ```
+            Delete from that line through the closing `}` (inclusive). The next function
+            is `updateREADME`.
+
+            After deletion, remove any now-unused imports from `internal/app/shelve.go` if
+            the compiler reports them (run `go build ./internal/app/...` to check).
+
+            ### Owned test file — verify only
+            You also own `internal/app/migrate_test.go`. This test file has a test for
+            `noPush=true` behavior that references `updateCatalog`-adjacent logic. After
+            deleting `updateCatalog`, run the migrate tests to confirm they still compile
+            and pass. Do NOT change the test logic — only fix compilation errors if any
+            arise (there should be none, as the tests reference `batchCommitCatalog` paths,
+            not the deleted function directly).
+
+            ### Verification gate
+            1. `go build ./internal/app/...` — must compile cleanly
+            2. `go vet ./internal/app/...` — no warnings
+            3. `grep -n "updateCatalog" internal/app/shelve.go` — must return no matches
+            4. `go test ./internal/app/...` — all tests pass (including migrate_test.go)
+
+            ### Constraints
+            - Do NOT modify any other function in shelve.go.
+            - Do NOT remove `updateREADME` — it is called from batchCommitCatalog.
+            - Your owned source file: internal/app/shelve.go.
+            - Your owned test file (verify only): internal/app/migrate_test.go.
+            - Do NOT modify files outside your ownership list.
+          files: []
+        - id: B
+          task: |-
+            ## Wave 1 / Agent B — Delete dead export `BuildContext`
+
+            ### Context
+            `internal/unified/model.go` contains `BuildContext` (exported function at line 1102).
+            It has no callers anywhere in the codebase. It was superseded by
+            `loadHubContextAsync` + `BuildContextFast` (the latter referenced in comments).
+
+            ### Task
+            Delete the function `BuildContext` from `internal/unified/model.go`.
+
+            Locate the exact text to delete:
+            ```go
+            // BuildContext creates a fresh hub context by scanning all shelves and cache
+            // This is an expensive operation - only call when context may have changed
+            func BuildContext(gh *github.Client, cfg *config.Config, cacheMgr *cache.Manager) tui.HubContext {
+            ```
+            Delete from the comment block above it through the closing `}` of the function.
+            The function ends just before `// hubContextLoadedMsg carries the result of an async context load.`
+
+            After deletion, run `go build ./internal/unified/...` to ensure no imports
+            became unused; remove any orphaned imports if so.
+
+            ### Verification gate
+            1. `go build ./internal/unified/...` — must compile cleanly
+            2. `go vet ./internal/unified/...` — no warnings
+            3. `grep -n "func BuildContext" internal/unified/model.go` — must return no matches
+            4. `grep -rn "BuildContext" internal/ --include="*.go"` — must return no matches
+            5. `go test ./internal/unified/...` — all tests pass
+
+            ### Constraints
+            - Do NOT remove `loadHubContextAsync` — it is actively used.
+            - Do NOT modify any other function in model.go.
+            - Do NOT modify files outside internal/unified/model.go.
+          files: []
+        - id: C
+          task: |-
+            ## Wave 1 / Agent C — Delete duplicate `formatBytes` in tui and unified/hub
+
+            ### Context
+            `util.HumanBytes` (internal/util/file.go:15) is the canonical exported implementation.
+            Two unexported `formatBytes` duplicates exist:
+            - `internal/tui/book_item.go:44`
+            - `internal/unified/hub.go:625`
+
+            Both are identical to `util.HumanBytes`. Delete both and update all call sites
+            in the same files to use `util.HumanBytes`.
+
+            ### Task — internal/tui/book_item.go
+            1. Locate and delete the `formatBytes` function (lines 44–56):
+               ```go
+               // formatBytes formats bytes as human-readable size
+               func formatBytes(n int64) string {
+               ```
+               Delete from that comment through the closing `}`.
+
+            2. Find all call sites of `formatBytes` in `book_item.go` and replace with
+               `util.HumanBytes`. Search:
+               ```
+               grep -n "formatBytes" internal/tui/book_item.go
+               ```
+
+            3. Add `"github.com/blackwell-systems/shelfctl/internal/util"` to the import
+               block in book_item.go if not already present.
+
+            ### Task — internal/unified/hub.go
+            1. Locate and delete the `formatBytes` function (line 625):
+               ```go
+               func formatBytes(b int64) string {
+               ```
+               Delete from that line through the closing `}`.
+
+            2. Find all call sites of `formatBytes` in `hub.go` and replace with
+               `util.HumanBytes`. The call is:
+               ```go
+               fmt.Fprintf(&s, "%s\n", formatBytes(m.context.CacheSize))
+               ```
+               Replace with:
+               ```go
+               fmt.Fprintf(&s, "%s\n", util.HumanBytes(m.context.CacheSize))
+               ```
+
+            3. Add `"github.com/blackwell-systems/shelfctl/internal/util"` to the import
+               block in hub.go if not already present.
+
+            ### Owned test files — verify only, do not change test logic
+            You also own `internal/tui/book_picker_test.go` and
+            `internal/tui/list_browser_test.go`. These test files exercise `BookItem`
+            (defined in book_item.go). After removing `formatBytes`, run the tests to
+            confirm nothing broke. Do NOT change the test logic — only fix compilation
+            errors if any arise from the `formatBytes` removal (there should be none,
+            as the tests do not call `formatBytes` directly).
+
+            ### Verification gate
+            1. `go build ./internal/tui/... ./internal/unified/...` — must compile cleanly
+            2. `go vet ./internal/tui/... ./internal/unified/...` — no warnings
+            3. `grep -n "func formatBytes" internal/tui/book_item.go internal/unified/hub.go` — no matches
+            4. `go test ./internal/tui/... ./internal/unified/...` — all tests pass
+
+            ### Constraints
+            - Do NOT modify internal/util/file.go — HumanBytes stays as-is.
+            - Do NOT touch other files in internal/tui/ or internal/unified/.
+            - Your owned source files: internal/tui/book_item.go and internal/unified/hub.go.
+            - Your owned test files (verify only): internal/tui/book_picker_test.go and
+              internal/tui/list_browser_test.go.
+          files: []
+        - id: D
+          task: |-
+            ## Wave 1 / Agent D — Remove dead `foundNextSection` boolean in readme.go
+
+            ### Context
+            `internal/operations/readme.go` has a dead boolean variable `foundNextSection`
+            (line 126). The variable is declared in the inner loop and checked at line 145,
+            but the inner loop always returns early (line 140) when it finds a next section,
+            making `foundNextSection` always `false` at the check. The `if !foundNextSection`
+            block is therefore unreachable dead code.
+
+            ### Task
+            In `internal/operations/readme.go`, locate the following code block (inside the
+            `else if quickStatsIdx >= 0 {` branch):
+
+            ```go
+                            foundNextSection := false
+                            for j := i + 1; j < len(lines); j++ {
+                                result = append(result, lines[j])
+                                if strings.HasPrefix(lines[j], "##") {
+                                    // Found next section, insert before it
+                                    result = result[:len(result)-1] // Remove the section header we just added
+                                    result = append(result, "")
+                                    result = append(result, "## Recently Added")
+                                    result = append(result, "")
+                                    result = append(result, bookEntry)
+                                    result = append(result, "")
+                                    result = append(result, lines[j]) // Add back the section header
+                                    // Add rest of lines
+                                    result = append(result, lines[j+1:]...)
+                                    return strings.Join(result, "\n")
+                                }
+                            }
+                            // Inner loop exhausted without finding next section:
+                            // append Recently Added at the end and stop outer loop
+                            if !foundNextSection {
+                                result = append(result, "")
+                                result = append(result, "## Recently Added")
+                                result = append(result, "")
+                                result = append(result, bookEntry)
+                                return strings.Join(result, "\n")
+                            }
+                            break
+            ```
+
+            Remove:
+            1. The `foundNextSection := false` declaration.
+            2. The `if !foundNextSection {` guard and its `}` closing brace — keep the
+               body (the append block + return) but remove the conditional wrapper.
+            3. The now-unreachable `break` statement after the removed if-block.
+
+            The resulting inner section should look like:
+            ```go
+                            for j := i + 1; j < len(lines); j++ {
+                                result = append(result, lines[j])
+                                if strings.HasPrefix(lines[j], "##") {
+                                    result = result[:len(result)-1]
+                                    result = append(result, "")
+                                    result = append(result, "## Recently Added")
+                                    result = append(result, "")
+                                    result = append(result, bookEntry)
+                                    result = append(result, "")
+                                    result = append(result, lines[j])
+                                    result = append(result, lines[j+1:]...)
+                                    return strings.Join(result, "\n")
+                                }
+                            }
+                            // Inner loop exhausted without finding next section
+                            result = append(result, "")
+                            result = append(result, "## Recently Added")
+                            result = append(result, "")
+                            result = append(result, bookEntry)
+                            return strings.Join(result, "\n")
+            ```
+
+            ### Verification gate
+            1. `go build ./internal/operations/...` — must compile cleanly
+            2. `go vet ./internal/operations/...` — no warnings
+            3. `grep -n "foundNextSection" internal/operations/readme.go` — no matches
+            4. `go test ./internal/operations/...` — all tests pass
+
+            ### Constraints
+            - Do NOT modify any function other than `AppendToShelfREADME`.
+            - Do NOT modify files outside internal/operations/readme.go.
+          files: []
+    - number: 2
+      agents:
+        - id: E
+          task: |-
+            ## Wave 2 / Agent E — Fix silent download failure in unified browse (H5)
+
+            ### Context
+            `internal/unified/browse.go:29` has a bug where the `Download` method always
+            returns `nil` for the error, discarding the actual error from
+            `DownloadWithProgress`.
+
+            The current broken implementation:
+            ```go
+            func (d *browserDownloader) Download(owner, repo, bookID, release, asset, sha256 string) (bool, error) {
+            	return d.DownloadWithProgress(owner, repo, bookID, release, asset, sha256, nil) == nil, nil
+            }
+            ```
+
+            ### Task
+            Fix `Download` to propagate the actual error:
+            ```go
+            func (d *browserDownloader) Download(owner, repo, bookID, release, asset, sha256 string) (bool, error) {
+            	err := d.DownloadWithProgress(owner, repo, bookID, release, asset, sha256, nil)
+            	return err == nil, err
+            }
+            ```
+
+            This matches the correct pattern already used in `internal/app/browse.go:28`:
+            ```go
+            func (d *browserDownloader) Download(owner, repo, bookID, release, asset, sha256 string) (bool, error) {
+            	err := d.DownloadWithProgress(owner, repo, bookID, release, asset, sha256, nil)
+            	return err == nil, err
+            }
+            ```
+
+            ### Verification gate
+            1. `go build ./internal/unified/...` — must compile cleanly
+            2. `go vet ./internal/unified/...` — no warnings
+            3. `grep -A3 "func (d \*browserDownloader) Download(" internal/unified/browse.go` — confirm
+               the body now reads `err := ...` then `return err == nil, err`
+            4. `go test ./internal/unified/...` — all tests pass
+
+            ### Constraints
+            - Do NOT modify DownloadWithProgress or any other method.
+            - Do NOT modify files outside internal/unified/browse.go.
+          files: []
+        - id: F
+          task: |-
+            ## Wave 2 / Agent F — Fix cache path collision (M1) and file permissions (M2)
+
+            ### Context — M1: cache path collision
+            `internal/cache/paths.go:25` ignores the `owner` parameter in `Path`, so two
+            shelves from different owners with the same repo name collide:
+            ```go
+            func (m *Manager) Path(owner, repo, bookID, assetFilename string) string {
+            	return filepath.Join(m.baseDir, repo, assetFilename)
+            }
+            ```
+            Fix: include the owner segment so the layout becomes `<baseDir>/<owner>/<repo>/<asset>`.
+
+            `EnsureDir` has the same bug — it only creates `<baseDir>/<repo>`:
+            ```go
+            func (m *Manager) EnsureDir(owner, repo, bookID string) error {
+            	dir := filepath.Join(m.baseDir, repo)
+            	return os.MkdirAll(dir, 0750)
+            }
+            ```
+
+            ### Task — internal/cache/paths.go
+            1. Fix `Path`:
+               ```go
+               func (m *Manager) Path(owner, repo, bookID, assetFilename string) string {
+               	return filepath.Join(m.baseDir, owner, repo, assetFilename)
+               }
+               ```
+
+            2. Fix `EnsureDir`:
+               ```go
+               func (m *Manager) EnsureDir(owner, repo, bookID string) error {
+               	dir := filepath.Join(m.baseDir, owner, repo)
+               	return os.MkdirAll(dir, 0750)
+               }
+               ```
+
+            NOTE: callers that pass empty strings (`cacheMgr.Path("","","","")`) to get
+            the base directory will now get `<baseDir>//` instead of `<baseDir>/`. Those
+            callers must be updated to use `cacheMgr.BaseDir()` (Wave 2 Agent H owns those
+            call sites in internal/app/cache.go and internal/unified/cache_info.go).
+            The call site in internal/unified/model.go is owned by Wave 1 Agent B — but
+            since BuildContext is being deleted by Agent B, those lines will be gone.
+            The remaining call sites in model.go at lines ~1089 and ~1196 (in
+            `loadHubContextAsync` and `BuildContext` fallback) will also need fixing —
+            see constraints.
+
+            ### Context — M2: file permissions
+            `internal/cache/html_index.go:30` writes with `0644` instead of `0600`:
+            ```go
+            if err := os.WriteFile(indexPath, []byte(html), 0644); err != nil {
+            ```
+
+            ### Task — internal/cache/html_index.go
+            Change `0644` to `0600`:
+            ```go
+            if err := os.WriteFile(indexPath, []byte(html), 0600); err != nil {
+            ```
+
+            ### Verification gate
+            1. `go build ./internal/cache/...` — must compile cleanly
+            2. `go vet ./internal/cache/...` — no warnings
+            3. `grep -n "filepath.Join(m.baseDir, owner, repo" internal/cache/paths.go` — must match
+            4. `grep -n "0600" internal/cache/html_index.go` — must match line 30
+            5. `grep -n "0644" internal/cache/html_index.go` — must return no matches
+            6. `go test ./internal/cache/...` — all tests pass
+
+            ### Constraints
+            - Do NOT change BaseDir() — it stays as-is.
+            - Do NOT update call sites in internal/app/ or internal/unified/ — those are owned
+              by other agents (H for app/cache.go and unified/cache_info.go; the model.go
+              call sites in loadHubContextAsync are NOT in your ownership — Agent H covers
+              model.go cache call sites; see Wave 2 Agent H task).
+            - Your two owned files are: internal/cache/paths.go and internal/cache/html_index.go.
+          files: []
+        - id: G
+          task: |-
+            ## Wave 2 / Agent G — Surface catalog parse errors in detectAsync (M8)
+
+            ### Context
+            `internal/unified/sync_all.go:289` silently swallows catalog parse errors with
+            a bare `continue`:
+            ```go
+            parsed, err := catalog.Parse(data)
+            if err != nil {
+            	continue
+            }
+            ```
+            Users get no feedback when a catalog fails to parse during sync detection.
+
+            ### Task
+            In `internal/unified/sync_all.go`, locate the `detectAsync` function. Inside its
+            closure, find this block:
+            ```go
+            			data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+            			if err != nil {
+            				continue
+            			}
+            			parsed, err := catalog.Parse(data)
+            			if err != nil {
+            				continue
+            			}
+            ```
+
+            The GetFileContent error can stay silent (network errors during background polling
+            are expected). But the Parse error should be surfaced. Update the block to:
+            ```go
+            			data, _, err := gh.GetFileContent(owner, shelf.Repo, catalogPath, "")
+            			if err != nil {
+            				continue
+            			}
+            			parsed, err := catalog.Parse(data)
+            			if err != nil {
+            				// Surface catalog parse errors so users know their catalog.yml is malformed
+            				return syncDetectedMsg{err: fmt.Errorf("shelf %q: parse catalog: %w", shelf.Name, err)}
+            			}
+            ```
+
+            Check `syncDetectedMsg` definition in the file — confirm it has an `err` field
+            (or equivalent error field). If not, check how other errors are surfaced in
+            SyncAllModel.Update and match that pattern. Look for the Update handler for
+            syncDetectedMsg to understand how to propagate the error to the user.
+
+            Read internal/unified/sync_all.go fully before editing to understand the
+            message types and error reporting pattern.
+
+            ### Verification gate
+            1. `go build ./internal/unified/...` — must compile cleanly
+            2. `go vet ./internal/unified/...` — no warnings
+            3. `grep -A5 "catalog.Parse(data)" internal/unified/sync_all.go` — the error
+               branch must return an error message, not `continue`
+            4. `go test ./internal/unified/...` — all tests pass
+
+            ### Constraints
+            - Do NOT change the GetFileContent error handling (leave the silent continue).
+            - Do NOT modify any other function in sync_all.go.
+            - Do NOT modify files outside internal/unified/sync_all.go.
+          files: []
+        - id: H
+          task: |-
+            ## Wave 2 / Agent H — Fix cacheMgr.Path("","","","") call sites (L3)
+
+            ### Context
+            After Wave 2 Agent F fixes cache.Manager.Path to include the owner segment
+            (`<baseDir>/<owner>/<repo>/<asset>`), calls with empty strings like
+            `cacheMgr.Path("", "", "", "")` will return `<baseDir>///` instead of `<baseDir>`.
+            These call sites must be updated to use `cacheMgr.BaseDir()`.
+
+            The affected files and lines are:
+            - `internal/app/cache.go:110` — `cacheDir := cacheMgr.Path("", "", "", "")`
+            - `internal/app/cache.go:452` — `cacheMgr.Path("", "", "", "")`
+            - `internal/unified/cache_info.go:95` — `m.cacheDir = cacheMgr.Path("", "", "", "")`
+            - `internal/unified/model.go:1089` — `ctx.CacheDir = cacheMgr.Path("", "", "", "")`
+            - `internal/unified/model.go:1196` — `ctx.CacheDir = cacheMgr.Path("", "", "", "")`
+
+            NOTE: The model.go:1196 call is inside the `BuildContext` function, which Wave 1
+            Agent B is deleting. That line will be gone after Wave 1 merges. But you are
+            working in an isolated worktree and Wave 1 may not be merged yet. Check whether
+            BuildContext still exists in your worktree:
+            - If BuildContext still exists: update the call inside it too.
+            - If it has been deleted (Agent B merged before your worktree was created): skip it.
+
+            The model.go:1089 call is inside `loadHubContextAsync` and must always be updated.
+
+            ### Task
+            Replace each `cacheMgr.Path("", "", "", "")` with `cacheMgr.BaseDir()` in:
+            1. `internal/app/cache.go` — two occurrences
+            2. `internal/unified/cache_info.go` — one occurrence (also fix the stale workaround
+               at lines 95-98 where `filepath.Dir` is called on the result — `BaseDir()` already
+               returns the root, so `filepath.Dir` is not needed):
+               ```go
+               // OLD (workaround for broken Path):
+               m.cacheDir = cacheMgr.Path("", "", "", "")
+               if m.cacheDir != "" {
+                   m.cacheDir = filepath.Dir(m.cacheDir)
+               }
+               // NEW:
+               m.cacheDir = cacheMgr.BaseDir()
+               ```
+            3. `internal/unified/model.go` — `loadHubContextAsync` occurrence at ~line 1089.
+               Similarly, remove any filepath.Dir wrapper around the BaseDir call.
+
+            ### Verification gate
+            1. `go build ./internal/app/... ./internal/unified/...` — must compile cleanly
+            2. `go vet ./internal/app/... ./internal/unified/...` — no warnings
+            3. `grep -rn 'cacheMgr.Path("", "", "", "")' internal/` — must return no matches
+            4. `grep -rn 'BaseDir()' internal/app/cache.go internal/unified/cache_info.go internal/unified/model.go` — must show replacements
+            5. `go test ./internal/app/... ./internal/unified/...` — all tests pass
+
+            ### Constraints
+            - Do NOT modify internal/cache/paths.go — that is owned by Agent F.
+            - Your owned files are: internal/app/cache.go, internal/unified/cache_info.go,
+              and internal/unified/model.go (only the cacheMgr.Path call sites).
+            - Do NOT make other changes to model.go; only replace the Path("","","","") calls.
+          files: []
+    - number: 3
+      agents:
+        - id: I
+          task: |-
+            ## Wave 3 / Agent I — Consolidate duplicate browserDownloader (H3)
+
+            ### Context
+            `internal/app/browse.go` and `internal/unified/browse.go` both define a
+            `browserDownloader` struct with identical logic (Sync, HasBeenModified, Uncache,
+            DownloadWithProgress). The unified copy has a comment saying it was copied.
+            The fix is to remove the duplicate in internal/app/browse.go and have the app
+            package use the unified package's constructor directly.
+
+            ### Analysis
+            The `browserDownloader` in internal/app/browse.go is only instantiated in one place:
+            ```go
+            dl := &browserDownloader{
+            	gh:    gh,
+            	cache: cacheMgr,
+            }
+            result, err := tui.RunListBrowser(allItems, dl)
+            ```
+
+            `unified.NewBrowseModel` in internal/unified/browse.go already creates a
+            `browserDownloader` internally when constructing the browse TUI. The issue is
+            that `internal/app/browse.go` uses the old non-unified `tui.RunListBrowser` path,
+            while `internal/unified/browse.go` provides the unified model path.
+
+            The cleanest consolidation without changing the TUI architecture:
+            1. Delete the `browserDownloader` struct and all its methods from
+               `internal/app/browse.go` (lines 22–171, through `progressReader.Read`).
+            2. Replace the instantiation in `newBrowseCmd` with a call to create a
+               `unified.BrowserDownloader`. Since `unified.browserDownloader` is unexported,
+               expose a constructor or thin exported type in `internal/unified/browse.go`.
+
+            ### Task — internal/unified/browse.go
+            Add an exported constructor that returns a `tui.Downloader`:
+            ```go
+            // NewBrowserDownloader creates a Downloader for use outside the unified package.
+            func NewBrowserDownloader(gh *github.Client, cacheMgr *cache.Manager) tui.Downloader {
+            	return &browserDownloader{gh: gh, cache: cacheMgr}
+            }
+            ```
+
+            ### Task — internal/app/browse.go
+            1. Delete the `browserDownloader` struct and methods (lines 22–76).
+            2. Delete the `progressReader` struct and its `Read` method (lines 151–171).
+            3. In `newBrowseCmd`, replace:
+               ```go
+               dl := &browserDownloader{
+               	gh:    gh,
+               	cache: cacheMgr,
+               }
+               ```
+               with:
+               ```go
+               dl := unified.NewBrowserDownloader(gh, cacheMgr)
+               ```
+            4. Add import `"github.com/blackwell-systems/shelfctl/internal/unified"` if
+               not already present.
+            5. Remove any now-unused imports after deletion (io, os, sync — check).
+
+            ### Verification gate
+            1. `go build ./internal/app/... ./internal/unified/...` — must compile cleanly
+            2. `go vet ./internal/app/... ./internal/unified/...` — no warnings
+            3. `grep -n "type browserDownloader" internal/app/browse.go` — must return no matches
+            4. `grep -n "NewBrowserDownloader" internal/unified/browse.go` — must show definition
+            5. `go test ./internal/app/... ./internal/unified/...` — all tests pass
+
+            ### Constraints
+            - Do NOT delete the `progressReader` in internal/unified/browse.go — it is still
+              needed there for DownloadWithProgress.
+            - Do NOT change internal/unified/browse.go's browserDownloader struct or methods.
+            - Your two owned files are: internal/app/browse.go and internal/unified/browse.go.
+          files: []
+        - id: J
+          task: |-
+            ## Wave 3 / Agent J — Add context.Context to github HTTP calls (M3, partial)
+
+            ### Context
+            All HTTP calls in `internal/github/` use `http.NewRequest` without a context.
+            This means downloads and uploads cannot be cancelled. M3 calls for propagating
+            `context.Context` through these calls.
+
+            This is a pragmatic partial fix: thread context through `doJSON`, `GetFileContent`
+            internals, and `getRawBlob`. CRITICAL CONSTRAINT: `GetFileContent` must keep its
+            existing public signature unchanged. Use a backward-compat wrapper pattern so
+            that all callers in other packages continue to compile without modification.
+
+            ### Task — internal/github/client.go
+            1. In `doJSON`, change signature to accept `ctx context.Context` as first param:
+               ```go
+               func (c *Client) doJSON(ctx context.Context, method, url string, body, out interface{}) error {
+               ```
+            2. Replace `http.NewRequest(method, url, bodyReader)` with:
+               ```go
+               req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+               ```
+            3. All internal callers of `doJSON` — find them with:
+               ```
+               grep -n "c.doJSON\|\.doJSON(" internal/github/
+               ```
+               Update each to pass `context.Background()` as the first argument (preserving
+               existing behavior while enabling future context threading).
+
+            4. Add `"context"` to imports if not already present.
+
+            ### Task — internal/github/contents.go
+            IMPORTANT: Keep `GetFileContent` with its existing public signature. Add a new
+            `GetFileContentCtx` method for context-aware callers, and have the existing
+            `GetFileContent` delegate to it:
+
+            ```go
+            // GetFileContent fetches file content. Existing signature preserved for all callers.
+            func (c *Client) GetFileContent(owner, repo, path, ref string) ([]byte, string, error) {
+            	return c.GetFileContentCtx(context.Background(), owner, repo, path, ref)
+            }
+
+            // GetFileContentCtx is the context-aware variant for callers that hold a context.
+            func (c *Client) GetFileContentCtx(ctx context.Context, owner, repo, path, ref string) ([]byte, string, error) {
+            	// Move the current GetFileContent implementation body here.
+            	// Replace http.NewRequest(http.MethodGet, url, nil) with:
+            	//   req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+            	// Pass ctx to getRawBlob as well.
+            }
+            ```
+
+            Steps:
+            1. Rename the current `GetFileContent` implementation to `GetFileContentCtx` and
+               add `ctx context.Context` as first parameter.
+            2. Replace `http.NewRequest(http.MethodGet, url, nil)` with
+               `http.NewRequestWithContext(ctx, http.MethodGet, url, nil)` inside the new method.
+            3. Update the call to `getRawBlob` inside `GetFileContentCtx` to pass ctx.
+            4. Add a new `GetFileContent` wrapper that calls `GetFileContentCtx(context.Background(), ...)`.
+            5. Update `getRawBlob`:
+               ```go
+               func (c *Client) getRawBlob(ctx context.Context, owner, repo, sha string) ([]byte, error) {
+               ```
+               Replace `http.NewRequest` in getRawBlob with `http.NewRequestWithContext(ctx, ...)`.
+            6. Add `"context"` to imports.
+
+            ### Task — internal/github/assets.go
+            The `DownloadAsset` method constructs its own request directly (not via `do()`).
+            Add context support using the same backward-compat wrapper pattern:
+            1. Rename current `DownloadAsset` to `DownloadAssetCtx` and add `ctx context.Context`:
+               ```go
+               func (c *Client) DownloadAssetCtx(ctx context.Context, owner, repo string, assetID int64) (io.ReadCloser, error) {
+               ```
+            2. Replace `http.NewRequest(http.MethodGet, apiURL, nil)` with:
+               ```go
+               req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+               ```
+            3. Add backward-compat wrapper:
+               ```go
+               func (c *Client) DownloadAsset(owner, repo string, assetID int64) (io.ReadCloser, error) {
+               	return c.DownloadAssetCtx(context.Background(), owner, repo, assetID)
+               }
+               ```
+            4. Do NOT change UploadAsset or DeleteAsset in this wave.
+
+            ### Verification gate
+            1. `go build ./...` — must compile cleanly (wrappers preserve all existing call sites)
+            2. `go vet ./internal/github/...` — no warnings
+            3. `grep -n "http.NewRequestWithContext" internal/github/client.go internal/github/contents.go internal/github/assets.go` — must show at least 3 matches
+            4. `grep -n "func (c \*Client) GetFileContent(" internal/github/contents.go` — must show the wrapper (4-param signature, no ctx)
+            5. `grep -n "func (c \*Client) GetFileContentCtx(" internal/github/contents.go` — must show the ctx-aware method
+            6. `go test ./internal/github/...` — all tests pass
+
+            ### Constraints
+            - CRITICAL: Do NOT change the public `GetFileContent(owner, repo, path, ref string)` signature.
+              All callers in other packages (internal/unified/sync_all.go, internal/app/cache.go,
+              internal/unified/model.go, internal/app/shelve.go) must continue to compile unchanged.
+            - Use backward-compat wrappers for GetFileContent and DownloadAsset.
+            - Do NOT change UploadAsset or DeleteAsset signatures in this wave.
+            - Your three owned source files: internal/github/client.go, internal/github/contents.go,
+              internal/github/assets.go.
+            - Your two verify-only files: internal/app/browse_test.go and
+              internal/app/verify_e2e_test.go. These files contain mock implementations of
+              GetFileContent (fakeGitHubClient and fakeGitHubClientForVerify). Since GetFileContent
+              keeps its existing public signature unchanged, these mocks require NO code changes.
+              After completing your source file edits, run `go test ./internal/app/...` to verify
+              they still compile and pass.
+          files: []
+        - id: K
+          task: |-
+            ## Wave 3 / Agent K — Route migrate/scan and ingest/resolver through github.Client (M6)
+
+            ### Context — M6
+            `internal/migrate/scan.go` builds raw HTTP requests directly with its own
+            `http.Client`, bypassing `internal/github.Client`. It duplicates auth headers
+            and API versioning.
+
+            `internal/ingest/resolver.go` similarly constructs its own http requests
+            instead of using the github client.
+
+            ### Task — internal/migrate/scan.go
+            The `ScanRepo` function currently takes `token, apiBase string` and builds its
+            own HTTP client. Refactor to accept a `*github.Client` instead.
+
+            1. Read the full file before editing.
+            2. Change `ScanRepo` signature:
+               ```go
+               // OLD
+               func ScanRepo(token, apiBase, owner, repo, ref string, exts []string) ([]FileEntry, error)
+               // NEW
+               func ScanRepo(gh *github.Client, owner, repo, ref string, exts []string) ([]FileEntry, error)
+               ```
+            3. In `ScanRepo`, remove the manual `client := &http.Client{...}` setup and
+               `apiBase` defaulting.
+            4. Route `scanDir` to use `gh.GetFileContent` or build the URL from the client's
+               exposed API base. Since `github.Client` does not expose `apiBase` publicly,
+               the simplest fix is: keep the internal `scanDir` using a plain `http.Client`
+               but pass `token` and `apiBase` extracted from a new helper, OR change
+               `scanDir` to accept a `*github.Client` and call `gh.do(req)` by making
+               the request through `gh`. Since `do` is unexported, the cleanest approach
+               is to add a package-level function in `internal/github/` or to add a
+               `ScanDir` method on Client. For this wave, the minimal-impact path is:
+               - Add `func (c *Client) APIBase() string { return c.apiBase }` to client.go
+                 and `func (c *Client) Token() string { return c.token }` to allow scanDir
+                 to extract what it needs without coupling further.
+               - Update ScanRepo to extract these and pass to scanDir unchanged.
+            5. Update all callers of `ScanRepo` — find with:
+               ```
+               grep -rn "migrate.ScanRepo\|scan.ScanRepo" . --include="*.go"
+               ```
+               Update each to pass a `*github.Client` instead of `token, apiBase`.
+
+            ### Task — internal/ingest/resolver.go
+            The function at ~line 96 builds its own request. Examine the function signature
+            and context — it likely takes `token, apiBase` as string params. Route through
+            the github client:
+            1. Read the full file to understand the function context.
+            2. If the enclosing function receives a `*github.Client`, use `gh.GetFileContent`
+               instead of building raw requests.
+            3. If it only has `token, apiBase string`, add a `*github.Client` parameter and
+               update callers.
+            4. Remove the `"net/http"` import if it becomes unused.
+
+            ### Owned test files — verify and update as needed
+            You own the following test files. After changing signatures, ensure these tests
+            still compile and pass. Update test helper setup if the function signatures changed
+            (e.g., ScanRepo now takes *github.Client instead of token, apiBase strings):
+            - `internal/migrate/scan_test.go` — update ScanRepo call sites to use *github.Client
+            - `internal/github/client_test.go` — verify client tests still pass; update if
+              APIBase() or Token() accessors were added
+            - `internal/github/contents_test.go` — verify GetFileContent tests compile; note
+              that Agent J (same wave) adds GetFileContentCtx wrapper — the existing
+              GetFileContent signature is UNCHANGED, so tests calling GetFileContent continue
+              to compile without modification
+            - `internal/github/releases_test.go` — verify releases tests still pass
+            - `internal/github/gitops_test.go` — verify gitops tests still pass
+            - `test/e2e/edge_cases_test.go` — imports internal/github; verify it still compiles
+              after any github package changes in this wave
+            - `test/mockserver/server_test.go` — uses net/http; verify it still compiles and
+              passes after any github package changes in this wave
+
+            ### Verification gate
+            1. `go build ./...` — must compile cleanly
+            2. `go vet ./internal/migrate/... ./internal/ingest/...` — no warnings
+            3. `grep -n "http.NewRequest" internal/migrate/scan.go` — must return no matches
+            4. `grep -n "http.NewRequest" internal/ingest/resolver.go` — must return no matches
+            5. `go test ./internal/migrate/... ./internal/ingest/... ./internal/github/...` — all tests pass
+            6. `go test ./test/...` — e2e and mockserver tests pass
+
+            ### Constraints
+            - Do NOT change the FileEntry or ScanRepo return type.
+            - Your owned source files: internal/migrate/scan.go and internal/ingest/resolver.go.
+            - Your owned test files: internal/migrate/scan_test.go, internal/github/client_test.go,
+              internal/github/contents_test.go, internal/github/gitops_test.go,
+              internal/github/releases_test.go, test/e2e/edge_cases_test.go,
+              test/mockserver/server_test.go.
+            - If callers of ScanRepo exist outside those files, you must update them
+              (they are in your scope for this fix).
+            - Do NOT modify files outside your ownership list.
+          files: []
+        - id: L
+          task: |-
+            ## Wave 3 / Agent L — Wire unified views into legacy runHub routing (M4)
+
+            ### Context
+            `internal/app/hub_runner.go:46` calls `runHub()` (the legacy implementation at
+            line 261) as a fallback when the user is not fully configured:
+            ```go
+            if !hasToken || !hasShelves {
+            	// Same setup flow as runHub()
+            	// For now, fall back to legacy runHub() for setup
+            	return runHub()
+            }
+            ```
+            The "For now" comment indicates this was always intended to be temporary. The
+            unified TUI has its own setup flow (PromptAndCreateConfig), so this fallback
+            is now only needed for the case where token is missing or no shelves exist after
+            setup. Evaluate what runHub() provides in that state vs. what the unified TUI
+            can show.
+
+            ### Task
+            1. Read `runHub()` fully (internal/app/hub_runner.go:261 to end) to understand
+               what it does when `!hasToken || !hasShelves`.
+            2. Read `runUnifiedTUI()` fully to understand the current fallback flow.
+            3. The goal: replace the `return runHub()` fallback with inline logic or a call
+               to the unified TUI's incomplete-config display, so `runHub()` is no longer
+               called from `runUnifiedTUI`.
+
+            The unified TUI's incomplete-config path (after the `return runHub()` is reached)
+            should:
+            - If no token: print a message directing the user to set their GitHub token,
+              then return nil (same as what runHub does in that state).
+            - If no shelves: print a message directing the user to run `shelfctl init`,
+              then return nil.
+
+            Replace the `return runHub()` call with inline messaging:
+            ```go
+            if !hasToken {
+            	fmt.Println(color.YellowString("GitHub token not configured."))
+            	fmt.Println("Set GITHUB_TOKEN or add token to your config file.")
+            	fmt.Println("Run 'shelfctl init' to create a config.")
+            	return nil
+            }
+            // hasShelves == false at this point
+            fmt.Println(color.YellowString("No shelves configured."))
+            fmt.Println()
+            fmt.Println("Run this to create your first shelf:")
+            fmt.Printf("  %s\n", color.CyanString("shelfctl init --repo shelf-books --name books --create-repo --create-release"))
+            return nil
+            ```
+
+            If `runHub()` is no longer called from anywhere after this change, it can be
+            deleted or left in place with a `// DEPRECATED: no longer called` comment.
+            Check all call sites before deleting:
+            ```
+            grep -rn "runHub()" internal/ --include="*.go"
+            ```
+
+            ### Verification gate
+            1. `go build ./internal/app/...` — must compile cleanly
+            2. `go vet ./internal/app/...` — no warnings
+            3. `grep -n "return runHub()" internal/app/hub_runner.go` — must return no matches
+            4. `go test ./internal/app/...` — all tests pass
+
+            ### Constraints
+            - Do NOT delete runHub() unless grep confirms it has zero callers.
+            - Do NOT modify the unified TUI model or views.
+            - Only modify internal/app/hub_runner.go.
+          files: []
+    - number: 4
+      agents:
+        - id: M
+          task: |-
+            ## Wave 4 / Agent M — Add tests for internal/unified (M7)
+
+            ### Context
+            `internal/unified` has zero test files. The four functions identified as needing
+            coverage are:
+            - `SyncAllModel` (sync_all.go) — state transitions and detectAsync behavior
+            - `loadHubContextAsync` (model.go) — async context loading
+            - `refreshModifiedStatusCmd` (model.go) — modified book detection
+            - `PerformPendingAction` (model.go) — action dispatch after TUI exit
+
+            ### Task — create internal/unified/sync_all_test.go
+            Write table-driven tests for `SyncAllModel`. Focus on:
+            1. `TestSyncAllModel_NewSyncAllModel` — verify initial state is correct (state
+               is detect phase, no books, etc.)
+            2. `TestSyncAllModel_DetectAsync_ParseError` — when catalog.Parse fails (simulate
+               with malformed catalog data), the result should surface an error in the
+               syncDetectedMsg (this is the M8 fix from Wave 2 Agent G).
+            3. `TestSyncAllModel_Update_Confirm` — user pressing confirm transitions to sync
+               phase.
+
+            Use a fake github.Client (implement a small interface or use the existing pattern
+            from internal/app/browse_test.go for inspiration). You may need to define a
+            testable interface or stub.
+
+            ### Task — create internal/unified/model_test.go
+            Write tests for PerformPendingAction and refreshModifiedStatusCmd:
+            1. `TestPerformPendingAction_OpenBook` — ActionOpen with a valid BookItem
+               triggers handleOpenBook (mock the github calls to avoid real network).
+            2. `TestPerformPendingAction_UnknownAction` — unknown action returns nil.
+            3. `TestRefreshModifiedStatusCmd_NoShelves` — empty config produces zero count.
+            4. `TestRefreshModifiedStatusCmd_ModifiedBook` — a book whose SHA differs from
+               catalog is detected as modified.
+
+            Use table-driven tests where applicable. Use `t.TempDir()` for cache directories.
+            Look at existing tests in `internal/cache/cache_test.go` and
+            `internal/app/browse_test.go` for test patterns used in this project.
+
+            ### Verification gate
+            1. `go build ./internal/unified/...` — must compile cleanly
+            2. `go vet ./internal/unified/...` — no warnings
+            3. `go test -v ./internal/unified/...` — all new tests pass
+            4. `grep -c "^func Test" internal/unified/model_test.go` — at least 4
+            5. `grep -c "^func Test" internal/unified/sync_all_test.go` — at least 3
+
+            ### Constraints
+            - Do NOT modify any existing source files in internal/unified/.
+            - Do NOT add integration tests that require real GitHub credentials.
+            - Your two new files: internal/unified/model_test.go and
+              internal/unified/sync_all_test.go.
+          files: []
+        - id: "N"
+          task: |-
+            ## Wave 4 / Agent N — Update cache path tests to cover owner-scoped layout (M1 regression)
+
+            ### Context
+            Wave 2 Agent F changed `cache.Manager.Path` to include the owner segment:
+            `<baseDir>/<owner>/<repo>/<asset>`. The existing test in
+            `internal/cache/paths_test.go` (if it exists; check with ls) or `cache_test.go`
+            may test the old path layout and will now be incorrect. Update or add tests
+            to cover the new layout and prevent future regressions.
+
+            First check what tests exist:
+            ```
+            ls internal/cache/*_test.go
+            ```
+
+            ### Task — internal/cache/paths_test.go
+            If `paths_test.go` does not exist, create it. If it exists, update it.
+
+            Write tests that verify:
+            1. `TestPath_IncludesOwner` — `m.Path("alice", "myrepo", "book1", "file.pdf")`
+               returns a path containing `.../alice/myrepo/file.pdf` (owner segment present).
+            2. `TestPath_DifferentOwnersSeparated` — two shelves with the same repo name but
+               different owners produce different paths.
+            3. `TestEnsureDir_CreatesOwnerSubdir` — `EnsureDir("alice", "myrepo", "book1")`
+               creates `<baseDir>/alice/myrepo/` directory.
+            4. `TestBaseDir_ReturnsCacheRoot` — `BaseDir()` still returns the root dir
+               (not a subpath).
+
+            Use `t.TempDir()` for temporary directories.
+
+            ### Verification gate
+            1. `go build ./internal/cache/...` — must compile cleanly
+            2. `go vet ./internal/cache/...` — no warnings
+            3. `go test -v ./internal/cache/... -run TestPath` — new tests pass
+            4. `go test ./internal/cache/...` — all tests pass (including pre-existing)
+
+            ### Constraints
+            - Do NOT modify internal/cache/paths.go — it is owned by Wave 2 Agent F.
+            - Your one owned file: internal/cache/paths_test.go.
+          files: []
+quality_gates:
+    level: standard
+    gates:
+        - type: build
+          command: GOWORK=off go build ./...
+          required: true
+        - type: lint
+          command: go vet ./...
+          required: true
+        - type: test
+          command: go test ./...
+          required: true
+        - type: format
+          command: gofmt -l .
+          required: false
+pre_mortem:
+    overall_risk: medium
+    rows:
+        - scenario: |-
+            Agent F's cache path change (owner segment) is a breaking change to the on-disk
+            layout. Existing users' caches at the old path (<baseDir>/<repo>/<asset>) will no
+            longer be found, causing re-downloads on first use after upgrade.
+          likelihood: high
+          impact: medium
+          mitigation: |-
+            Accept as a one-time migration cost — the old layout was buggy (owner collision).
+            Document in CHANGELOG. Do NOT add migration code in this IMPL; it adds scope.
+            The fix is correct; the disruption is one-time.
+        - scenario: |-
+            Agent J adds context support to GetFileContent internals. If the backward-compat
+            wrapper (GetFileContent delegating to GetFileContentCtx) is not implemented
+            correctly, or if Agent J accidentally changes the public GetFileContent signature,
+            all callers in Wave 1/2 files will fail to compile.
+          likelihood: low
+          impact: high
+          mitigation: |-
+            Agent J task has an explicit CRITICAL constraint: do NOT change the public
+            GetFileContent(owner, repo, path, ref string) signature. The verification gate
+            includes `grep` to confirm the wrapper (4-param, no ctx) still exists, and
+            `go build ./...` catches any cross-package compile errors immediately.
+        - scenario: |-
+            Agent K refactors migrate/scan.go's ScanRepo signature. If callers in other files
+            (e.g., internal/migrate/migrate.go) are missed, compilation fails.
+          likelihood: medium
+          impact: medium
+          mitigation: |-
+            Agent K must grep ALL callers before and after. The verification gate includes
+            `go build ./...` which catches cross-package compile errors.
+        - scenario: |-
+            Agent I deletes browserDownloader from app/browse.go but misses the progressReader
+            type, leaving the file referencing a deleted type.
+          likelihood: medium
+          impact: low
+          mitigation: |-
+            Agent I task explicitly calls out progressReader deletion. The build gate
+            `go build ./internal/app/...` catches this immediately.
+        - scenario: |-
+            Agent H updates cacheMgr.Path("","","","") in model.go but BuildContext (being
+            deleted by Wave 1 Agent B) is still present in Agent H's worktree. Agent H
+            must handle this conditionally per the task instructions.
+          likelihood: medium
+          impact: low
+          mitigation: |-
+            Agent H task explicitly addresses this: "if BuildContext still exists in your
+            worktree, update it; if deleted, skip." Build gate catches missed cases.
+        - scenario: |-
+            Wave 4 tests for internal/unified require mocking github.Client. If the mock
+            doesn't implement the full interface, compilation fails.
+          likelihood: medium
+          impact: low
+          mitigation: |-
+            Agent M task points to existing fakeGitHubClient in browse_test.go as a pattern.
+            Use a minimal interface embedding only the needed methods.
+known_issues:
+    - title: False-positive cascade errors from finalize-scout
+      description: |
+        sawtools check-test-cascade searches agent task prose as literal symbol names,
+        causing tokens like "}", "context", and "net/http" to match test file lines.
+        These are tool artifacts. The real cascade (ScanRepo signature change) has been
+        addressed by adding scan_test.go, migrate.go, and import_repo_ops.go to Agent K
+        ownership.
+    - title: E35 gap for BookItem addressed
+      description: |
+        Pre-wave validation flagged a gap for BookItem in book_item.go (Agent C owns that
+        file). Agent C is only deleting the private helper formatBytes; BookItem struct and
+        its callers are unchanged. The test files book_picker_test.go and list_browser_test.go
+        have been added to Agent C's ownership so the agent can verify the tests still pass
+        after the formatBytes removal.
+    - title: Wave ordering fix — GetFileContent public signature preserved
+      description: |
+        Pre-wave validation reported that Agent J (Wave 3) was changing GetFileContent's
+        signature (adding context.Context) while callers in Wave 1 files (internal/app/shelve.go,
+        internal/unified/model.go) and Wave 2 files (internal/unified/sync_all.go,
+        internal/app/cache.go) use the old signature. Fix: Agent J now uses a
+        backward-compat wrapper approach. GetFileContent keeps its existing 4-param signature
+        unchanged; the new GetFileContentCtx method carries the context. All existing callers
+        in Wave 1/2 files continue to compile without modification.
+    - title: Test cascade gaps resolved
+      description: |
+        Pre-wave validation identified two test cascade gaps. Both resolved:
+        - test/mockserver/server_test.go added to Agent K (Wave 3) ownership.
+        - internal/app/migrate_test.go added to Agent A (Wave 1) ownership.
+    - title: 'False positive: catalogPath wave_structure symbol warning'
+      description: |
+        The wave_structure check flags `catalogPath` as a potential cross-agent dependency
+        because the name appears in both internal/app/shelve.go (Agent A) and
+        internal/unified/model.go (Agent B). This is a false positive.
+        In shelve.go, `catalogPath` is a local parameter of the `updateCatalog` function
+        being deleted by Agent A. In model.go, `catalogPath` is an unrelated local variable
+        inside a different function. The two symbols share only a name; there is no actual
+        dependency, import relationship, or shared type between them. No action required.
+critic_report:
+    verdict: ISSUES
+    agent_reviews:
+        A:
+            agent_id: A
+            verdict: PASS
+        B:
+            agent_id: B
+            verdict: PASS
+        C:
+            agent_id: C
+            verdict: PASS
+        D:
+            agent_id: D
+            verdict: PASS
+        E:
+            agent_id: E
+            verdict: PASS
+        F:
+            agent_id: F
+            verdict: PASS
+        G:
+            agent_id: G
+            verdict: ISSUES
+            issues:
+                - check: symbol_accuracy
+                  severity: error
+                  description: 'The task code sample instructs Agent G to return syncDetectedMsg{err: fmt.Errorf("shelf %q: parse catalog: %w", shelf.Name, err)} but syncDetectedMsg in internal/unified/sync_all.go has no err field — the struct is defined as struct{ books []syncEntry }. This code will not compile. The brief contains fallback guidance ("If not, check how other errors are surfaced") but the code snippet is the authoritative guidance the agent will use first. The agent must add an err field to syncDetectedMsg and handle it in the Update case, or use a different message type (e.g. a new syncDetectErrorMsg). The Update handler for syncDetectedMsg at line 192 also needs updating to surface the error if an err field is added.'
+                  file: internal/unified/sync_all.go
+                  symbol: syncDetectedMsg
+        H:
+            agent_id: H
+            verdict: ISSUES
+            issues:
+                - check: file_existence
+                  severity: error
+                  description: Agent H task brief instructs modifying internal/unified/model.go at line 1089 (cacheMgr.Path("","","","") call inside loadHubContextAsync), but internal/unified/model.go is NOT in Agent H file_ownership — H owns only internal/app/cache.go and internal/unified/cache_info.go. Agent B (Wave 1) owns model.go. The cacheMgr.Path call at model.go:1089 will remain unfixed unless model.go is added to H ownership or the fix is reassigned.
+                  file: internal/unified/model.go
+                  symbol: loadHubContextAsync
+        I:
+            agent_id: I
+            verdict: PASS
+        J:
+            agent_id: J
+            verdict: PASS
+        K:
+            agent_id: K
+            verdict: ISSUES
+            issues:
+                - check: caller_exhaustiveness
+                  severity: error
+                  description: 'Agent K task instructs potentially changing ingest.Resolve signature (internal/ingest/resolver.go) by adding a *github.Client parameter. Two callers of ingest.Resolve are NOT in K file_ownership: internal/app/shelve.go (line 182) and internal/unified/shelve_ops.go (line 57). If the Resolve signature changes, those files will fail to compile and are not assigned to any agent. internal/ingest/ingest_test.go (which also calls ingest.Resolve) is likewise not in K ownership. These missed callers must be added to K ownership or the signature-change approach for resolver.go must be scoped to not change Resolve signature.'
+                  file: internal/ingest/resolver.go
+                  symbol: Resolve
+                - check: complexity_balance
+                  severity: warning
+                  description: Agent K owns 11 files — exceeds 8-file threshold; consider splitting
+        L:
+            agent_id: L
+            verdict: PASS
+        M:
+            agent_id: M
+            verdict: PASS
+        "N":
+            agent_id: "N"
+            verdict: PASS
+    summary: 'Four errors found across agents G, H, and K. Agent G''s task code snippet references syncDetectedMsg{err: ...} but syncDetectedMsg has no err field — the struct only has books []syncEntry. The brief''s fallback guidance says to check the struct first, but the code sample is incorrect and will confuse the agent. Agent H''s task requires modifying internal/unified/model.go (line 1089) but that file is not in H''s file_ownership list — H owns only internal/app/cache.go and internal/unified/cache_info.go. Agent K''s task instructs it to potentially change ingest.Resolve''s signature and update callers, but internal/app/shelve.go and internal/unified/shelve_ops.go (both call ingest.Resolve) are not in K''s file_ownership and would break if the signature changes. Agent K also owns 11 files, exceeding the 8-file advisory threshold. All other agents (A, B, C, D, E, F, I, J, L, M, N) have accurate briefs with verified symbols, correct file existence, and sound patterns.'
+    reviewed_at: "2026-04-18T16:00:45Z"
+    issue_count: 4
+state: REVIEWED

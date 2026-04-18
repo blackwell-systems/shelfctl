@@ -74,10 +74,10 @@ func TestPerformPendingAction_OpenBook_CachedNoNetwork(t *testing.T) {
 	cacheMgr := cache.New(t.TempDir())
 
 	const (
-		owner = "testowner"
-		repo  = "testrepo"
+		owner  = "testowner"
+		repo   = "testrepo"
 		bookID = "sicp"
-		asset = "sicp.pdf"
+		asset  = "sicp.pdf"
 	)
 
 	// Pre-populate the cache so Cached=true skips GitHub calls.

@@ -87,7 +87,7 @@ func TestSyncAllModel_DetectAsync_ParseError(t *testing.T) {
 	_, ghClient := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"name":"catalog.yml","sha":"deadbeef","size":%d,"encoding":"base64","content":%q}`,
+		_, _ = fmt.Fprintf(w, `{"name":"catalog.yml","sha":"deadbeef","size":%d,"encoding":"base64","content":%q}`,
 			len(malformedYAML), encoded)
 	})
 

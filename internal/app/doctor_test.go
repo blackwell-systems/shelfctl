@@ -146,7 +146,7 @@ func TestCheckAPIAndScopes_Unauthorized(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprint(w, `{"message":"Bad credentials"}`)
+		_, _ = fmt.Fprint(w, `{"message":"Bad credentials"}`)
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -180,7 +180,7 @@ func TestCheckShelf_NotFound(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprint(w, `{"message":"Not Found"}`)
+		_, _ = fmt.Fprint(w, `{"message":"Not Found"}`)
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)

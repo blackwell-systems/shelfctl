@@ -50,8 +50,8 @@ Exit code 0 if all checks pass or warn; non-zero if any check fails.`,
 // runDoctor executes all health checks sequentially and writes formatted output to w.
 // Returns (allOK bool, err error). allOK is false if any check has Status "fail".
 func runDoctor(w io.Writer) (bool, error) {
-	fmt.Fprintln(w, "shelfctl doctor")
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "shelfctl doctor")
+	_, _ = fmt.Fprintln(w)
 
 	var results []CheckResult
 
@@ -132,21 +132,22 @@ func runDoctor(w io.Writer) (bool, error) {
 	warnCount := 0
 	for _, r := range results {
 		printCheckResult(w, r)
-		if r.Status == "fail" {
+		switch r.Status {
+		case "fail":
 			failCount++
-		} else if r.Status == "warn" {
+		case "warn":
 			warnCount++
 		}
 	}
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 	if failCount > 0 {
-		fmt.Fprintf(w, "%s\n", color.RedString("Doctor found %d failure(s). Fix issues above and re-run.", failCount))
+		_, _ = fmt.Fprintf(w, "%s\n", color.RedString("Doctor found %d failure(s). Fix issues above and re-run.", failCount))
 		return false, nil
 	}
 	if warnCount > 0 {
-		fmt.Fprintf(w, "%s\n", color.YellowString("All checks passed (%d warning(s)).", warnCount))
+		_, _ = fmt.Fprintf(w, "%s\n", color.YellowString("All checks passed (%d warning(s)).", warnCount))
 	} else {
-		fmt.Fprintf(w, "%s\n", color.GreenString("All checks passed."))
+		_, _ = fmt.Fprintf(w, "%s\n", color.GreenString("All checks passed."))
 	}
 	return true, nil
 }

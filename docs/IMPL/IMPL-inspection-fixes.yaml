@@ -505,7 +505,7 @@ waves:
             - Do NOT modify any function other than `AppendToShelfREADME`.
             - Do NOT modify files outside internal/operations/readme.go.
           files: []
-      base_commit: 916ab2908a07cc72402a0f4e8f6550933153c8bc
+      base_commit: 006a4fb8b2011184ec836e9a2127ee76012c9c37
     - number: 2
       agents:
         - id: E
@@ -1210,6 +1210,40 @@ quality_gates:
         - type: format
           command: gofmt -l .
           required: false
+completion_reports:
+    A:
+        status: complete
+        branch: saw/inspection-fixes/wave1-agent-A
+        commit: 4c2b43c
+        files_changed:
+            - internal/app/shelve.go
+        verification: PASS
+        notes: Deleted dead symbol updateCatalog (lines 570-597). Build, vet, and all tests pass. No unused imports introduced.
+    B:
+        status: complete
+        branch: saw/inspection-fixes/wave1-agent-B
+        commit: f5dc599
+        files_changed:
+            - internal/unified/model.go
+        verification: PASS
+        notes: Deleted dead BuildContext export (lines 1100-1203). Replaced cacheMgr.Path("","","","") with cacheMgr.BaseDir() in loadHubContextAsync. Removed orphaned path/filepath import. Build, vet, and tests all pass.
+    C:
+        status: complete
+        branch: saw/inspection-fixes/wave1-agent-C
+        commit: a12c6c1
+        files_changed:
+            - internal/tui/book_item.go
+            - internal/unified/hub.go
+        verification: PASS
+        notes: 'Removed formatBytes from book_item.go and hub.go. Added util import and switched hub.go call site to util.HumanBytes. Two out-of-scope callers remain that Integration must fix: internal/tui/browser_render.go:99 and internal/tui/hub.go:475 still call formatBytes. Both must be updated to util.HumanBytes with util import added.'
+    D:
+        status: complete
+        branch: saw/inspection-fixes/wave1-agent-D
+        commit: 5fbc521
+        files_changed:
+            - internal/operations/readme.go
+        verification: PASS
+        notes: Removed dead foundNextSection boolean (declaration, conditional wrapper, unreachable break). Build, vet, and tests all pass.
 pre_mortem:
     overall_risk: medium
     rows:

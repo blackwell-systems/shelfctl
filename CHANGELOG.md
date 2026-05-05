@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Panic in shelve TUI when upload fails:** `renderUploadProgress` crashed with index out of range when a single-file shelve failed (zero successes). The phase was not reset before navigating away, causing `View()` to access `selectedFiles` past its bounds.
 - **Cache not found after upgrade to v0.4.9:** The owner-scoped cache layout change (`<repo>/<asset>` to `<owner>/<repo>/<asset>`) had no migration for existing caches. On startup, shelfctl now auto-migrates old 2-level directories under the correct owner prefix. Idempotent and skips if already migrated.
+- **Silent shelve failures now shown:** When file ingestion or upload failed during `shelve`, the error was silently swallowed and the user was returned to the hub with no feedback. Errors are now displayed on screen with the failure reason.
 
 ## [0.4.9] - 2026-04-18
 

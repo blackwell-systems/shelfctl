@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Panic in shelve TUI when upload fails:** `renderUploadProgress` crashed with index out of range when a single-file shelve failed (zero successes). The phase was not reset before navigating away, causing `View()` to access `selectedFiles` past its bounds.
+
 ## [0.4.9] - 2026-04-18
 
 ### Added

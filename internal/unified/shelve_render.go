@@ -32,6 +32,9 @@ func (m ShelveModel) View() string {
 		return m.renderMessage("Preparing...", fmt.Sprintf("Loading catalog and release for shelf %q", m.shelfName))
 
 	case shelveIngesting:
+		if m.fileIndex >= len(m.selectedFiles) {
+			return m.renderMessage("Ingesting file", "Processing...")
+		}
 		filename := filepath.Base(m.selectedFiles[m.fileIndex])
 		if len(m.selectedFiles) > 1 {
 			return m.renderMessage(
@@ -179,6 +182,11 @@ func (m ShelveModel) renderUploadProgress() string {
 	style := lipgloss.NewStyle().Padding(2, 4)
 
 	var b strings.Builder
+
+	// Guard: fileIndex may be past end during navigation transition
+	if m.fileIndex >= len(m.selectedFiles) {
+		return style.Render(tui.StyleBorder.Render("  Processing complete..."))
+	}
 
 	// Header
 	filename := filepath.Base(m.selectedFiles[m.fileIndex])

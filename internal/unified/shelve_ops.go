@@ -274,9 +274,10 @@ func (m ShelveModel) advanceToNextFileOrCommit() (ShelveModel, tea.Cmd) {
 		return m, m.ingestCurrentFile()
 	}
 
-	// All files processed
+	// All files processed — clear uploading phase before any return so View()
+	// doesn't try to access selectedFiles[fileIndex] out of bounds.
 	if m.successCount == 0 {
-		// Nothing to commit
+		m.phase = shelveCommitting
 		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
 	}
 

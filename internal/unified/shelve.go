@@ -136,6 +136,7 @@ type ShelveModel struct {
 	release       *github.Release
 	successCount  int
 	failCount     int
+	failErrors    []string
 
 	// General
 	width     int
@@ -361,6 +362,7 @@ func (m ShelveModel) Update(msg tea.Msg) (ShelveModel, tea.Cmd) {
 	case shelveIngestCompleteMsg:
 		if msg.err != nil {
 			m.failCount++
+			m.failErrors = append(m.failErrors, msg.err.Error())
 			return m.advanceToNextFileOrCommit()
 		}
 		m.ingested = &shelveIngestedFile{

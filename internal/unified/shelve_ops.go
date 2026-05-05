@@ -250,6 +250,7 @@ func (m ShelveModel) handleProcessingMsg(msg shelveProcessingMsg) (ShelveModel, 
 
 		if msg.err != nil {
 			m.failCount++
+			m.failErrors = append(m.failErrors, msg.err.Error())
 		} else if msg.book != nil {
 			m.newBooks = append(m.newBooks, *msg.book)
 			m.existingBooks = catalog.Append(m.existingBooks, *msg.book)
@@ -274,11 +275,16 @@ func (m ShelveModel) advanceToNextFileOrCommit() (ShelveModel, tea.Cmd) {
 		return m, m.ingestCurrentFile()
 	}
 
-	// All files processed — clear uploading phase before any return so View()
-	// doesn't try to access selectedFiles[fileIndex] out of bounds.
+	// All files processed — if nothing succeeded, show the error(s) to the user
+	// instead of silently returning to hub.
 	if m.successCount == 0 {
-		m.phase = shelveCommitting
-		return m, func() tea.Msg { return NavigateMsg{Target: "hub"} }
+		if len(m.failErrors) > 0 {
+			m.err = fmt.Errorf("%s", strings.Join(m.failErrors, "; "))
+		} else {
+			m.err = fmt.Errorf("no files were added")
+		}
+		m.phase = shelveShelfPicking // triggers the error display path in View()
+		return m, nil
 	}
 
 	// Commit

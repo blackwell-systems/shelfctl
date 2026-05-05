@@ -102,6 +102,7 @@ func init() {
 			if cfg != nil && cfg.GitHub.Token != "" {
 				gh = ghclient.New(cfg.GitHub.Token, cfg.GitHub.APIBase)
 				cacheMgr = cache.New(cfg.Defaults.CacheDir)
+				migrateCacheLayout(cacheMgr, cfg)
 			}
 			return nil
 		}
@@ -119,6 +120,7 @@ func init() {
 
 		gh = ghclient.New(cfg.GitHub.Token, cfg.GitHub.APIBase)
 		cacheMgr = cache.New(cfg.Defaults.CacheDir)
+		migrateCacheLayout(cacheMgr, cfg)
 		return nil
 	}
 
@@ -230,4 +232,18 @@ func fail(format string, a ...interface{}) {
 // header prints a cyan section heading.
 func header(format string, a ...interface{}) {
 	fmt.Println(color.CyanString(fmt.Sprintf(format, a...)))
+}
+
+// migrateCacheLayout moves old 2-level cache entries (<repo>/<asset>) to the
+// new 3-level owner-scoped layout (<owner>/<repo>/<asset>). Idempotent.
+func migrateCacheLayout(cacheMgr *cache.Manager, cfg *config.Config) {
+	var entries []cache.ShelfMigrationEntry
+	for _, shelf := range cfg.Shelves {
+		owner := shelf.EffectiveOwner(cfg.GitHub.Owner)
+		entries = append(entries, cache.ShelfMigrationEntry{
+			Owner: owner,
+			Repo:  shelf.Repo,
+		})
+	}
+	cacheMgr.MigrateOwnerLayout(entries)
 }

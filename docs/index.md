@@ -14,6 +14,7 @@ Zero-infrastructure document library using GitHub repos and releases as storage.
 
 - **[Contributing Guide](development/contributing.md)** - Development setup and contribution guidelines
 - **[Changelog](../CHANGELOG.md)** - Release history and version notes
+- **[Roadmap](../ROADMAP.md)** - Planned features and future direction
 
 ## Quick Links
 

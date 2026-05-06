@@ -425,9 +425,9 @@ func (m Model) collectBooks() []tui.BookItem {
 			cached := m.cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
 
 			// Download catalog cover if specified and not already cached
-			if b.Cover != "" && !m.cacheMgr.HasCatalogCover(shelf.Repo, b.ID) {
+			if b.Cover != "" && !m.cacheMgr.HasCatalogCover(owner, shelf.Repo, b.ID) {
 				if coverData, _, err := m.gh.GetFileContent(owner, shelf.Repo, b.Cover, ""); err == nil {
-					_ = m.cacheMgr.StoreCatalogCover(shelf.Repo, b.ID, strings.NewReader(string(coverData)))
+					_ = m.cacheMgr.StoreCatalogCover(owner, shelf.Repo, b.ID, strings.NewReader(string(coverData)))
 				}
 			}
 
@@ -466,7 +466,7 @@ func (m Model) collectIndexBooks() []cache.IndexBook {
 			if isCached {
 				filePath = m.cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
 			}
-			coverPath := m.cacheMgr.GetCoverPath(shelf.Repo, b.ID)
+			coverPath := m.cacheMgr.GetCoverPath(owner, shelf.Repo, b.ID)
 			result = append(result, cache.IndexBook{
 				Book:      b,
 				ShelfName: shelf.Name,

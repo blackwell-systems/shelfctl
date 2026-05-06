@@ -16,14 +16,14 @@ func IsPopplerInstalled() bool {
 // ExtractCover extracts the first page of a PDF as a JPEG thumbnail.
 // Returns the path to the generated cover image, or empty string on failure.
 // Only one cover exists per book - overwrites if already present.
-func (m *Manager) ExtractCover(repo, bookID, pdfPath string) string {
+func (m *Manager) ExtractCover(owner, repo, bookID, pdfPath string) string {
 	// Check if pdftoppm is available
 	if !IsPopplerInstalled() {
 		return "" // Not installed
 	}
 
 	// Ensure .covers directory exists
-	coversDir := filepath.Join(m.baseDir, repo, ".covers")
+	coversDir := filepath.Join(m.baseDir, owner, repo, ".covers")
 	if err := os.MkdirAll(coversDir, 0750); err != nil {
 		return ""
 	}
@@ -98,19 +98,19 @@ func GetPopplerInstallHint() string {
 }
 
 // CoverPath returns the path where a cover image would be stored.
-func (m *Manager) CoverPath(repo, bookID string) string {
-	return filepath.Join(m.baseDir, repo, ".covers", bookID+".jpg")
+func (m *Manager) CoverPath(owner, repo, bookID string) string {
+	return filepath.Join(m.baseDir, owner, repo, ".covers", bookID+".jpg")
 }
 
 // HasCover checks if a cover image exists for the given book.
-func (m *Manager) HasCover(repo, bookID string) bool {
-	_, err := os.Stat(m.CoverPath(repo, bookID))
+func (m *Manager) HasCover(owner, repo, bookID string) bool {
+	_, err := os.Stat(m.CoverPath(owner, repo, bookID))
 	return err == nil
 }
 
 // RemoveCover deletes the cover image for a book if it exists.
-func (m *Manager) RemoveCover(repo, bookID string) error {
-	path := m.CoverPath(repo, bookID)
+func (m *Manager) RemoveCover(owner, repo, bookID string) error {
+	path := m.CoverPath(owner, repo, bookID)
 	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
 		return err

@@ -106,7 +106,7 @@ For non-interactive (text) output, use --no-interactive flag.`,
 						for _, b := range matched {
 							cached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
 
-							if b.Cover != "" && !cacheMgr.HasCatalogCover(shelf.Repo, b.ID) {
+							if b.Cover != "" && !cacheMgr.HasCatalogCover(owner, shelf.Repo, b.ID) {
 								sr.coverJobs = append(sr.coverJobs, coverJob{
 									owner: owner, repo: shelf.Repo,
 									bookID: b.ID, coverPath: b.Cover,
@@ -147,7 +147,7 @@ For non-interactive (text) output, use --no-interactive flag.`,
 							sem <- struct{}{}
 							defer func() { <-sem }()
 							if coverData, _, err := gh.GetFileContent(j.owner, j.repo, j.coverPath, ""); err == nil {
-								_ = cacheMgr.StoreCatalogCover(j.repo, j.bookID, strings.NewReader(string(coverData)))
+								_ = cacheMgr.StoreCatalogCover(j.owner, j.repo, j.bookID, strings.NewReader(string(coverData)))
 							}
 						}(job)
 					}

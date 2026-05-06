@@ -655,9 +655,9 @@ func loadAllBooksAcrossShelves() []tui.BookItem {
 			cached := cacheMgr.Exists(owner, shelf.Repo, b.ID, b.Source.Asset)
 
 			// Download catalog cover if specified and not already cached
-			if b.Cover != "" && !cacheMgr.HasCatalogCover(shelf.Repo, b.ID) {
+			if b.Cover != "" && !cacheMgr.HasCatalogCover(owner, shelf.Repo, b.ID) {
 				if coverData, _, err := gh.GetFileContent(owner, shelf.Repo, b.Cover, ""); err == nil {
-					_ = cacheMgr.StoreCatalogCover(shelf.Repo, b.ID, strings.NewReader(string(coverData)))
+					_ = cacheMgr.StoreCatalogCover(owner, shelf.Repo, b.ID, strings.NewReader(string(coverData)))
 				}
 			}
 

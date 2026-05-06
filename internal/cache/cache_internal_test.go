@@ -64,8 +64,8 @@ func TestGetPopplerInstallHint(t *testing.T) {
 
 func TestCoverPath(t *testing.T) {
 	m := New("/base")
-	got := m.CoverPath("myrepo", "sicp")
-	want := filepath.Join("/base", "myrepo", ".covers", "sicp.jpg")
+	got := m.CoverPath("owner", "myrepo", "sicp")
+	want := filepath.Join("/base", "owner", "myrepo", ".covers", "sicp.jpg")
 	if got != want {
 		t.Errorf("CoverPath = %q, want %q", got, want)
 	}
@@ -73,8 +73,8 @@ func TestCoverPath(t *testing.T) {
 
 func TestCatalogCoverPath(t *testing.T) {
 	m := New("/base")
-	got := m.CatalogCoverPath("myrepo", "sicp")
-	want := filepath.Join("/base", "myrepo", ".covers", "sicp-catalog.jpg")
+	got := m.CatalogCoverPath("owner", "myrepo", "sicp")
+	want := filepath.Join("/base", "owner", "myrepo", ".covers", "sicp-catalog.jpg")
 	if got != want {
 		t.Errorf("CatalogCoverPath = %q, want %q", got, want)
 	}
@@ -84,7 +84,7 @@ func TestCatalogCoverPath(t *testing.T) {
 
 func TestGetCoverPath_NoCover(t *testing.T) {
 	m := New(t.TempDir())
-	got := m.GetCoverPath("repo", "missing")
+	got := m.GetCoverPath("owner", "repo", "missing")
 	if got != "" {
 		t.Errorf("expected empty, got %q", got)
 	}
@@ -94,12 +94,12 @@ func TestGetCoverPath_ExtractedOnly(t *testing.T) {
 	dir := t.TempDir()
 	m := New(dir)
 
-	coverDir := filepath.Join(dir, "repo", ".covers")
+	coverDir := filepath.Join(dir, "owner", "repo", ".covers")
 	_ = os.MkdirAll(coverDir, 0750)
 	_ = os.WriteFile(filepath.Join(coverDir, "book.jpg"), []byte("img"), 0644)
 
-	got := m.GetCoverPath("repo", "book")
-	if got != m.CoverPath("repo", "book") {
+	got := m.GetCoverPath("owner", "repo", "book")
+	if got != m.CoverPath("owner", "repo", "book") {
 		t.Errorf("expected extracted cover path, got %q", got)
 	}
 }
@@ -108,13 +108,13 @@ func TestGetCoverPath_CatalogPriority(t *testing.T) {
 	dir := t.TempDir()
 	m := New(dir)
 
-	coverDir := filepath.Join(dir, "repo", ".covers")
+	coverDir := filepath.Join(dir, "owner", "repo", ".covers")
 	_ = os.MkdirAll(coverDir, 0750)
 	_ = os.WriteFile(filepath.Join(coverDir, "book.jpg"), []byte("extracted"), 0644)
 	_ = os.WriteFile(filepath.Join(coverDir, "book-catalog.jpg"), []byte("catalog"), 0644)
 
-	got := m.GetCoverPath("repo", "book")
-	if got != m.CatalogCoverPath("repo", "book") {
+	got := m.GetCoverPath("owner", "repo", "book")
+	if got != m.CatalogCoverPath("owner", "repo", "book") {
 		t.Errorf("expected catalog cover path (higher priority), got %q", got)
 	}
 }
@@ -125,24 +125,24 @@ func TestCatalogCover_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	m := New(dir)
 
-	if m.HasCatalogCover("repo", "book") {
+	if m.HasCatalogCover("owner", "repo", "book") {
 		t.Fatal("should not have cover before store")
 	}
 
-	path := m.StoreCatalogCover("repo", "book", strings.NewReader("image data"))
+	path := m.StoreCatalogCover("owner", "repo", "book", strings.NewReader("image data"))
 	if path == "" {
 		t.Fatal("StoreCatalogCover returned empty path")
 	}
 
-	if !m.HasCatalogCover("repo", "book") {
+	if !m.HasCatalogCover("owner", "repo", "book") {
 		t.Error("should have cover after store")
 	}
 
-	if err := m.RemoveCatalogCover("repo", "book"); err != nil {
+	if err := m.RemoveCatalogCover("owner", "repo", "book"); err != nil {
 		t.Fatalf("RemoveCatalogCover: %v", err)
 	}
 
-	if m.HasCatalogCover("repo", "book") {
+	if m.HasCatalogCover("owner", "repo", "book") {
 		t.Error("should not have cover after remove")
 	}
 }

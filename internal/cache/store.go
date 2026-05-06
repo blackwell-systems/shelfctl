@@ -46,7 +46,7 @@ func (m *Manager) Store(owner, repo, bookID, assetFilename string, r io.Reader, 
 
 	// Extract cover thumbnail for PDFs (best-effort, silently skips on failure)
 	if util.IsPDF(assetFilename) {
-		_ = m.ExtractCover(repo, bookID, destPath)
+		_ = m.ExtractCover(owner, repo, bookID, destPath)
 	}
 
 	return destPath, nil

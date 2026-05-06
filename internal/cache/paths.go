@@ -47,8 +47,8 @@ func (m *Manager) Remove(owner, repo, bookID, assetFilename string) error {
 	}
 
 	// Remove both cover types if they exist
-	_ = m.RemoveCover(repo, bookID)
-	_ = m.RemoveCatalogCover(repo, bookID)
+	_ = m.RemoveCover(owner, repo, bookID)
+	_ = m.RemoveCatalogCover(owner, repo, bookID)
 
 	return nil
 }

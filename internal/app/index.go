@@ -52,7 +52,7 @@ to browse your library without running shelfctl.`,
 					if isCached {
 						filePath = cacheMgr.Path(owner, shelf.Repo, b.ID, b.Source.Asset)
 					}
-					coverPath := cacheMgr.GetCoverPath(shelf.Repo, b.ID)
+					coverPath := cacheMgr.GetCoverPath(owner, shelf.Repo, b.ID)
 
 					indexBooks = append(indexBooks, cache.IndexBook{
 						Book:      b,

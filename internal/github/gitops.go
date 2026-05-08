@@ -92,12 +92,22 @@ func (c *Client) CommitFile(owner, repo, filePath string, content []byte, messag
 		return err
 	}
 	if err := runGit(tmpDir, nil, "commit", "-m", message); err != nil {
+		// If nothing changed (file content identical), git commit exits non-zero.
+		// Check for this case and treat it as success.
+		if nothingToCommit(tmpDir) {
+			return nil
+		}
 		return err
 	}
 	if err := runGit(tmpDir, gitEnv, "push"); err != nil {
 		return fmt.Errorf("git push: %w", err)
 	}
 	return nil
+}
+
+// nothingToCommit returns true if the working tree is clean (no staged changes).
+func nothingToCommit(dir string) bool {
+	return runGit(dir, nil, "diff", "--cached", "--quiet") == nil
 }
 
 func runGit(dir string, env []string, args ...string) error {

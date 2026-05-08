@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Auto-sync fails on already-synced books:** When a book's catalog checksum already matched the local file, auto-sync would upload the identical asset then fail at `git commit` ("nothing to commit"). Now handled gracefully as a no-op.
+
 ## [0.4.10] - 2026-05-06
 
 ### Fixed

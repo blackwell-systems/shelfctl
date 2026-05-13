@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-05-13
+
 ### Fixed
 - **Auto-sync fails on already-synced books:** When a book's catalog checksum already matched the local file, auto-sync would upload the identical asset then fail at `git commit` ("nothing to commit"). Now handled gracefully as a no-op.
 - **Auto-sync fails on releases with 30+ assets:** `ListReleaseAssets` only fetched the first 30 results (GitHub API default page size). Assets beyond page 1 couldn't be found by `FindAsset`, so the old asset wasn't deleted before re-upload, causing "asset already exists" errors. Now paginates with `per_page=100`.

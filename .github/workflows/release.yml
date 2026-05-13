@@ -45,3 +45,42 @@ jobs:
         max-versions-to-keep: 5
         fork-user: blackwell-systems
         token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Download release archives
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        mkdir -p dist/archives
+        for suffix in Darwin_x86_64.tar.gz Darwin_arm64.tar.gz Linux_x86_64.tar.gz Linux_arm64.tar.gz Windows_x86_64.zip Windows_arm64.zip; do
+          gh release download "${GITHUB_REF_NAME}" \
+            --pattern "shelfctl_${VERSION}_${suffix}" \
+            --dir dist/archives
+        done
+
+    - name: Build platform wheels
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        python python/_build_wheels.py \
+          --version "$VERSION" \
+          --archives-dir dist/archives \
+          --output-dir dist/wheels
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        packages-dir: dist/wheels/

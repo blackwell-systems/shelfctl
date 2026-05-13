@@ -20,12 +20,22 @@ type Asset struct {
 
 // ListReleaseAssets returns all assets for the given release.
 func (c *Client) ListReleaseAssets(owner, repo string, releaseID int64) ([]Asset, error) {
-	url := c.url("repos", owner, repo, "releases", fmt.Sprintf("%d", releaseID), "assets")
-	var assets []Asset
-	if err := c.doJSON(context.Background(), http.MethodGet, url, nil, &assets); err != nil {
-		return nil, err
+	var all []Asset
+	page := 1
+	for {
+		url := c.url("repos", owner, repo, "releases", fmt.Sprintf("%d", releaseID), "assets") +
+			fmt.Sprintf("?per_page=100&page=%d", page)
+		var assets []Asset
+		if err := c.doJSON(context.Background(), http.MethodGet, url, nil, &assets); err != nil {
+			return nil, err
+		}
+		all = append(all, assets...)
+		if len(assets) < 100 {
+			break
+		}
+		page++
 	}
-	return assets, nil
+	return all, nil
 }
 
 // FindAsset returns the first asset with the given name, or nil.

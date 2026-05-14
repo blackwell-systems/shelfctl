@@ -111,6 +111,11 @@ release:
     curl -fsSL https://raw.githubusercontent.com/blackwell-systems/shelfctl/main/install.sh | sh
     ```
 
+    **pip (any platform)**:
+    ```bash
+    pip install shelfctl
+    ```
+
     **Go install**:
     ```bash
     go install github.com/blackwell-systems/shelfctl/cmd/shelfctl@{{ .Tag }}

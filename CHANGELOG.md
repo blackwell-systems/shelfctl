@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-05-14
+
+### Added
+- **PyPI distribution (`pip install shelfctl`):** Platform-specific wheels published automatically on every release. Each wheel contains the pre-built Go binary for that platform with a thin Python entry point. Supports macOS, Linux, and Windows on both arm64 and x86_64.
+
 ## [0.4.11] - 2026-05-13
 
 ### Fixed

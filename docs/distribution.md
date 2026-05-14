@@ -68,6 +68,26 @@ Script at [`install.sh`](../install.sh). Features:
 
 ---
 
+### PyPI (pip)
+**Status:** Active — automated via GitHub Actions on every release
+
+```bash
+pip install shelfctl
+```
+
+Platform-specific wheels for macOS (arm64, x86_64), Linux (arm64, x86_64), and Windows (arm64, x86_64).
+Each wheel contains the pre-built Go binary with a thin Python entry point that exec's it. No Python
+runtime needed at execution time.
+
+The `pypi` job in the release workflow downloads GoReleaser archives from the GitHub Release,
+wraps each into a platform wheel via `python/_build_wheels.py`, and publishes to PyPI using
+the `PYPI_API_TOKEN` secret.
+
+> **Note:** This is a binary distribution. The Python package exists only as a delivery
+> mechanism for the Go binary, similar to how ruff and pyright distribute via pip.
+
+---
+
 ### Go Install / pkg.go.dev
 **Status:** Active — available since initial release
 
@@ -164,8 +184,9 @@ Each release involves only:
 5. GoReleaser pushes updated manifest to `scoop-bucket`
 6. `winget-releaser` action submits PR to `microsoft/winget-pkgs` (requires Microsoft reviewer approval — typically takes a few days)
 7. `validate-winget` CI job validates `winget/` manifests on Windows runner
+8. `pypi` job builds platform wheels from release archives and publishes to PyPI
 
-Steps 3–7 are fully automated. The only manual steps are updating the changelog and pushing the tag.
+Steps 3–8 are fully automated. The only manual steps are updating the changelog and pushing the tag.
 
 > **Local install (optional):** Run `make install` after releasing to update the binary on your own machine. This is a developer convenience — it has no effect on the published release.
 
@@ -180,4 +201,5 @@ Steps 3–7 are fully automated. The only manual steps are updating the changelo
 | winget manifests | `winget/` in this repo | Automated via winget-releaser |
 | Install script | `install.sh` in this repo | Rarely (URL convention stable) |
 | nFPM (deb/rpm) | `.goreleaser.yml` `nfpms` section | Automated |
+| PyPI wheels | `python/_build_wheels.py` | Automated |
 | GoReleaser config | `.goreleaser.yml` | Rarely |

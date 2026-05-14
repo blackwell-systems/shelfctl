@@ -50,6 +50,7 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: release
+    if: always() && needs.release.result != 'cancelled'
     steps:
     - name: Check out code
       uses: actions/checkout@v4

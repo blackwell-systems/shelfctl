@@ -58,7 +58,9 @@ __version__ = "{version}"
 
 MAIN_PY = Path(__file__).parent / "shelfctl" / "__main__.py"
 
-METADATA_TEMPLATE = """\
+PYPI_README = Path(__file__).parent / "README.md"
+
+METADATA_HEADER = """\
 Metadata-Version: 2.1
 Name: {name}
 Version: {version}
@@ -74,16 +76,10 @@ Classifier: Environment :: Console
 Classifier: Topic :: Utilities
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
-
-# shelfctl
-
-CLI tool for organizing PDF and book libraries using GitHub Release assets.
-
-Install: `pip install shelfctl`
-
-Usage: `shelfctl --help`
-
-Full documentation: https://github.com/blackwell-systems/shelfctl
+Project-URL: Documentation, https://github.com/blackwell-systems/shelfctl/tree/main/docs
+Project-URL: Source, https://github.com/blackwell-systems/shelfctl
+Project-URL: Changelog, https://github.com/blackwell-systems/shelfctl/blob/main/CHANGELOG.md
+Project-URL: Issues, https://github.com/blackwell-systems/shelfctl/issues
 """
 
 ENTRY_POINTS = """\
@@ -151,7 +147,8 @@ def build_wheel(
     # File contents
     init_content = INIT_PY.format(version=version).encode()
     main_content = MAIN_PY.read_bytes()
-    metadata_content = METADATA_TEMPLATE.format(name=PACKAGE_NAME, version=version).encode()
+    readme_body = PYPI_README.read_text() if PYPI_README.exists() else ""
+    metadata_content = (METADATA_HEADER.format(name=PACKAGE_NAME, version=version) + "\n" + readme_body).encode()
     wheel_content = (
         f"Wheel-Version: 1.0\n"
         f"Generator: shelfctl-build\n"

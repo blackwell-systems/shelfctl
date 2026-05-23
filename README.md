@@ -18,7 +18,7 @@
   <img src="assets/shelf.png" alt="shelfctl architecture" width="800">
 </p>
 
-<p align="center"><strong>Organize the PDFs and books you already have scattered across GitHub.</strong></p>
+<p align="center"><strong>Your personal library, backed by GitHub. Free storage, per-book downloads, annotation sync across machines.</strong></p>
 
 <p align="center">
   <img src="assets/tui_demo.gif" alt="shelfctl TUI demo" width="800">

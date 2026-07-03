@@ -86,7 +86,10 @@ func Save(cfg *Config) error {
 	defer func() { _ = f.Close() }()
 	enc := yaml.NewEncoder(f)
 	enc.SetIndent(2)
-	return enc.Encode(cfg)
+	if err := enc.Encode(cfg); err != nil {
+		return err
+	}
+	return enc.Close()
 }
 
 func defaultCacheDir() string {

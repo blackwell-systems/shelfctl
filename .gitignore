@@ -51,3 +51,4 @@ site/
 # Claude Code worktrees and SAW coordination state
 .claude/
 .saw-state/
+.saw-agent-brief.md
